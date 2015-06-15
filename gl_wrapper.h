@@ -20,29 +20,23 @@
 
 using namespace std;
 
-//--------------------------------------------------------------
+/**
+ * A singleton class representing an OpenGL session. 
+ */
 
 class GLSession
   {
-    public:
+    protected:
+      static GLSession *instance;           ///< singleton instance
       static bool initialised;
       
-      int argc;
-      char **argv;
-      int display_mode;
-      unsigned int window_size[2];
-      unsigned int window_position[2];
-      string window_title;
-      
-      void (*render_callback)(void);
-      void (*keyboard_callback)(unsigned char key, int x, int y);
-      void (*keyboard_up_callback)(unsigned char key, int x, int y);
-      void (*special_callback)(int key, int x, int y);
-      void (*special_up_callback)(int key, int x, int y);
-      void (*mouse_callback)(int button, int state, int x, int y);
-      void (*reshape_callback)(int width, int height);
-      void (*mouse_pressed_motion_callback)(int x, int y);
-      void (*mouse_not_pressed_motion_callback)(int x, int y);
+      /**
+       * Initialises the GLSession instance with default values. Usage:
+       * call GLSession::get_instance() to get the object, optionally
+       * modify some of its attributes, then call init() on the object and
+       * start() to start the rendering loop. At the end of the program
+       * call GLSession::clear();
+       */
       
       GLSession()
         {
@@ -54,6 +48,7 @@ class GLSession
           this->window_position[0] = 50;
           this->window_position[1] = 50;
           this->window_title = "window";
+          this->loop_exit_behavior = GLUT_ACTION_CONTINUE_EXECUTION;
           
           this->keyboard_callback = 0;
           this->keyboard_up_callback = 0;
@@ -64,7 +59,72 @@ class GLSession
           this->mouse_pressed_motion_callback = 0;
           this->mouse_not_pressed_motion_callback = 0;
         };
+    
+    public:
+      int argc;
+      char **argv;
+      int display_mode;                      ///< GLUT display mode flags
+      unsigned int window_size[2];           ///< [width, height] in pixels
+      unsigned int window_position[2];       ///< [x, y] in pixels
+      string window_title;                   ///< window title
+      int loop_exit_behavior;                ///< GLUT enum that says what should happen when the main loop is left
+      
+      void (*render_callback)(void);
+      void (*keyboard_callback)(unsigned char key, int x, int y);
+      void (*keyboard_up_callback)(unsigned char key, int x, int y);
+      void (*special_callback)(int key, int x, int y);
+      void (*special_up_callback)(int key, int x, int y);
+      void (*mouse_callback)(int button, int state, int x, int y);
+      void (*reshape_callback)(int width, int height);
+      void (*mouse_pressed_motion_callback)(int x, int y);
+      void (*mouse_not_pressed_motion_callback)(int x, int y);
         
+      /**
+       * This should be called at the end of the program.
+       */
+      
+      static void clear()
+        {
+          delete GLSession::instance;
+          GLSession::instance = 0;
+        }
+      
+      /**
+       * Gets the GLSession singleton instance (on first call a new one
+       * is created, later that one is being returned).
+       */
+      
+      static GLSession *get_instance()
+        {
+          if (!GLSession::is_created())
+            GLSession::instance = new GLSession();
+            
+          return GLSession::instance;
+        }
+      
+      /**
+       * Checks if the singleton instance of GLSession has been created.
+       */
+      
+      static bool is_created()
+        {
+          return GLSession::instance != 0;
+        }
+     
+      /**
+       * Checks if the singleton instance of GLSession has been initialised
+       * with init().
+       */
+     
+      static bool is_initialised()
+        {
+          return GLSession::initialised;
+        }
+      
+      /**
+       * Initialises the session, i.e. calls the GLUT and GLEW init functions.
+       */
+      
       void init(void (*render_callback)(void))
         {
           this->render_callback = render_callback;
@@ -75,6 +135,8 @@ class GLSession
           glutCreateWindow(this->window_title.c_str());
           glutDisplayFunc(this->render_callback); 
           glutIdleFunc(this->render_callback);
+          
+          glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE,this->loop_exit_behavior);
           
           if (this->keyboard_callback != 0)
             glutKeyboardFunc(this->keyboard_callback);
@@ -89,22 +151,35 @@ class GLSession
             glutSpecialUpFunc(this->special_up_callback);
           
           glewInit();
+
           GLSession::initialised = true;
         }
+        
+      /**
+       * Starts the rendering loop.
+       */
         
       void start()
         {
           glutMainLoop();
         };
         
+      /**
+       * Ends the rendering loop;
+       */
+        
       void end()
         {
+          glutLeaveMainLoop();
         };
   };
   
-bool GLSession::initialised = false;
-  
-//--------------------------------------------------------------
+GLSession *GLSession::instance;
+bool GLSession::initialised;
+
+/**
+ * Represents a vertex matrix transformation.
+ */
 
 class Transformation
   {
@@ -116,8 +191,6 @@ class Transformation
           return this->final_matrix;
         }
   };
-  
-//--------------------------------------------------------------
   
 /**
  * Transformation consisting of translation, rotation and scale.
@@ -133,7 +206,12 @@ class TransformationTRS: public Transformation
       glm::vec3 translation;    ///< translation as dx, dy, dz
       glm::vec3 rotation;       ///< rotation as around x, around y, around z
       glm::vec3 scale;          ///< scale as scale x, scale y, scale z
-    
+  
+      /**
+       * Recomputes the final matrix, i.e. the composition of translation,
+       * rotation and scale.
+       */
+  
       void recompute_final_matrix()
         {
           this->final_matrix = this->translation_matrix * this->rotation_matrix * this->scale_matrix;
@@ -161,6 +239,10 @@ class TransformationTRS: public Transformation
         };
         
     public:
+      /**
+       * Prints the transformation info to cout.
+       */
+      
       static void print_mat4(glm::mat4 matrix)
         {
           unsigned int i, j;
@@ -178,6 +260,10 @@ class TransformationTRS: public Transformation
         {
           cout << vector.x << " " << vector.y << " " << vector.z << endl;
         }
+      
+      /**
+       * Initialises a new instance.
+       */
       
       TransformationTRS()
         {
@@ -229,12 +315,18 @@ class TransformationTRS: public Transformation
         };
   };
 
-//--------------------------------------------------------------
+/**
+ * Represents an OpenGL shader.
+ */
   
 class Shader
   {
     protected:
       GLuint shader_program;
+      
+      /**
+       * Helper function.
+       */
       
       bool add_shader(const char* shader_text, GLenum shader_type)
         {
@@ -267,6 +359,10 @@ class Shader
         }
       
     public:
+      /**
+       * Returns a text in given file.
+       */
+      
       static string file_text(string filename)
         {
           std::ifstream t(filename);
@@ -280,10 +376,18 @@ class Shader
           return result;
         }
       
+      /**
+       * Sets the shader for usage.
+       */
+      
       void use()
         {
           glUseProgram(this->shader_program);
         }
+        
+      /**
+       * Gets the location of uniform variable by its name.
+       */
         
       GLint get_uniform_location(string name)
         {
@@ -296,6 +400,10 @@ class Shader
             
           return result;
         } 
+      
+      /**
+       * Initialises a new instance.
+       */
       
       Shader(string vertex_shader_text, string fragment_shader_text)
         {
@@ -342,7 +450,9 @@ class Shader
         }
   };
 
-//--------------------------------------------------------------
+/**
+ * Represents a 3D geometry.
+ */
   
 class Geometry3D
   {
@@ -357,7 +467,7 @@ class Geometry3D
     public:
       Geometry3D()
         {
-          if (!GLSession::initialised)
+          if (!GLSession::is_initialised())
             cerr << "ERROR: Geometry3D object created before GLSession was initialised." << endl;
 
           glGenVertexArrays(1,&(this->vao));
@@ -436,7 +546,5 @@ class Geometry3D
             }
         }
   };
-
-//--------------------------------------------------------------
   
 #endif
