@@ -20,6 +20,24 @@
 
 using namespace std;
 
+void print_mat4(glm::mat4 matrix)
+  {
+    unsigned int i, j;
+          
+    for (j = 0; j < 4; j++)
+      {
+        for (i = 0; i < 4; i++)
+          cout << matrix[i][j] << " ";
+                
+          cout << endl;
+      }
+  }
+        
+void print_vec3(glm::vec3 vector)
+  {
+    cout << vector.x << " " << vector.y << " " << vector.z << endl;
+  }
+
 /**
  * A singleton class representing an OpenGL session. 
  */
@@ -240,28 +258,6 @@ class TransformationTRS: public Transformation
         
     public:
       /**
-       * Prints the transformation info to cout.
-       */
-      
-      static void print_mat4(glm::mat4 matrix)
-        {
-          unsigned int i, j;
-          
-          for (j = 0; j < 4; j++)
-            {
-              for (i = 0; i < 4; i++)
-                cout << matrix[i][j] << " ";
-                
-              cout << endl;
-            }
-        }
-        
-      static void print_vec3(glm::vec3 vector)
-        {
-          cout << vector.x << " " << vector.y << " " << vector.z << endl;
-        }
-      
-      /**
        * Initialises a new instance.
        */
       
@@ -305,13 +301,13 @@ class TransformationTRS: public Transformation
       void print()
         { 
           cout << "translation: ";
-          TransformationTRS::print_vec3(this->translation);
+          print_vec3(this->translation);
           cout << "rotation: ";
-          TransformationTRS::print_vec3(this->rotation);
+          print_vec3(this->rotation);
           cout << "scale: ";
-          TransformationTRS::print_vec3(this->scale);
+          print_vec3(this->scale);
           cout << "final matrix:" << endl;
-          TransformationTRS::print_mat4(this->final_matrix);
+          print_mat4(this->final_matrix);
         };
   };
 
@@ -450,6 +446,31 @@ class Shader
         }
   };
 
+class Vertex3D
+  {
+    public:
+      glm::vec3 position;
+      glm::vec3 texture_coord;
+      glm::vec3 normal;
+      
+      Vertex3D()
+        {
+          this->position = glm::vec3(0.0f,0.0f,0.0f);
+          this->texture_coord = glm::vec3(0.0f,0.0f,0.0f);
+          this->normal = glm::vec3(0.0f,0.0f,0.0f);
+        }
+        
+      void print()
+        {
+          print_vec3(this->position);
+          cout << " (uvw: ";
+          print_vec3(this->texture_coord);
+          cout << ", normal: ";
+          print_vec3(this->normal);
+          cout << ")" << endl;
+        }
+  };
+  
 /**
  * Represents a 3D geometry.
  */
@@ -457,7 +478,7 @@ class Shader
 class Geometry3D
   {
     protected:
-      vector<glm::vec3> vertices;
+      vector<Vertex3D> vertices;
       vector<unsigned int> triangles;
       
       GLuint vbo;
@@ -477,8 +498,16 @@ class Geometry3D
           glGenBuffers(1,&(this->ibo));
           glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,this->ibo);
           glBindBuffer(GL_ARRAY_BUFFER,this->vbo);
-          glEnableVertexAttribArray(0);
-          glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
+          
+          glEnableVertexAttribArray(0);  // position
+          glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,sizeof(Vertex3D),0);
+        
+          glEnableVertexAttribArray(1);  // texture coord
+          glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(Vertex3D),(const GLvoid*) sizeof(glm::vec3));
+          
+          glEnableVertexAttribArray(2);  // normal
+          glVertexAttribPointer(2,3,GL_FLOAT,GL_TRUE,sizeof(Vertex3D),(const GLvoid*) (sizeof(glm::vec3) * 2));
+          
           glBindVertexArray(0);
         };
       
@@ -493,25 +522,34 @@ class Geometry3D
         {
           glBindVertexArray(this->vao);
           glBindBuffer(GL_ARRAY_BUFFER,this->vbo);
-          glBufferData(GL_ARRAY_BUFFER,this->vertices.size() * sizeof(glm::vec3),&(this->vertices[0]),GL_STATIC_DRAW);
+          glBufferData(GL_ARRAY_BUFFER,this->vertices.size() * sizeof(Vertex3D),&(this->vertices[0]),GL_STATIC_DRAW);
           glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,this->ibo);
           glBufferData(GL_ELEMENT_ARRAY_BUFFER,this->triangles.size() * sizeof(unsigned int),&this->triangles[0],GL_STATIC_DRAW);
           glBindVertexArray(0);
         };
         
-      vector<glm::vec3> *get_vertices()
+      vector<Vertex3D> *get_vertices()
         {
           return &(this->vertices);
         }
         
-      vector<unsigned int> *get_triengles()
+      vector<unsigned int> *get_triangles()
         {
           return &(this->triangles);
         }
         
+      void add_vertex(double x, double y, double z, double u, double v, double w, double normal_x, double normal_y, double normal_z)
+        {
+          Vertex3D new_vertex;
+          new_vertex.position = glm::vec3(x,y,z);
+          new_vertex.texture_coord = glm::vec3(u,v,w);
+          new_vertex.normal = glm::vec3(normal_x,normal_y,normal_z);
+          this->vertices.push_back(new_vertex);
+        }
+        
       void add_vertex(double x, double y, double z)
         {
-          this->vertices.push_back(glm::vec3(x,y,z));
+          this->add_vertex(x,y,z,0.0,0.0,0.0,1.0,0.0,0.0);
         }
         
       void add_triangle(unsigned int i1, unsigned int i2, unsigned int i3)
@@ -528,9 +566,7 @@ class Geometry3D
           cout << "vertices:" << endl;
           
           for (i = 0; i < (int) this->vertices.size(); i++)
-            {
-              cout << "  " << i << ": " << vertices[i][0] << " " << vertices[i][1] << " " << vertices[i][2] << endl;
-            }
+            this->vertices[i].print();
             
           cout << "triangles:" << endl;
           
