@@ -9,9 +9,11 @@ layout (location = 1) in vec3 texture_coords;
 layout (location = 2) in vec3 normal;
 
 out vec3 transformed_normal;
+out vec4 transformed_position;
 
 void main()
 {
-  gl_Position = vec4(position,1.0) * (model_matrix * projection_matrix);
-  transformed_normal = normalize((model_matrix * vec4(normal,0.0)).xyz);
+  transformed_position = vec4(position,1.0) * model_matrix;
+  gl_Position = transformed_position * projection_matrix;
+  transformed_normal = normalize((vec4(normal,0.0) * model_matrix).xyz);
 }

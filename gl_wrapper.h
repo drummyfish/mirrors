@@ -39,6 +39,23 @@ void print_vec3(glm::vec3 vector)
   }
 
 /**
+  * Returns a text in given file.
+  */
+      
+static string file_text(string filename)
+  {
+    std::ifstream t(filename);
+          
+    if (!t.is_open())
+      {
+        cerr << "ERROR: could not open " << filename << "." << endl;
+      }
+          
+      std::string result((std::istreambuf_iterator<char>(t)),std::istreambuf_iterator<char>());
+      return result;
+  }
+  
+/**
  * A singleton class representing an OpenGL session. 
  */
 
@@ -147,6 +164,7 @@ class GLSession
         {
           this->render_callback = render_callback;
           glutInit(&this->argc, this->argv);
+         
           glutInitDisplayMode(this->display_mode);
           glutInitWindowSize(this->window_size[0],this->window_size[1]);
           glutInitWindowPosition(this->window_position[0],this->window_position[1]);
@@ -356,23 +374,6 @@ class Shader
       
     public:
       /**
-       * Returns a text in given file.
-       */
-      
-      static string file_text(string filename)
-        {
-          std::ifstream t(filename);
-          
-          if (!t.is_open())
-            {
-              cerr << "ERROR: could not open " << filename << "." << endl;
-            }
-          
-          std::string result((std::istreambuf_iterator<char>(t)),std::istreambuf_iterator<char>());
-          return result;
-        }
-      
-      /**
        * Sets the shader for usage.
        */
       
@@ -395,13 +396,19 @@ class Shader
             cerr << "ERROR: could not get uniform location of " << name << "." << endl;
             
           return result;
-        } 
+        }
       
       /**
        * Initialises a new instance.
+       * 
+       * @param vertex_shader_text vertex shader source code
+       * @param fragment_shader_text fragment shader source code
+       * @param transform_feedback_variables list of output vertex shader variable names
+       *   to be recorded in transform feedback, leave empty if you don't want to use
+       *   transform feedback 
        */
       
-      Shader(string vertex_shader_text, string fragment_shader_text)
+      Shader(string vertex_shader_text, string fragment_shader_text, vector<string> transform_feedback_variables)
         {
           char log[256];
           
@@ -425,6 +432,21 @@ class Shader
               }
             
           GLint success = 0;
+          
+          // init transform feedback:
+          
+          if (transform_feedback_variables.size() > 0)
+            {
+              char *variable_names[512];
+          
+              unsigned int i;
+              
+              for (i = 0; i < transform_feedback_variables.size() && i < 512; i++)
+                variable_names[i] = (char *) transform_feedback_variables[i].c_str();
+          
+              glTransformFeedbackVaryings(this->shader_program,transform_feedback_variables.size(),(const GLchar **) variable_names,GL_INTERLEAVED_ATTRIBS);
+            }
+          
           glLinkProgram(this->shader_program);
           glGetProgramiv(this->shader_program,GL_LINK_STATUS,&success);
         
@@ -470,6 +492,82 @@ class Vertex3D
           cout << ")" << endl;
         }
   };
+
+/**
+ * Represents a transform feedback buffer to get values computed
+ * in vertex shader.
+ */
+  
+class TransformFeedbackBuffer
+  {
+    protected:
+      GLuint vbo;
+      unsigned int size;
+      unsigned char *byte_array;        ///< to store the feedback data from GPU
+  
+    public:
+      /**
+       * Initialises a new object.
+       * 
+       * @param size size of the buffer in bytes
+       */
+      
+      TransformFeedbackBuffer(unsigned int size)
+        {
+          if (!GLSession::is_initialised())
+            cerr << "ERROR: TransformFeedbackBuffer object created before GLSession was initialised." << endl;
+        
+          this->size = size;
+          byte_array = (unsigned char *) malloc(this->size);
+          glGenBuffers(1,&this->vbo);
+          glBindBuffer(GL_ARRAY_BUFFER,this->vbo);
+          glBufferData(GL_ARRAY_BUFFER,size,nullptr,GL_STATIC_READ);
+        }
+        
+      ~TransformFeedbackBuffer()
+        {
+          delete this->byte_array;
+        }
+      
+      void transform_feedback_begin(unsigned int primitive)
+        {
+          glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,this->vbo);
+          glBeginTransformFeedback(primitive);
+        }
+      
+      void print_byte()
+        {
+          unsigned int i;
+          
+          glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,this->vbo);
+          glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER,0,this->size,this->byte_array);
+          
+          for (i = 0; i < this->size; i++)
+            cout << ((unsigned int) this->byte_array[i]) << " ";
+            
+          cout << endl;
+        }
+      
+      void print_float()
+        {
+          glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,this->vbo);
+          glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER,0,this->size,this->byte_array);
+          
+          unsigned int float_count = this->size / sizeof(GLfloat);
+          unsigned int i;
+          
+          for (i = 0; i < float_count; i++)
+            cout << ((GLfloat *) this->byte_array)[i] << " ";
+            
+          cout << endl;
+        }
+        
+      void transform_feedback_end()
+        {
+          glEndTransformFeedback();
+        }
+          
+  };
   
 /**
  * Represents a 3D geometry.
@@ -478,14 +576,14 @@ class Vertex3D
 class Geometry3D
   {
     protected:
-      vector<Vertex3D> vertices;
-      vector<unsigned int> triangles;
-      
       GLuint vbo;
       GLuint vao;
       GLuint ibo;
        
     public:
+      vector<Vertex3D> vertices;
+      vector<unsigned int> triangles;
+      
       Geometry3D()
         {
           if (!GLSession::is_initialised())
@@ -582,5 +680,240 @@ class Geometry3D
             }
         }
   };
+
+Geometry3D make_triangle(float side_length)
+  {
+    Geometry3D result;
+    float helper1, helper2, helper3;
+    
+    helper1 = (side_length / 2.0) / sin(M_PI / 3.0);
+    helper2 = side_length * sin(M_PI / 6.0);
+    helper3 = helper1 - side_length * cos(M_PI / 6.0);
+    
+    result.add_vertex(0.0,helper1,0.0,      0.0,0.0,0.0,  0.0,0.0,1.0); 
+    result.add_vertex(-helper2,helper3,0.0,  0.0,0.0,0.0,  0.0,0.0,1.0); 
+    result.add_vertex(helper2,helper3,0.0,  0.0,0.0,0.0,  0.0,0.0,1.0); 
+  
+    result.add_triangle(0,1,2);
+    
+    return result;
+  }
+  
+Geometry3D make_quad(float width, float height)
+  {
+    Geometry3D result;
+    
+    float half_width = width / 2.0;
+    float half_height = height / 2.0;
+    
+    result.add_vertex(-half_width,0,-half_height,0.0,0.0,0.0,0.0,1.0,0.0); 
+    result.add_vertex(half_width,0,-half_height,0.0,0.0,0.0,0.0,1.0,0.0);   
+    result.add_vertex(-half_width,0,half_height,0.0,0.0,0.0,0.0,1.0,0.0);  
+    result.add_vertex(half_width,0,half_height,0.0,0.0,0.0,0.0,1.0,0.0);    
+  
+    result.add_triangle(1,0,2);
+    result.add_triangle(1,2,3); 
+    
+    return result;
+  }
+  
+Geometry3D make_box(float width, float height, float depth)
+  {
+    Geometry3D result;
+    
+    float half_width = width / 2.0;
+    float half_height = height / 2.0;
+    float half_depth = depth / 2.0;
+    
+    result.add_vertex(-half_width,-half_height,-half_depth,0.0,0.0,0.0,-1.0,-1.0,-1.0); // 0
+    result.add_vertex(half_width,-half_height,-half_depth,0.0,0.0,0.0,1.0,-1.0,-1.0);   // 1
+    result.add_vertex(-half_width,half_height,-half_depth,0.0,0.0,0.0,-1.0,1.0,-1.0);   // 2
+    result.add_vertex(half_width,half_height,-half_depth,0.0,0.0,0.0,1.0,1.0,-1.0);     // 3
+
+    result.add_vertex(-half_width,-half_height,half_depth,0.0,0.0,0.0,-1.0,-1.0,1.0);   // 4
+    result.add_vertex(half_width,-half_height,half_depth,0.0,0.0,0.0,1.0,-1.0,1.0);     // 5
+    result.add_vertex(-half_width,half_height,half_depth,0.0,0.0,0.0,-1.0,1.0,1.0);     // 6
+    result.add_vertex(half_width,half_height,half_depth,0.0,0.0,0.0,1.0,1.0,1.0);       // 7
+    
+    result.add_triangle(1,0,2); // front
+    result.add_triangle(1,2,3); 
+    
+    result.add_triangle(4,5,6); // back
+    result.add_triangle(6,5,7);
+    
+    result.add_triangle(2,0,4); // left
+    result.add_triangle(2,4,6);
+    
+    result.add_triangle(1,3,5); // right
+    result.add_triangle(5,3,7);
+    
+    result.add_triangle(3,2,6); // top
+    result.add_triangle(7,3,6);
+    
+    result.add_triangle(0,1,4); // bottom
+    result.add_triangle(4,1,5);
+    
+    return result;
+  }
+  
+  /**
+    Parses the data contained in one line of obj file format
+    (e.g. "v 1.5 3 4.2" or "f 1/2 3/5 4/6 1/20").
+    @param data in this variable the parsed data will be returned, the
+       first index represents the element number (i.e. x, y, z for
+       a vertex or one of the triangle indices) and the second index
+       represents one of up to 3 shashed values (if the values are
+       in format a/b/3), if any of the values is not present, -1.0
+       is inserted.
+   */
+  
+void parse_obj_line(string line,float data[4][3])
+  {
+    line = line.substr(line.find_first_of(' '));  // get rid of the first characters
+
+    unsigned int i,j;
+    size_t position;
+    bool do_break;
+
+    for (i = 0; i < 4; i++)
+      for (j = 0; j < 3; j++)
+        data[i][j] = -1.0;
+
+    for (i = 0; i < 4; i++)
+      {
+        for (j = 0; j < 3; j++)
+          {
+            do_break = false;
+
+            try
+              {
+                if (line.length() >= 1)
+                  data[i][j] = stof(line,&position);
+
+                if (line[position] != '/')
+                  do_break = true;
+
+                if (position + 1 <= line.length())
+                  line = line.substr(position + 1);
+                else
+                  return;
+
+                if (do_break)
+                  break;
+              }
+            catch (exception& e)
+              {
+              }
+          }
+      }
+  }
+  
+Geometry3D load_obj(string filename)
+  {
+    Geometry3D result;
+    
+    ifstream obj_file(filename.c_str());
+    string line;
+    float obj_line_data[4][3];
+    glm::vec3 helper_point;
+
+    vector<glm::vec3> normals;
+    vector<glm::vec3> texture_vertices;
+
+    if (!obj_file.is_open())
+      {
+        cerr << "ERROR: couldn't open '" << filename << "'." << endl;
+        return result;
+      }
+
+    while (getline(obj_file,line))
+      {
+        switch (line[0])
+          {
+            case 'v':
+              if (line[1] == 'n')        // normal vertex
+                {
+                  parse_obj_line(line,obj_line_data);
+
+                  helper_point.x = obj_line_data[0][0];
+                  helper_point.y = obj_line_data[1][0];
+                  helper_point.z = obj_line_data[2][0];
+
+                  normals.push_back(helper_point);
+                  break;
+                }
+              else if (line[1] == 't')   // texture vertex
+                {
+                  parse_obj_line(line,obj_line_data);
+
+                  helper_point.x = obj_line_data[0][0];
+                  helper_point.y = obj_line_data[1][0];
+                  helper_point.z = 0;
+
+                  texture_vertices.push_back(helper_point);
+                  break;
+                }
+              else                       // position vertex
+                {
+                  parse_obj_line(line,obj_line_data);
+                  result.add_vertex(obj_line_data[0][0],obj_line_data[1][0],obj_line_data[2][0],0.0,0.0,0.0,1.0,0.0,0.0);
+                  break;
+                }
+
+            case 'f':
+              unsigned int indices[4],i,faces;
+
+              parse_obj_line(line,obj_line_data);
+
+              for (i = 0; i < 4; i++)     // triangle indices
+                indices[i] = floor(obj_line_data[i][0]) - 1;
+
+              if (obj_line_data[3][0] < 0.0)
+                {
+                  result.add_triangle(indices[0],indices[1],indices[2]);
+                  faces = 3;     // 3 vertex face
+                }
+              else
+                {
+                  result.add_triangle(indices[0],indices[1],indices[2]);
+                  result.add_triangle(indices[0],indices[2],indices[3]);
+                  faces = 4;     // 4 vertex face
+                }
+
+              unsigned int vt_index, vn_index;
+
+              for (i = 0; i < faces; i++)    // texture coordinates and normals
+                {
+                  vt_index = floor(obj_line_data[i][1]) - 1;
+                  vn_index = floor(obj_line_data[i][2]) - 1;
+
+                  if (indices[i] >= result.vertices.size())
+                    continue;
+                  
+                  if (vt_index < texture_vertices.size() && vt_index >= 0)
+                    {
+                      result.vertices[indices[i]].texture_coord.x = texture_vertices[vt_index].x;
+                      result.vertices[indices[i]].texture_coord.y = texture_vertices[vt_index].y;
+                      result.vertices[indices[i]].texture_coord.z = texture_vertices[vt_index].z;
+                    }
+                  
+                  if (vn_index < normals.size() && vn_index >= 0)
+                    {
+                      result.vertices[indices[i]].normal.x = normals[vn_index].x;
+                      result.vertices[indices[i]].normal.y = normals[vn_index].y;
+                      result.vertices[indices[i]].normal.z = normals[vn_index].z;
+                    }
+                }
+
+              break;
+
+            default:
+              break;
+          }
+      }
+
+    obj_file.close();
+    return result;
+  }
   
 #endif
