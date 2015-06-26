@@ -20,6 +20,29 @@
 
 using namespace std;
 
+/**
+ * Serves for error output.
+ */
+
+class ErrorWriter
+  {
+    public:
+      static bool enabled;
+      
+      static void write_error(string message)
+        {
+          if (ErrorWriter::enabled)
+            cerr << "Error: " << message << endl;
+        }
+      
+      static void setErrorOutput(bool enabled)
+        {
+          ErrorWriter::enabled = enabled;
+        }
+  };
+
+bool ErrorWriter::enabled = true;
+  
 void print_mat4(glm::mat4 matrix)
   {
     unsigned int i, j;
@@ -48,7 +71,7 @@ static string file_text(string filename)
           
     if (!t.is_open())
       {
-        cerr << "ERROR: could not open " << filename << "." << endl;
+        ErrorWriter::write_error("Could not open file '" + filename + "'.");
       }
           
       std::string result((std::istreambuf_iterator<char>(t)),std::istreambuf_iterator<char>());
@@ -393,7 +416,7 @@ class Shader
           result = glGetUniformLocation(this->shader_program,name.c_str());
           
           if (result < 0)
-            cerr << "ERROR: could not get uniform location of " << name << "." << endl;
+            ErrorWriter::write_error("Could not get uniform location of '" + name + "'.");
             
           return result;
         }
@@ -416,19 +439,19 @@ class Shader
           
           if (this->shader_program == 0)
             {
-              cerr << "ERROR: could not create a shader program." << endl;
+              ErrorWriter::write_error("Could not create a shader program.");
             }
          
           if (vertex_shader_text.length() != 0)
             if (!this->add_shader(vertex_shader_text.c_str(),GL_VERTEX_SHADER))
               {
-                cerr << "ERROR: could not add a vertex shader program." << endl;
+                ErrorWriter::write_error("Could not add a vertex shader program.");
               }
               
           if (fragment_shader_text.length() != 0)
             if (!this->add_shader(fragment_shader_text.c_str(),GL_FRAGMENT_SHADER))
               {
-                cerr << "ERROR: could not add a fragment shader program." << endl;
+                ErrorWriter::write_error("Could not add a fragment shader program.");
               }
             
           GLint success = 0;
@@ -454,7 +477,7 @@ class Shader
             {
               glGetProgramInfoLog(this->shader_program,sizeof(log),NULL,log);
               cerr << log << endl;
-              cerr << "ERROR: could not link the shader program." << endl;
+              ErrorWriter::write_error("Could not link the shader program.");
             }
             
           glValidateProgram(this->shader_program);
@@ -463,7 +486,7 @@ class Shader
           
           if (!success)
             {
-              cerr << "ERROR: the shader program is invalid." << endl;
+              ErrorWriter::write_error("The shader program is invalid.");
             }
         }
   };
@@ -515,7 +538,7 @@ class TransformFeedbackBuffer
       TransformFeedbackBuffer(unsigned int size)
         {
           if (!GLSession::is_initialised())
-            cerr << "ERROR: TransformFeedbackBuffer object created before GLSession was initialised." << endl;
+            ErrorWriter::write_error("TransformFeedbackBuffer object created before GLSession was initialised.");
         
           this->size = size;
           byte_array = (unsigned char *) malloc(this->size);
@@ -569,6 +592,110 @@ class TransformFeedbackBuffer
           
   };
   
+class Texel
+  {
+    public:
+      float red;
+      float green;
+      float blue;
+      float alpha;
+      
+      Texel()
+        {
+          this->set_value(1.0,1.0,1.0,1.0);
+        }
+      
+      void set_value(float r, float g, float b, float a)
+        {
+          this->red = r;
+          this->green = g;
+          this->blue = b;
+          this->alpha = a;
+        }
+  };
+  
+/**
+ * RGBA 2D image texture.
+ */
+  
+class Texture2D
+  {
+    protected:
+      GLuint to;             // texture object id
+      
+      unsigned int width;
+      unsigned int height;
+      vector<Texel> data;
+      
+      unsigned int coords_2d_to_1d(unsigned int x, unsigned int y)
+        {
+          if (x < 0)
+            x = 0;
+          else if (x >= this->width)
+            x = this->width - 1;
+          
+          if (y < 0)
+            y = 0;
+          else if (y >= this->height)
+            y = this->height - 1;
+          
+          return y * this->width + x;
+        }
+      
+    public:
+      Texture2D(unsigned int width, unsigned int height)
+        {
+          unsigned int i;
+          
+          this->width = width;
+          this->height = height;
+        
+          glGenTextures(1,&(this->to));
+          
+          for (i = 0; i < width * height; i++)
+            this->data.push_back(Texel());
+        }
+        
+      void set_pixel(unsigned int x, unsigned int y, float r, float g, float b, float a)
+        {
+          Texel texel;
+          texel.set_value(r,g,b,a);
+          this->data[this->coords_2d_to_1d(x,y)] = texel;
+        }
+        
+      void update_gpu()
+        {
+          glBindTexture(GL_TEXTURE_2D,this->to);
+          glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,this->width,this->height,0,GL_RGBA,GL_FLOAT,&(this->data[0]));
+          glGenerateMipmap(GL_TEXTURE_2D);
+          glBindTexture(GL_TEXTURE_2D,0);
+        }
+        
+      void set_parameter_int(unsigned int parameter, unsigned int value)
+        {
+          glBindTexture(GL_TEXTURE_2D,this->to);
+          glTexParameteri(GL_TEXTURE_2D,parameter,value);
+          glBindTexture(GL_TEXTURE_2D,0);
+        }
+        
+      void print()
+        {
+          unsigned int x, y, index;
+          
+          for (y = 0; y < this->height; y++)
+            for (x = 0; x < this->width; x++)
+              {
+                index = this->coords_2d_to_1d(x,y);
+                
+                cout << x << "; " << y << ": " <<
+                  this->data[index].red << ", " <<
+                  this->data[index].green << ", " <<
+                  this->data[index].blue << ", " <<
+                  this->data[index].alpha << endl;
+              }     
+        }
+  };
+  
 /**
  * Represents a 3D geometry.
  */
@@ -587,7 +714,7 @@ class Geometry3D
       Geometry3D()
         {
           if (!GLSession::is_initialised())
-            cerr << "ERROR: Geometry3D object created before GLSession was initialised." << endl;
+            ErrorWriter::write_error("Geometry3D object created before GLSession was initialised.");
 
           glGenVertexArrays(1,&(this->vao));
           glBindVertexArray(this->vao);
@@ -822,7 +949,7 @@ Geometry3D load_obj(string filename)
 
     if (!obj_file.is_open())
       {
-        cerr << "ERROR: couldn't open '" << filename << "'." << endl;
+        ErrorWriter::write_error("couldn't open file '" + filename + "'.");
         return result;
       }
 

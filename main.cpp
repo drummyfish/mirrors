@@ -105,6 +105,11 @@ int main(int argc, char** argv)
     
     Geometry3D g;
     
+    Texture2D texture(3,2);
+    
+    texture.set_pixel(1,0,0.5,0.1,0.3,0.6);
+    texture.print();
+    
     TransformFeedbackBuffer transform_feedback_buffer(1024);
     tfb = &transform_feedback_buffer;
     
