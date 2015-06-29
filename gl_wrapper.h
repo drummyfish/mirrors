@@ -644,16 +644,101 @@ class Texture2D
       
     public:
       Texture2D(unsigned int width, unsigned int height)
+        {        
+          glGenTextures(1,&(this->to)); 
+          this->set_size(width,height);
+        }
+        
+      void set_size(unsigned int width, unsigned int height)
         {
           unsigned int i;
           
           this->width = width;
           this->height = height;
         
-          glGenTextures(1,&(this->to));
+          this->data.clear();
           
           for (i = 0; i < width * height; i++)
             this->data.push_back(Texel());
+        }
+        
+      bool load_ppm(string filename)
+        {
+          char buffer[16];
+          FILE *file_handle;
+          int character, rgb_component;
+          unsigned int x, y, i;
+          
+          file_handle = fopen(filename.c_str(),"rb");
+
+          if (!file_handle)
+            return false;
+
+          if (!fgets(buffer,sizeof(buffer),file_handle))   // file format
+            return false;
+
+          character = getc(file_handle);                   // skip comments
+
+          while (character == '#')
+            {
+              while (getc(file_handle) != '\n');        
+              character = getc(file_handle);
+            }
+
+          ungetc(character,file_handle);
+
+          // image size:
+
+          if (fscanf(file_handle,"%d %d",(int *) &this->width,(int *) &this->height) != 2)
+            {
+              fclose(file_handle);        
+              return false;
+            }
+
+          // rgb component:
+
+          if (fscanf(file_handle,"%d",&rgb_component) != 1)
+            {
+              fclose(file_handle);
+              return false;
+            }
+
+          if (rgb_component != 255)  // check the depth
+            {
+              fclose(file_handle);
+              return false;
+            }
+
+          while (fgetc(file_handle) != '\n');
+
+          this->set_size(this->width,this->height);
+        
+          //read pixel data:
+
+          unsigned char *data_buffer;
+          
+          data_buffer = (unsigned char *) malloc(3 * this->width * this->height);
+          
+          if (fread(data_buffer,3 * this->width,this->height,file_handle) != this->height)
+            {
+              fclose(file_handle);        
+              return false;
+            }
+            
+          i = 0;
+            
+          for (y = 0; y < this->height; y++)
+            for (x = 0; x < this->width; x++)
+              {
+                this->set_pixel(x,y,data_buffer[i] / 255.0,data_buffer[i + 1] / 255.0,data_buffer[i + 2] / 255.0,1.0);
+                i += 3;
+              }
+              
+          delete data_buffer;
+            
+          fclose(file_handle);
+
+          return true;
         }
         
       void set_pixel(unsigned int x, unsigned int y, float r, float g, float b, float a)
@@ -677,7 +762,13 @@ class Texture2D
           glTexParameteri(GL_TEXTURE_2D,parameter,value);
           glBindTexture(GL_TEXTURE_2D,0);
         }
-        
+      
+      void use()
+        {
+          glActiveTexture(GL_TEXTURE0);   // set the active texture unit to 0
+          glBindTexture(GL_TEXTURE_2D,this->to);
+        }
+      
       void print()
         {
           unsigned int x, y, index;

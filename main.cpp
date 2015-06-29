@@ -4,16 +4,20 @@ Geometry3D *g2;
 TransformationTRS t;
 GLint color_location;
 GLint light_direction_location;
+GLint sampler_location;
 GLint view_matrix_location;
 GLint model_matrix_location;
 GLint projection_matrix_location;
 TransformFeedbackBuffer *tfb;
+Texture2D *tex;
 
 void render()
   {
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(t.get_matrix()));
+    
+    tex->use();
     
     tfb->transform_feedback_begin(GL_TRIANGLES);
     g2->draw_as_triangles();
@@ -106,9 +110,10 @@ int main(int argc, char** argv)
     Geometry3D g;
     
     Texture2D texture(3,2);
-    
-    texture.set_pixel(1,0,0.5,0.1,0.3,0.6);
-    texture.print();
+    tex = &texture;
+    cout << "texture: " << ((int) texture.load_ppm("room.ppm")) << endl;
+ //   texture.print();
+    texture.update_gpu();
     
     TransformFeedbackBuffer transform_feedback_buffer(1024);
     tfb = &transform_feedback_buffer;
@@ -122,6 +127,10 @@ int main(int argc, char** argv)
     Shader shader(file_text("shader.vs"),file_text("shader.fs"),transform_feedback_variables);
     
     light_direction_location = shader.get_uniform_location("light_direction");
+    sampler_location = shader.get_uniform_location("tex");
+    
+    glUniform1i(sampler_location,0);
+    
     model_matrix_location = shader.get_uniform_location("model_matrix");
     //view_matrix_location = shader.get_uniform_location("view_matrix");
     
@@ -142,6 +151,7 @@ int main(int argc, char** argv)
     //g = make_box(0.5,0.6,0.7);
     //g = make_quad(1.0,1.0);
     g = load_obj("cup.obj"); //make_triangle(1);
+    g.print();
     /*
     g.add_vertex(0.0, 1.0, 0.0,   0.0, 0.0, 0.0,   0.0, 0.0, 1.0);
     g.add_vertex(0.0, 0.0, 0.0,   0.0, 0.0, 0.0,   0.0, 0.0, 1.0);
