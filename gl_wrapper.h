@@ -21,7 +21,8 @@
 using namespace std;
 
 /**
- * Serves for error output.
+ * Simple class for error outputs. The class uses static methods,
+ * the error outputs can be disabled.
  */
 
 class ErrorWriter
@@ -42,7 +43,11 @@ class ErrorWriter
   };
 
 bool ErrorWriter::enabled = true;
-  
+
+/**
+ * Writes out mat4 data type.
+ */
+
 void print_mat4(glm::mat4 matrix)
   {
     unsigned int i, j;
@@ -56,13 +61,17 @@ void print_mat4(glm::mat4 matrix)
       }
   }
         
+/**
+ * Writes out vec3 data type.
+ */
+        
 void print_vec3(glm::vec3 vector)
   {
     cout << vector.x << " " << vector.y << " " << vector.z << endl;
   }
 
 /**
-  * Returns a text in given file.
+  * Gets a text of given file.
   */
       
 static string file_text(string filename)
@@ -86,7 +95,7 @@ class GLSession
   {
     protected:
       static GLSession *instance;           ///< singleton instance
-      static bool initialised;
+      static bool initialised;              ///< whether the session has been initialised
       
       /**
        * Initialises the GLSession instance with default values. Usage:
@@ -98,6 +107,8 @@ class GLSession
       
       GLSession()
         {
+          // set the default parameters:
+          
           this->argc = 0;
           this->argv = 0;
           this->display_mode = GLUT_DOUBLE | GLUT_RGBA;
@@ -211,6 +222,9 @@ class GLSession
           
           glewInit();
 
+          glEnable(GL_DEPTH_TEST);
+          glEnable(GL_CULL_FACE);
+          
           GLSession::initialised = true;
         }
         
@@ -271,31 +285,10 @@ class TransformationTRS: public Transformation
        * rotation and scale.
        */
   
-      void recompute_final_matrix()
-        {
-          this->final_matrix = this->translation_matrix * this->rotation_matrix * this->scale_matrix;
-        };
-    
-      void recompute_translation_matrix()
-        {
-          this->translation_matrix = glm::translate(glm::mat4(1.0f),this->translation);
-          this->recompute_final_matrix();
-        };
-    
-      void recompute_rotation_matrix()
-        {
-          this->rotation_matrix = glm::mat4(1.0f);
-          this->rotation_matrix = glm::rotate(this->rotation_matrix,this->rotation.y,glm::vec3(0,1,0));  // around y
-          this->rotation_matrix = glm::rotate(this->rotation_matrix,this->rotation.x,glm::vec3(1,0,0));  // around x
-          this->rotation_matrix = glm::rotate(this->rotation_matrix,this->rotation.z,glm::vec3(0,0,1));  // around z
-          this->recompute_final_matrix();
-        };
-        
-      void recompute_scale_matrix()
-        {
-          this->scale_matrix = glm::scale(glm::mat4(1.0f),this->scale);
-          this->recompute_final_matrix();
-        };
+      virtual void recompute_final_matrix() = 0;
+      virtual void recompute_translation_matrix() = 0;
+      virtual void recompute_rotation_matrix() = 0;
+      virtual void recompute_scale_matrix() = 0;
         
     public:
       /**
@@ -303,17 +296,26 @@ class TransformationTRS: public Transformation
        */
       
       TransformationTRS()
-        {
-          this->set_translation(glm::vec3(0,0,0));
-          this->set_rotation(glm::vec3(0,0,0));
-          this->set_scale(glm::vec3(1,1,1));
+        { 
+          this->translation = glm::vec3(0.0,0.0,0.0);
+          this->rotation = glm::vec3(0.0,0.0,0.0);
+          this->scale = glm::vec3(1.0,1.0,1.0);
         };
       
+      /**
+       * Sets the translation for the transformation.
+       */
+        
       void set_translation(glm::vec3 new_translation)
         {
           this->translation = new_translation;
           this->recompute_translation_matrix();
         };
+        
+      /**
+       * Adds translation vector to current translation value of
+       * the transformation.
+       */
         
       void add_translation(glm::vec3 translation)
         {
@@ -321,11 +323,20 @@ class TransformationTRS: public Transformation
           this->recompute_translation_matrix();
         };
         
+      /**
+       * Adds rotation vector to current rotation value of
+       * the transformation.
+       */
+        
       void add_rotation(glm::vec3 rotation)
         {
           this->rotation = this->rotation + rotation;
           this->recompute_rotation_matrix();
         }
+        
+      /**
+       * Sets the rotation for the transformation.
+       */
         
       void set_rotation(glm::vec3 new_rotation)
         {
@@ -333,11 +344,19 @@ class TransformationTRS: public Transformation
           this->recompute_rotation_matrix();
         };
         
+      /**
+       * Sets the scale for the transformation.
+       */
+        
       void set_scale(glm::vec3 new_scale)
         {
           this->scale = new_scale;
           this->recompute_scale_matrix();
         };
+        
+      /**
+       * Prints the transformation to stdout.
+       */
         
       void print()
         { 
@@ -352,6 +371,65 @@ class TransformationTRS: public Transformation
         };
   };
 
+class TransformationTRSModel: public TransformationTRS
+  {
+    protected:
+      virtual void recompute_final_matrix()
+        {
+          this->final_matrix = this->translation_matrix * this->rotation_matrix * this->scale_matrix;
+        };
+    
+      virtual void recompute_translation_matrix()
+        {
+          this->translation_matrix = glm::translate(glm::mat4(1.0f),this->translation);
+          this->recompute_final_matrix();
+        };
+    
+      virtual void recompute_rotation_matrix()
+        {
+          this->rotation_matrix = glm::mat4(1.0f);
+          this->rotation_matrix = glm::rotate(this->rotation_matrix,this->rotation.y,glm::vec3(0,1,0));  // around y
+          this->rotation_matrix = glm::rotate(this->rotation_matrix,this->rotation.x,glm::vec3(1,0,0));  // around x
+          this->rotation_matrix = glm::rotate(this->rotation_matrix,this->rotation.z,glm::vec3(0,0,1));  // around z
+          this->recompute_final_matrix();
+        };
+        
+      virtual void recompute_scale_matrix()
+        {
+          this->scale_matrix = glm::scale(glm::mat4(1.0f),this->scale);
+          this->recompute_final_matrix();
+        };
+  };
+  
+class TransformationTRSCamera: public TransformationTRS
+  {
+    protected:
+      virtual void recompute_final_matrix()
+        {
+          this->final_matrix = this->rotation_matrix * this->translation_matrix;
+        };
+    
+      virtual void recompute_translation_matrix()
+        {
+          this->translation_matrix = glm::translate(glm::mat4(1.0f),glm::vec3(-1 * this->translation.x,-1 * this->translation.y,-1 * this->translation.z));
+          this->recompute_final_matrix();
+        };
+    
+      virtual void recompute_rotation_matrix()
+        {
+          this->rotation_matrix = glm::mat4(1.0f);
+          this->rotation_matrix = glm::rotate(this->rotation_matrix,-1 * this->rotation.z,glm::vec3(0,0,1));  // around z
+          this->rotation_matrix = glm::rotate(this->rotation_matrix,-1 * this->rotation.x,glm::vec3(1,0,0));  // around x
+          this->rotation_matrix = glm::rotate(this->rotation_matrix,-1 * this->rotation.y,glm::vec3(0,1,0));  // around y
+          this->recompute_final_matrix();
+        };
+        
+      virtual void recompute_scale_matrix()
+        {
+          // no scale fot camera
+        };
+  };
+  
 /**
  * Represents an OpenGL shader.
  */
@@ -431,7 +509,7 @@ class Shader
        *   transform feedback 
        */
       
-      Shader(string vertex_shader_text, string fragment_shader_text, vector<string> transform_feedback_variables)
+      Shader(string vertex_shader_text, string fragment_shader_text, vector<string> *transform_feedback_variables = 0)
         {
           char log[256];
           
@@ -458,16 +536,16 @@ class Shader
           
           // init transform feedback:
           
-          if (transform_feedback_variables.size() > 0)
+          if (transform_feedback_variables != 0 && transform_feedback_variables->size() > 0)
             {
               char *variable_names[512];
           
               unsigned int i;
               
-              for (i = 0; i < transform_feedback_variables.size() && i < 512; i++)
-                variable_names[i] = (char *) transform_feedback_variables[i].c_str();
+              for (i = 0; i < transform_feedback_variables->size() && i < 512; i++)
+                variable_names[i] = (char *) transform_feedback_variables->at(i).c_str();
           
-              glTransformFeedbackVaryings(this->shader_program,transform_feedback_variables.size(),(const GLchar **) variable_names,GL_INTERLEAVED_ATTRIBS);
+              glTransformFeedbackVaryings(this->shader_program,transform_feedback_variables->size(),(const GLchar **) variable_names,GL_INTERLEAVED_ATTRIBS);
             }
           
           glLinkProgram(this->shader_program);
@@ -490,7 +568,12 @@ class Shader
             }
         }
   };
-
+  
+/**
+ * Represents a 3D vertex with position, normal and texture
+ * coordinates.
+ */
+  
 class Vertex3D
   {
     public:
@@ -592,6 +675,10 @@ class TransformFeedbackBuffer
           
   };
   
+/**
+ * Represents a texel (texture pixel).
+ */
+  
 class Texel
   {
     public:
@@ -626,6 +713,10 @@ class Texture2D
       unsigned int width;
       unsigned int height;
       vector<Texel> data;
+      
+      /**
+       * Converts 2D coordinates to 1D index.
+       */
       
       unsigned int coords_2d_to_1d(unsigned int x, unsigned int y)
         {
@@ -662,8 +753,13 @@ class Texture2D
             this->data.push_back(Texel());
         }
         
+      /**
+       * Loads the texture from ppm file format.
+       */
+        
       bool load_ppm(string filename)
         {
+          string error_string = "Could not load texture from file '" + filename + "'.";
           char buffer[16];
           FILE *file_handle;
           int character, rgb_component;
@@ -672,11 +768,17 @@ class Texture2D
           file_handle = fopen(filename.c_str(),"rb");
 
           if (!file_handle)
-            return false;
-
+            {
+              ErrorWriter::write_error(error_string + " (File could not be opened.)");
+              return false;
+            }
+              
           if (!fgets(buffer,sizeof(buffer),file_handle))   // file format
-            return false;
-
+            {
+              ErrorWriter::write_error(error_string + " (File format signature not present.)");
+              return false;
+            }
+            
           character = getc(file_handle);                   // skip comments
 
           while (character == '#')
@@ -691,6 +793,7 @@ class Texture2D
 
           if (fscanf(file_handle,"%d %d",(int *) &this->width,(int *) &this->height) != 2)
             {
+              ErrorWriter::write_error(error_string + " (Width and height not available in the file.)");
               fclose(file_handle);        
               return false;
             }
@@ -699,12 +802,14 @@ class Texture2D
 
           if (fscanf(file_handle,"%d",&rgb_component) != 1)
             {
+              ErrorWriter::write_error(error_string + " (RGB component information not present in the file.)");
               fclose(file_handle);
               return false;
             }
 
           if (rgb_component != 255)  // check the depth
             {
+              ErrorWriter::write_error(error_string + " (Unsupported color depth.)");
               fclose(file_handle);
               return false;
             }
@@ -721,6 +826,7 @@ class Texture2D
           
           if (fread(data_buffer,3 * this->width,this->height,file_handle) != this->height)
             {
+              ErrorWriter::write_error(error_string + " (Error reading the pixel data.)");
               fclose(file_handle);        
               return false;
             }
@@ -748,6 +854,10 @@ class Texture2D
           this->data[this->coords_2d_to_1d(x,y)] = texel;
         }
         
+      /**
+       * Uploads the texture data to GPU.
+       */
+        
       void update_gpu()
         {
           glBindTexture(GL_TEXTURE_2D,this->to);
@@ -756,6 +866,10 @@ class Texture2D
           glBindTexture(GL_TEXTURE_2D,0);
         }
         
+      /**
+       * Sets a given OpenGL texture integer parameter.
+       */
+        
       void set_parameter_int(unsigned int parameter, unsigned int value)
         {
           glBindTexture(GL_TEXTURE_2D,this->to);
@@ -763,11 +877,30 @@ class Texture2D
           glBindTexture(GL_TEXTURE_2D,0);
         }
       
-      void use()
+      /**
+       * Binds the texture to given texturing unit for usage.
+       */
+      
+      void bind(unsigned int unit)
         {
-          glActiveTexture(GL_TEXTURE0);   // set the active texture unit to 0
+          switch (unit)
+            {
+              case 0: glActiveTexture(GL_TEXTURE0); break;
+              case 1: glActiveTexture(GL_TEXTURE1); break;
+              case 2: glActiveTexture(GL_TEXTURE2); break;
+              case 3: glActiveTexture(GL_TEXTURE3); break;
+              case 4: glActiveTexture(GL_TEXTURE4); break;
+              
+              default:
+                break;
+            }
+          
           glBindTexture(GL_TEXTURE_2D,this->to);
         }
+      
+      /**
+       * Prints the texture data to stdout.
+       */
       
       void print()
         {
@@ -833,6 +966,10 @@ class Geometry3D
           glDrawElements(GL_TRIANGLES,this->triangles.size() * 3,GL_UNSIGNED_INT,0);
           glBindVertexArray(0);
         };
+        
+      /**
+       * Sends the geometry data to GPU.
+       */
         
       void update_gpu()
         {
@@ -1025,6 +1162,10 @@ void parse_obj_line(string line,float data[4][3])
           }
       }
   }
+  
+/**
+ * Loads a 3D geometry from obj file format.
+ */
   
 Geometry3D load_obj(string filename)
   {
