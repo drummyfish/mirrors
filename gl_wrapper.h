@@ -740,6 +740,15 @@ class Texture2D
           this->set_size(width,height);
         }
         
+      /**
+       * Gets the texture OpenGL identifier (so called name).
+       */
+        
+      GLuint get_id()
+        {
+          return this->to;
+        }
+        
       void set_size(unsigned int width, unsigned int height)
         {
           unsigned int i;
@@ -919,6 +928,82 @@ class Texture2D
               }     
         }
   };
+
+/**
+ * Represents a frame buffer. It has a number of attachments,
+ * such as color, depth, stencil etc.
+ */
+  
+class FrameBuffer
+  {
+    protected:
+      GLuint fbo;
+      
+    public:
+      FrameBuffer()
+        {
+          glGenFramebuffers(1,&(this->fbo)); 
+        }
+        
+      void set_textures(Texture2D *depth, Texture2D *stencil, Texture2D *color1, Texture2D *color2, Texture2D *color3)
+        {
+          vector<GLenum> draw_buffers;
+          
+          this->activate();
+          
+          if (depth != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,depth->get_id(),0);
+              draw_buffers.push_back(GL_DEPTH_ATTACHMENT);
+            }
+              
+          if (stencil != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_STENCIL_ATTACHMENT,GL_TEXTURE_2D,depth->get_id(),0);
+              draw_buffers.push_back(GL_STENCIL_ATTACHMENT);
+            }
+            
+          if (color1 != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,color1->get_id(),0);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT0);
+            }
+              
+          if (color2 != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT1,GL_TEXTURE_2D,color1->get_id(),0);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT1);
+            }
+              
+          if (color3 != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT2,GL_TEXTURE_2D,color1->get_id(),0);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT2);
+            }
+              
+          glDrawBuffers(draw_buffers.size(),&(draw_buffers[0]));
+          
+          if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            ErrorWriter::write_error("An error occured while binding framebuffer attachments.");
+          
+          this->deactivate();          // unbind fbo
+        }
+        
+      void activate()
+        {
+          glBindFramebuffer(GL_FRAMEBUFFER,this->fbo);
+        }
+        
+      void deactivate()
+        {
+          glBindFramebuffer(GL_FRAMEBUFFER,0);
+        }
+        
+      ~FrameBuffer()
+        {
+          glDeleteFramebuffers(1,&(this->fbo));
+        } 
+  };
   
 /**
  * Represents a 3D geometry.
@@ -1062,9 +1147,9 @@ Geometry3D make_quad(float width, float height)
     float half_height = height / 2.0;
     
     result.add_vertex(-half_width,0,-half_height,0.0,0.0,0.0,0.0,1.0,0.0); 
-    result.add_vertex(half_width,0,-half_height,0.0,0.0,0.0,0.0,1.0,0.0);   
-    result.add_vertex(-half_width,0,half_height,0.0,0.0,0.0,0.0,1.0,0.0);  
-    result.add_vertex(half_width,0,half_height,0.0,0.0,0.0,0.0,1.0,0.0);    
+    result.add_vertex(half_width,0,-half_height,1.0,0.0,0.0,0.0,1.0,0.0);   
+    result.add_vertex(-half_width,0,half_height,0.0,1.0,0.0,0.0,1.0,0.0);  
+    result.add_vertex(half_width,0,half_height,1.0,1.0,0.0,0.0,1.0,0.0);    
   
     result.add_triangle(1,0,2);
     result.add_triangle(1,2,3); 

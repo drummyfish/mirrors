@@ -19,20 +19,37 @@ Texture2D *tex;
 Geometry3D *geometry_cup;
 Geometry3D *geometry_mirror;
 Texture2D *texture;
+Texture2D *texture_mirror;
+FrameBuffer *frame_buffer;
 
 void render()
   {
+    
+    frame_buffer->activate();
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
     texture->bind(0);
     
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_camera.get_matrix()));
-    
-    print_mat4(transformation_cup.get_matrix());
-    
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_cup.get_matrix()));
     geometry_cup->draw_as_triangles();
     
+    texture_mirror->bind(0);
+    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
+    geometry_mirror->draw_as_triangles();
+    frame_buffer->deactivate();
+    
+    //-------
+    
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    texture->bind(0);
+    
+    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_camera.get_matrix()));
+    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_cup.get_matrix()));
+    geometry_cup->draw_as_triangles();
+    
+    texture_mirror->bind(0);
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
     geometry_mirror->draw_as_triangles();
     
@@ -129,6 +146,14 @@ int main(int argc, char** argv)
     texture->load_ppm("texture.ppm");
     texture->update_gpu();
     
+    texture_mirror = new Texture2D(512,512);
+    texture_mirror->set_parameter_int(GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+    texture_mirror->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+    texture_mirror->update_gpu();
+    
+    frame_buffer = new FrameBuffer();
+    frame_buffer->set_textures(0,0,texture_mirror,0,0);
+    
     cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;
     
     Shader shader(file_text("shader.vs"),file_text("shader.fs"));
@@ -151,6 +176,8 @@ int main(int argc, char** argv)
     session->start();
     
     delete texture;
+    delete texture_mirror;
+    delete frame_buffer;
     GLSession::clear();
     return 0;
   }
