@@ -3,6 +3,9 @@
 
 #define GLM_FORCE_RADIANS
 
+#define TEXEL_TYPE_COLOR 0
+#define TEXEL_TYPE_DEPTH 1
+
 #include <stdio.h>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
@@ -712,7 +715,12 @@ class Texture2D
       
       unsigned int width;
       unsigned int height;
-      vector<Texel> data;
+      
+      GLuint texel_type;
+      vector<Texel> data;         // this vector is used for color texels (use_float_data = false)
+      vector<float> data_float;   // this vector is used for float texels (use_float_data = true)
+      
+      bool use_float_data;        // whether to use color or float data (data or float_data vector)
       
       /**
        * Converts 2D coordinates to 1D index.
@@ -734,8 +742,10 @@ class Texture2D
         }
       
     public:
-      Texture2D(unsigned int width, unsigned int height)
-        {        
+      Texture2D(unsigned int width, unsigned int height, unsigned int texel_type)
+        {      
+          this->use_float_data = texel_type == TEXEL_TYPE_DEPTH;
+          
           glGenTextures(1,&(this->to)); 
           this->set_size(width,height);
         }
@@ -758,8 +768,18 @@ class Texture2D
         
           this->data.clear();
           
-          for (i = 0; i < width * height; i++)
-            this->data.push_back(Texel());
+          if (this->use_float_data)
+            {
+              float helper = 0.0;
+              
+              for (i = 0; i < width * height; i++)
+                this->data_float.push_back(helper);
+            }
+          else
+            {
+              for (i = 0; i < width * height; i++)
+                this->data.push_back(Texel());
+            } 
         }
         
       /**
@@ -859,8 +879,16 @@ class Texture2D
       void set_pixel(unsigned int x, unsigned int y, float r, float g, float b, float a)
         {
           Texel texel;
-          texel.set_value(r,g,b,a);
-          this->data[this->coords_2d_to_1d(x,y)] = texel;
+          
+          if (this->use_float_data)
+            {
+              this->data_float[this->coords_2d_to_1d(x,y)] = r;
+            }
+          else 
+            {
+              texel.set_value(r,g,b,a);
+              this->data[this->coords_2d_to_1d(x,y)] = texel;
+            }
         }
         
       /**
@@ -870,7 +898,12 @@ class Texture2D
       void update_gpu()
         {
           glBindTexture(GL_TEXTURE_2D,this->to);
-          glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,this->width,this->height,0,GL_RGBA,GL_FLOAT,&(this->data[0]));
+          
+          if (this->use_float_data)
+            glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,this->width,this->height,0,GL_DEPTH_COMPONENT,GL_FLOAT,&(this->data_float[0]));
+          else
+            glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,this->width,this->height,0,GL_RGBA,GL_FLOAT,&(this->data[0]));
+          
           glGenerateMipmap(GL_TEXTURE_2D);
           glBindTexture(GL_TEXTURE_2D,0);
         }
@@ -983,8 +1016,27 @@ class FrameBuffer
               
           glDrawBuffers(draw_buffers.size(),&(draw_buffers[0]));
           
-          if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-            ErrorWriter::write_error("An error occured while binding framebuffer attachments.");
+          GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER); 
+          
+          if (status != GL_FRAMEBUFFER_COMPLETE)
+            {
+              string helper;
+              
+              switch (status)
+                {
+                  case GL_FRAMEBUFFER_UNDEFINED: helper = "GL_FRAMEBUFFER_UNDEFINED"; break;
+                  case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: helper = "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT"; break;
+                  case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: helper = "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT"; break;
+                  case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER: helper = "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER"; break;
+                  case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER: helper = "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER"; break;
+                  case GL_FRAMEBUFFER_UNSUPPORTED: helper = "GL_FRAMEBUFFER_UNSUPPORTED"; break;
+                  case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: helper = "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE"; break;
+                  case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS: helper = "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS"; break;
+                  default: break;
+                }
+              
+              ErrorWriter::write_error("An error occured while binding framebuffer attachments (" + helper + ").");
+            }
           
           this->deactivate();          // unbind fbo
         }

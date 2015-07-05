@@ -20,6 +20,7 @@ Geometry3D *geometry_cup;
 Geometry3D *geometry_mirror;
 Texture2D *texture;
 Texture2D *texture_mirror;
+Texture2D *texture_mirror_depth;
 FrameBuffer *frame_buffer;
 
 void render()
@@ -142,17 +143,22 @@ int main(int argc, char** argv)
     transformation_mirror.set_translation(glm::vec3(0.0,0.0,-20.0));
     transformation_mirror.set_rotation(glm::vec3(3.1415 / 2.0,0.0,0));
     
-    texture = new Texture2D(8,8);
+    texture = new Texture2D(8,8,TEXEL_TYPE_COLOR);
     texture->load_ppm("texture.ppm");
     texture->update_gpu();
     
-    texture_mirror = new Texture2D(512,512);
+    texture_mirror = new Texture2D(512,512,TEXEL_TYPE_COLOR);
     texture_mirror->set_parameter_int(GL_TEXTURE_MIN_FILTER,GL_NEAREST);
     texture_mirror->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     texture_mirror->update_gpu();
     
+    texture_mirror_depth = new Texture2D(512,512,TEXEL_TYPE_DEPTH);
+    texture_mirror_depth->set_parameter_int(GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+    texture_mirror_depth->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+    texture_mirror_depth->update_gpu();
+    
     frame_buffer = new FrameBuffer();
-    frame_buffer->set_textures(0,0,texture_mirror,0,0);
+    frame_buffer->set_textures(texture_mirror_depth,0,texture_mirror,0,0);
     
     cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;
     
@@ -178,6 +184,7 @@ int main(int argc, char** argv)
     delete texture;
     delete texture_mirror;
     delete frame_buffer;
+    delete texture_mirror_depth;
     GLSession::clear();
     return 0;
   }
