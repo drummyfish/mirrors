@@ -320,19 +320,6 @@ class TransformationTRS: public Transformation
         };
         
       /**
-       * Mirrors the transformation by given plane.
-       * 
-       * @param point1 first point of the plane
-       * @param point2 second point of the plane
-       * @param point3 third point of the plane
-       */
-        
-      void mirror(glm::vec3 point1, glm::vec3 point2, glm::vec3 point3)
-        {
-          // TODOOOOOOOOOOOOOOOO
-        }
-        
-      /**
        * Sets the translation for the transformation.
        */
         
@@ -1338,6 +1325,59 @@ Geometry3D make_box(float width, float height, float depth)
     
     result.add_triangle(0,1,4); // bottom
     result.add_triangle(4,1,5);
+    
+    return result;
+  }
+  
+  /**
+    Makes a matrix that represents reflection across plane given by
+    three points.
+   */
+  
+glm::mat4 make_reflection_matrix(glm::vec3 point1, glm::vec3 point2, glm::vec3 point3)
+  {
+    glm::mat4 result;
+    
+    glm::vec3 vector1 = point2 - point1;
+    glm::vec3 vector2 = point3 - point1;
+    glm::vec3 normal = glm::normalize(glm::cross(vector1,vector2));          // plane normal
+    
+    glm::vec3 translation_vector;    // how to translate the plane to [0,0,0]
+    
+    float d;                         // d in plane equation (ax + by + cz + d = 0)
+    
+    d = -1 * normal.x * point1.x -1 * normal.y * point1.y -1 * normal.z * point1.z; 
+    
+    float e, f, g;                   // coefficients of parametric line equations
+    
+    e = -1.0 * normal.x;
+    f = -1.0 * normal.y;
+    g = -1.0 * normal.z;
+    
+    float t;                         // parameter t in parametric line equation
+    
+    t = -1 * d / ((float) (e * normal.x + f * normal.y + g * normal.z));
+    
+    translation_vector.x = t * e;
+    translation_vector.y = t * f;
+    translation_vector.z = t * g;
+    
+    glm::mat4 reflection_matrix(1.0f);
+    reflection_matrix[0][0] = 1 - 2 * normal.x * normal.x;
+    reflection_matrix[0][1] = -2 * normal.x * normal.y;
+    reflection_matrix[0][2] = -2 * normal.x * normal.z;
+    
+    reflection_matrix[1][0] = -2 * normal.x * normal.y;
+    reflection_matrix[1][1] = 1 - 2* normal.y * normal.y;
+    reflection_matrix[1][2] = -2 * normal.y * normal.z;
+    
+    reflection_matrix[2][0] = -2 * normal.x * normal.z;
+    reflection_matrix[2][1] = -2 * normal.y * normal.z;
+    reflection_matrix[2][2] = 1 - 2 * normal.z * normal.z;   
+    
+    result = glm::translate(result,translation_vector);    // translate to the origin
+    result = result * reflection_matrix;                           // reflect
+    result = glm::translate(result,-1.0f * translation_vector);            // translate back
     
     return result;
   }
