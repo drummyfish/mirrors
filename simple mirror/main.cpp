@@ -1,7 +1,9 @@
 #include "../gl_wrapper.h"
 
-#define CAMERA_STEP 2.0
+#define CAMERA_STEP 0.1
 #define ROTATION_STEP 0.1
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
 
 TransformationTRSModel transformation_cup;
 TransformationTRSModel transformation_mirror;
@@ -23,15 +25,18 @@ Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
 FrameBuffer *frame_buffer;
 
+bool clicked = false;     // whether mouse was clicked
+int initial_mouse_coords[2];
+glm::vec3 initial_camera_rotation;
+
 void render()
   {
-    
     frame_buffer->activate();
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
     texture->bind(0);
     
-    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_camera.get_matrix()));
+    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_cup.get_matrix()));
     geometry_cup->draw_as_triangles();
     
@@ -46,7 +51,7 @@ void render()
     glClear(GL_DEPTH_BUFFER_BIT);
     texture->bind(0);
     
-    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_camera.get_matrix()));
+    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_cup.get_matrix()));
     geometry_cup->draw_as_triangles();
     
@@ -57,78 +62,16 @@ void render()
     glutSwapBuffers();
   }
   
-void special_callback(int key, int x, int y)
-  {
-    switch (key)
-      {
-        case GLUT_KEY_UP:
-          transformation_camera.add_translation(glm::vec3(0,CAMERA_STEP,0));
-          break;
-        
-        case GLUT_KEY_DOWN:
-          transformation_camera.add_translation(glm::vec3(0,-CAMERA_STEP,0));
-          break;
-        
-        case GLUT_KEY_RIGHT:
-          transformation_camera.add_translation(glm::vec3(CAMERA_STEP,0,0));
-          break;
-        
-        case GLUT_KEY_LEFT:
-          transformation_camera.add_translation(glm::vec3(-CAMERA_STEP,0,0));
-          break;
-          
-        default:
-          break;
-      }
-  }
-  
-void key_callback(unsigned char key, int x, int y)
-  {
-    switch (key)
-      {
-        case 'd':
-          transformation_camera.add_rotation(glm::vec3(0,0,ROTATION_STEP));
-          break;
-          
-        case 'a':
-          transformation_camera.add_rotation(glm::vec3(0,0,-ROTATION_STEP));
-          break;
-        
-        case 'w':
-          transformation_camera.add_rotation(glm::vec3(ROTATION_STEP,0,0));
-          break;
-          
-        case 's':
-          transformation_camera.add_rotation(glm::vec3(-ROTATION_STEP,0,0));
-          break;
-        
-        case 'q':
-          transformation_camera.add_rotation(glm::vec3(0,ROTATION_STEP,0));
-          break;
-          
-        case 'e':
-          transformation_camera.add_rotation(glm::vec3(0,-ROTATION_STEP,0));
-          break;
-          
-        case 'r':
-          transformation_camera.add_translation(glm::vec3(0.0,0.0,CAMERA_STEP));
-          break;
-          
-        case 'f':
-          transformation_camera.add_translation(glm::vec3(0.0,0.0,-CAMERA_STEP));
-          break;
-          
-        default:
-          break;
-      }
-  }
-  
 int main(int argc, char** argv)
   {
     GLSession *session;
     session = GLSession::get_instance();
-    session->special_callback = special_callback;
-    session->keyboard_callback = key_callback;
+    session->keyboard_callback = CameraHandler::key_callback;
+    session->mouse_callback = CameraHandler::mouse_click_callback;
+    session->mouse_pressed_motion_callback = CameraHandler::mouse_move_callback;
+    session->mouse_not_pressed_motion_callback = CameraHandler::mouse_move_callback;
+    session->window_size[0] = WINDOW_WIDTH;
+    session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
     
     Geometry3D g = load_obj("cup.obj");

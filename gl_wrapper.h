@@ -126,10 +126,10 @@ class GLSession
           this->keyboard_up_callback = 0;
           this->special_callback = 0;
           this->special_up_callback = 0;
-          this->mouse_callback = 0;
+          this->mouse_callback = 0;                      ///< for mouse press and releases, signature: void f(int button, int state, int x, int y)
           this->reshape_callback = 0;
-          this->mouse_pressed_motion_callback = 0;
-          this->mouse_not_pressed_motion_callback = 0;
+          this->mouse_pressed_motion_callback = 0;       ///< for mouse movement with mouse buttons pressed, signature: void f(int x, int y)
+          this->mouse_not_pressed_motion_callback = 0;   ///< for mouse movement without mouse buttons pressed, signature: void f(int x, int y)
         };
     
     public:
@@ -207,6 +207,9 @@ class GLSession
           glutInitWindowPosition(this->window_position[0],this->window_position[1]);
           glutCreateWindow(this->window_title.c_str());
           glutDisplayFunc(this->render_callback); 
+          glutMouseFunc(this->mouse_callback); 
+          glutPassiveMotionFunc(this->mouse_pressed_motion_callback);
+          glutMotionFunc(this->mouse_not_pressed_motion_callback);
           glutIdleFunc(this->render_callback);
           
           glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE,this->loop_exit_behavior);
@@ -291,7 +294,7 @@ class TransformationTRS: public Transformation
       virtual void recompute_final_matrix() = 0;
       virtual void recompute_translation_matrix() = 0;
       virtual void recompute_rotation_matrix() = 0;
-      virtual void recompute_scale_matrix() = 0;
+      virtual void recompute_scale_matrix() = 0; 
         
     public:
       /**
@@ -304,7 +307,31 @@ class TransformationTRS: public Transformation
           this->rotation = glm::vec3(0.0,0.0,0.0);
           this->scale = glm::vec3(1.0,1.0,1.0);
         };
+
+      /**
+       * Copy constructor.
+       */
       
+      TransformationTRS(TransformationTRS *transform)
+        { 
+          this->translation = transform->get_translation();
+          this->rotation = transform->get_rotation();
+          this->scale = transform->get_scale();
+        };
+        
+      /**
+       * Mirrors the transformation by given plane.
+       * 
+       * @param point1 first point of the plane
+       * @param point2 second point of the plane
+       * @param point3 third point of the plane
+       */
+        
+      void mirror(glm::vec3 point1, glm::vec3 point2, glm::vec3 point3)
+        {
+          // TODOOOOOOOOOOOOOOOO
+        }
+        
       /**
        * Sets the translation for the transformation.
        */
@@ -326,6 +353,37 @@ class TransformationTRS: public Transformation
           this->recompute_translation_matrix();
         };
         
+      glm::vec3 get_direction(glm::vec3 initial_vector)
+        {
+          glm::mat4 transform = glm::mat4(1.0f);
+          
+          transform = glm::rotate(transform,this->rotation.y,glm::vec3(0,1.0f,0));  // around y
+          transform = glm::rotate(transform,this->rotation.x,glm::vec3(1.0f,0,0));  // around x
+          transform = glm::rotate(transform,this->rotation.z,glm::vec3(0,0,1.0f));  // around z
+
+          return glm::vec3(transform * glm::vec4(initial_vector,0.0f));
+        }
+        
+      /**
+       * Gets a unit vector pointing in direction of current
+       * rotation (i.e. "forward").
+       */
+        
+      glm::vec3 get_direction_forward()
+        {
+          return this->get_direction(glm::vec3(0.0f,0.0f,-1.0f));
+        };
+        
+      glm::vec3 get_direction_left()
+        {
+          return this->get_direction(glm::vec3(-1.0f,0.0f,0.0f));
+        };
+        
+      glm::vec3 get_direction_up()
+        {
+          return this->get_direction(glm::vec3(0.0f,1.0f,0.0f));
+        };
+        
       /**
        * Adds rotation vector to current rotation value of
        * the transformation.
@@ -342,7 +400,7 @@ class TransformationTRS: public Transformation
        */
         
       void set_rotation(glm::vec3 new_rotation)
-        {
+        { 
           this->rotation = new_rotation;
           this->recompute_rotation_matrix();
         };
@@ -355,6 +413,21 @@ class TransformationTRS: public Transformation
         {
           this->scale = new_scale;
           this->recompute_scale_matrix();
+        };
+        
+      glm::vec3 get_translation()
+        {
+          return this->translation;
+        };
+      
+      glm::vec3 get_rotation()
+        {
+          return this->rotation;
+        };
+        
+      glm::vec3 get_scale()
+        {
+          return this->scale;
         };
         
       /**
@@ -374,6 +447,12 @@ class TransformationTRS: public Transformation
         };
   };
 
+/**
+ * Transformation consisting of translation, rotation and scale for models.
+ * Rotation is done in following order: around z (roll), around y (yaw),
+ * around x (pitch). 
+ */
+  
 class TransformationTRSModel: public TransformationTRS
   {
     protected:
@@ -403,6 +482,12 @@ class TransformationTRSModel: public TransformationTRS
           this->recompute_final_matrix();
         };
   };
+  
+/**
+ * Transformation consisting of translation, rotation and scale (not used)
+ * for cameras. Use this transform to records the camera transform and then
+ * apply it to all models in the scene, i.e. you get the view matrix.
+ */
   
 class TransformationTRSCamera: public TransformationTRS
   {
@@ -742,6 +827,15 @@ class Texture2D
         }
       
     public:
+      /**
+       * Initialises a new texture.
+       * 
+       * @param width width int pixels
+       * @param height height int pixels
+       * @param texel_type texel type for the texture, possible values are
+       *        defined in this file (TEXEL_TYPE_COLOR, TEXEL_TYPE_DEPTH, ...)
+       */
+      
       Texture2D(unsigned int width, unsigned int height, unsigned int texel_type)
         {      
           this->use_float_data = texel_type == TEXEL_TYPE_DEPTH;
@@ -1412,4 +1506,126 @@ Geometry3D load_obj(string filename)
     return result;
   }
   
+/**
+ * Class that uses static methods and provides methods for default
+ * camera control.
+ */
+
+class CameraHandler
+  {
+    protected:
+      static bool clicked;          // whether mouse was clicked
+      static bool clicked_right;    // whether mouse was clicked
+      static int initial_mouse_coords[2];
+      static glm::vec3 initial_camera_rotation;
+      
+    public:
+      static float translation_step;
+      static float rotation_step;
+      static TransformationTRSCamera camera_transformation;
+      
+      /**
+       * Set this method as mouse click callback or call it inside mouse
+       * click callback in order for camera transformation of this
+       * class to be handled.
+       */
+      
+      static void mouse_click_callback(int button, int state, int x, int y)
+        {
+          if (button == GLUT_LEFT_BUTTON)
+            CameraHandler::clicked = !CameraHandler::clicked;
+          else if (button == GLUT_RIGHT_BUTTON)
+            CameraHandler::clicked_right = !CameraHandler::clicked_right;
+          
+          if (CameraHandler::clicked)
+            {
+              CameraHandler::initial_mouse_coords[0] = x;
+              CameraHandler::initial_mouse_coords[1] = y;
+              CameraHandler::initial_camera_rotation = CameraHandler::camera_transformation.get_rotation();
+            }
+        }
+      
+      /**
+       * Set this method as mouse move callback or call it inside mouse
+       * move callback in order for camera transformation of this
+       * class to be handled.
+       */
+      
+      static void mouse_move_callback(int x, int y)
+        {
+          int dx, dy;
+   
+          dx = x - initial_mouse_coords[0];
+          dy = y - initial_mouse_coords[1];
+          
+          if (CameraHandler::clicked)
+            camera_transformation.set_rotation(
+              glm::vec3(CameraHandler::initial_camera_rotation.x - dy / (800.0) * CameraHandler::rotation_step,
+                        CameraHandler::initial_camera_rotation.y - dx / (600.0) * CameraHandler::rotation_step,
+                        0.0));
+        }
+        
+      /**
+       * Set this method as mouse key callback or call it inside mouse
+       * key callback in order for camera transformation of this
+       * class to be handled.
+       */
+        
+      static void key_callback(unsigned char key, int x, int y)
+        {
+          glm::vec3 helper;
+          float speed_factor = CameraHandler::clicked_right ? 3.0 : 1.0;
+    
+          switch (key)
+            {
+              case 'd':
+                helper = CameraHandler::camera_transformation.get_direction_left();
+                helper *= -1 * speed_factor * CameraHandler::translation_step;
+                CameraHandler::camera_transformation.add_translation(helper);
+                break;
+          
+              case 'a':
+                helper = CameraHandler::camera_transformation.get_direction_left();
+                helper *= speed_factor * CameraHandler::translation_step;
+                CameraHandler::camera_transformation.add_translation(helper);
+                break;
+              
+              case 'w':
+                helper = CameraHandler::camera_transformation.get_direction_forward();
+                helper *= speed_factor * CameraHandler::translation_step;
+                CameraHandler::camera_transformation.add_translation(helper);
+                break;
+                
+              case 's':
+                helper = CameraHandler::camera_transformation.get_direction_forward();
+                helper *= -1 * speed_factor * CameraHandler::translation_step;
+                CameraHandler::camera_transformation.add_translation(helper);
+                break;
+              
+              case 'q':
+                helper = CameraHandler::camera_transformation.get_direction_up();
+                helper *= speed_factor * CameraHandler::translation_step;
+                CameraHandler::camera_transformation.add_translation(helper);
+                break;
+                
+              case 'e':
+                helper = CameraHandler::camera_transformation.get_direction_up();
+                helper *= -1 * speed_factor * CameraHandler::translation_step;
+                CameraHandler::camera_transformation.add_translation(helper);
+                break;
+                
+              default:
+                break;
+            }
+        }
+  };
+  
+bool CameraHandler::clicked = false;
+bool CameraHandler::clicked_right = false;
+float CameraHandler::translation_step = 0.5;
+float CameraHandler::rotation_step = 1.0;
+int CameraHandler::initial_mouse_coords[2] = {0,0};
+glm::vec3 CameraHandler::initial_camera_rotation;
+TransformationTRSCamera CameraHandler::camera_transformation;
+
 #endif
