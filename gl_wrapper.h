@@ -114,7 +114,7 @@ class GLSession
           
           this->argc = 0;
           this->argv = 0;
-          this->display_mode = GLUT_DOUBLE | GLUT_RGBA;
+          this->display_mode = GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_STENCIL;
           this->window_size[0] = 800;
           this->window_size[1] = 600;
           this->window_position[0] = 50;
