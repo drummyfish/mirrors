@@ -63,6 +63,36 @@ class ErrorWriter
         {
           ErrorWriter::enabled = enabled;
         }
+
+      /**
+       * Calls glGetError() and if there is an error,
+       * outputs the error (if error outputs are enabled).
+       * 
+       * @param label string that will be written alongside
+       *   the error
+       * @param print_ok if true, the OK message will be
+       *   printed if there was no error
+       */
+        
+      static void checkGlErrors(string label, bool print_ok = false)
+        {
+          if (!ErrorWriter::enabled)
+            return;
+          
+          GLuint error = glGetError();
+          
+          const char *helper_string = (const char *) gluErrorString(error);
+          
+          string error_string = helper_string;
+          
+          if (error != 0)
+            ErrorWriter::write_error("OpenGL error (" + label + ") " + to_string(error) + ": " + error_string);
+          else
+            {
+              if (print_ok)
+                cout << "OpenGL OK (" + label + ")" << endl;
+            }
+        }
   };
 
 bool ErrorWriter::enabled = true;
@@ -795,10 +825,6 @@ class Texel
         }
   };
   
-class Texture: public Printable, public GPUObject
-  {
-  };
-  
 /**
  * Raster image, intended for use with textures.
  */
@@ -1103,8 +1129,125 @@ class Image2D: public Printable
         }      
   };
   
+class Texture: public Printable, public GPUObject
+  {
+    protected:
+      GLuint to;             // texture object id
+
+    public:
+      virtual void bind(unsigned int unit) = 0;   
+  };
+  
 class TextureCubeMap: public Texture
   {
+    protected:
+      unsigned int size;
+    
+    public:
+      Image2D *image_front;
+      Image2D *image_back;
+      Image2D *image_left;
+      Image2D *image_right;
+      Image2D *image_top;
+      Image2D *image_bottom;
+      
+      /**
+       * Initialises a new cube map object.
+       * 
+       * @size width and height resolution in pixels (cube map must
+       *   have square size)
+       */
+      
+      TextureCubeMap(unsigned int size, unsigned int texel_type = TEXEL_TYPE_COLOR)
+        {
+          this->size = size;
+          glGenTextures(1,&(this->to));
+          this->image_front = new Image2D(size,size,texel_type);
+          this->image_back = new Image2D(size,size,texel_type);
+          this->image_left = new Image2D(size,size,texel_type);
+          this->image_right = new Image2D(size,size,texel_type);
+          this->image_top = new Image2D(size,size,texel_type);
+          this->image_bottom = new Image2D(size,size,texel_type);
+        }
+        
+      virtual ~TextureCubeMap()
+        {
+          delete this->image_front;
+          delete this->image_back;
+          delete this->image_left;
+          delete this->image_right;
+          delete this->image_top;
+          delete this->image_bottom;
+        }
+        
+      virtual void update_gpu()
+        {
+          int i;
+          Image2D *images[] =
+            {this->image_front,
+             this->image_back,
+             this->image_left,
+             this->image_right,
+             this->image_bottom,
+             this->image_top};
+          
+          GLuint targets[] =
+            {GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+             GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+             GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+             GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+             GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+             GL_TEXTURE_CUBE_MAP_POSITIVE_Y};
+          
+          glBindTexture (GL_TEXTURE_CUBE_MAP,this->to);
+          
+          for (i = 0; i < 6; i++)
+            {
+              glTexImage2D(targets[i],0,GL_RGBA,this->size,this->size,0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
+            }
+            
+          glBindTexture (GL_TEXTURE_CUBE_MAP,0);
+        }
+        
+      bool load_ppms(string front, string back, string left, string right, string bottom, string top)
+        {
+          bool result = true;
+          
+          result = result && this->image_front->load_ppm(front);
+          result = result && this->image_back->load_ppm(back);
+          result = result && this->image_left->load_ppm(left);
+          result = result && this->image_right->load_ppm(right);
+          result = result && this->image_bottom->load_ppm(bottom);
+          result = result && this->image_top->load_ppm(top);
+          
+          return result;
+        }
+        
+      virtual void print()
+        {
+        }
+        
+      virtual void bind(unsigned int unit)
+        {
+          switch (unit)
+            {
+              case 0: glActiveTexture(GL_TEXTURE0); break;
+              case 1: glActiveTexture(GL_TEXTURE1); break;
+              case 2: glActiveTexture(GL_TEXTURE2); break;
+              case 3: glActiveTexture(GL_TEXTURE3); break;
+              case 4: glActiveTexture(GL_TEXTURE4); break;
+              case 5: glActiveTexture(GL_TEXTURE5); break;
+              case 6: glActiveTexture(GL_TEXTURE6); break;
+              case 7: glActiveTexture(GL_TEXTURE7); break;
+              case 8: glActiveTexture(GL_TEXTURE8); break;
+              case 9: glActiveTexture(GL_TEXTURE9); break;
+              
+              default:
+                break;
+            }
+          
+          glBindTexture(GL_TEXTURE_CUBE_MAP,this->to);
+        }
   };
   
 /**
@@ -1114,7 +1257,6 @@ class TextureCubeMap: public Texture
 class Texture2D: public Texture
   {
     protected:
-      GLuint to;             // texture object id
       Image2D *image_data;
       
     public:
@@ -1198,11 +1340,7 @@ class Texture2D: public Texture
           glBindTexture(GL_TEXTURE_2D,0);
         }
       
-      /**
-       * Binds the texture to given texturing unit for usage.
-       */
-      
-      void bind(unsigned int unit)
+      virtual void bind(unsigned int unit)
         {
           switch (unit)
             {

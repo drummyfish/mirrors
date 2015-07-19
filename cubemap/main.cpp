@@ -14,6 +14,7 @@ TransformationTRSCamera transformation_camera;
 GLint color_location;
 GLint light_direction_location;
 GLint sampler_location;
+GLint sampler_cube_location;
 GLint view_matrix_location;
 GLint mirror_location;
 GLint model_matrix_location;
@@ -30,6 +31,8 @@ Texture2D *texture_cow;
 Texture2D *texture_rock;
 Texture2D *texture_cup;
 
+TextureCubeMap *texture_cube;
+
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
 
@@ -41,7 +44,6 @@ void render()
   {
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_STENCIL_TEST);
     
     // first pass:
     
@@ -68,38 +70,14 @@ void render()
 
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
    
-    glDepthMask(GL_FALSE);                     // disable writing to dept buffer so we can later draw over the mirror
-    glStencilFunc(GL_ALWAYS,1,0xFF);           // for each mirror fragment write 1 to stencil buffer
-    glStencilOp(GL_KEEP,GL_KEEP,GL_REPLACE);   // write 1 only for pixels that get rasterized
-    glStencilMask(0xFF);                       // needen for glClear(GL_STENCIL_BUFFER_BIT)
-    glClear(GL_STENCIL_BUFFER_BIT);            // clear the stencil buffer to zeros
-    
     // draw the mirror:
+//    texture_cube->bind(0);
+
+    ErrorWriter::checkGlErrors("rendering loop");
+
     glUniform1ui(mirror_location,1);
     geometry_mirror->draw_as_triangles();
     glUniform1ui(mirror_location,0);
-    
-    // second pass:
-    
-    glm::vec4 a,b,c;                           // 3 mirror vertices for the plane of reflection
-    a = transformation_mirror.get_matrix() * glm::vec4(geometry_mirror->vertices[0].position,1.0);
-    b = transformation_mirror.get_matrix() * glm::vec4(geometry_mirror->vertices[1].position,1.0);
-    c = transformation_mirror.get_matrix() * glm::vec4(geometry_mirror->vertices[2].position,1.0);
-
-    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,    // cup transformation + reflection transformation
-      glm::value_ptr(
-        make_reflection_matrix(glm::vec3(a),glm::vec3(b),glm::vec3(c)) *
-        transformation_cup.get_matrix()
-        ));    
-    
-    glDepthMask(GL_TRUE);                      // re-enable dept buffer writing
-
-    glStencilMask(0x00);                       // disable writing to stencil buffer
-    glStencilFunc(GL_EQUAL,1,0xFF);            // only draw on pixels where stencil = 1
-    
-    geometry_cup->draw_as_triangles();         // draw the mirrored cup over the mirror
-
-    glDisable(GL_STENCIL_TEST);
     
     glutSwapBuffers();
   }
@@ -198,6 +176,10 @@ int main(int argc, char** argv)
     texture_cup = new Texture2D(16,16,TEXEL_TYPE_COLOR);
     texture_cup->load_ppm("cup.ppm");
     texture_cup->update_gpu();
+
+    texture_cube = new TextureCubeMap(512,TEXEL_TYPE_COLOR);
+    texture_cube->load_ppms("rock.ppm","rock.ppm","rock.ppm","rock.ppm","rock.ppm","rock.ppm");
+    texture_cube->update_gpu();
     
     transformation_cup.set_translation(glm::vec3(0.0,0.0,7.0));
     transformation_cow.set_translation(glm::vec3(15.0,5.0,-2.0));
@@ -217,14 +199,12 @@ int main(int argc, char** argv)
     texture_mirror_depth->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     texture_mirror_depth->update_gpu();
     
-    cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;
-    
     Shader shader(file_text("shader.vs"),file_text("shader.fs"));
     
     light_direction_location = shader.get_uniform_location("light_direction");
     mirror_location = shader.get_uniform_location("mirror");
     sampler_location = shader.get_uniform_location("tex");
-    glUniform1i(sampler_location,0);
+    sampler_cube_location = shader.get_uniform_location("tex_cube");    
     model_matrix_location = shader.get_uniform_location("model_matrix");
     view_matrix_location = shader.get_uniform_location("view_matrix");
     projection_matrix_location = shader.get_uniform_location("projection_matrix");
@@ -232,16 +212,21 @@ int main(int argc, char** argv)
     glm::mat4 view_matrix = glm::mat4(1.0f);
     
     shader.use();
+    glUniform1i(sampler_location,0);
+    glUniform1i(sampler_cube_location,0);
     
     glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE, glm::value_ptr(projection_matrix));
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(view_matrix));
     glUniform3f(light_direction_location,0.0,0.0,-1.0);
     glUniform1ui(mirror_location,0);
     
+    ErrorWriter::checkGlErrors("after init",true);
+    
     session->start();
     
     delete texture_cup;
     delete texture_mirror;
+    delete texture_cube;
     delete texture_rock;
     delete texture_room;
     delete texture_cow;
