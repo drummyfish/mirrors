@@ -18,7 +18,6 @@ GLint view_matrix_location;
 GLint mirror_location;
 GLint model_matrix_location;
 GLint projection_matrix_location;
-TransformFeedbackBuffer *tfb;
 
 Geometry3D *geometry_cup;
 Geometry3D *geometry_cow;
@@ -33,7 +32,6 @@ Texture2D *texture_cup;
 
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
-FrameBuffer *frame_buffer;
 
 bool clicked = false;     // whether mouse was clicked
 int initial_mouse_coords[2];
@@ -148,7 +146,7 @@ void special_callback(int key, int x, int y)
   }
   
 int main(int argc, char** argv)
-  {
+  { 
     GLSession *session;
     session = GLSession::get_instance();
     session->keyboard_callback = CameraHandler::key_callback;
@@ -219,9 +217,6 @@ int main(int argc, char** argv)
     texture_mirror_depth->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     texture_mirror_depth->update_gpu();
     
-    frame_buffer = new FrameBuffer();
-    frame_buffer->set_textures(texture_mirror_depth,0,texture_mirror,0,0);
-    
     cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;
     
     Shader shader(file_text("shader.vs"),file_text("shader.fs"));
@@ -250,7 +245,6 @@ int main(int argc, char** argv)
     delete texture_rock;
     delete texture_room;
     delete texture_cow;
-    delete frame_buffer;
     delete texture_mirror_depth;
     GLSession::clear();
     return 0;

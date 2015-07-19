@@ -24,6 +24,26 @@
 using namespace std;
 
 /**
+ * An object that can be printed.
+ */
+  
+class Printable
+  {
+    public:
+      virtual void print() = 0;
+  };
+  
+/**
+ * An object that can be uploaded to GPU.
+ */
+  
+class GPUObject
+  {
+    public:
+      virtual void update_gpu() = 0;
+  };
+
+/**
  * Simple class for error outputs. The class uses static methods,
  * the error outputs can be disabled.
  */
@@ -260,7 +280,7 @@ bool GLSession::initialised;
  * Represents a vertex matrix transformation.
  */
 
-class Transformation
+class Transformation: public Printable
   {
     protected:
       glm::mat4 final_matrix;
@@ -421,7 +441,7 @@ class TransformationTRS: public Transformation
        * Prints the transformation to stdout.
        */
         
-      void print()
+      virtual void print()
         { 
           cout << "translation: ";
           print_vec3(this->translation);
@@ -747,7 +767,6 @@ class TransformFeedbackBuffer
         {
           glEndTransformFeedback();
         }
-          
   };
   
 /**
@@ -776,23 +795,23 @@ class Texel
         }
   };
   
+class Texture: public Printable, public GPUObject
+  {
+  };
+  
 /**
- * RGBA 2D image texture.
+ * Raster image, intended for use with textures.
  */
   
-class Texture2D
+class Image2D: public Printable
   {
     protected:
-      GLuint to;             // texture object id
-      
+      vector<Texel> data;         
+      vector<float> data_float;   
+      vector<int> data_int;
       unsigned int width;
       unsigned int height;
-      
-      GLuint texel_type;
-      vector<Texel> data;         // this vector is used for color texels (use_float_data = false)
-      vector<float> data_float;   // this vector is used for float texels (use_float_data = true)
-      
-      bool use_float_data;        // whether to use color or float data (data or float_data vector)
+      int data_type;              // which vector to use
       
       /**
        * Converts 2D coordinates to 1D index.
@@ -812,55 +831,62 @@ class Texture2D
           
           return y * this->width + x;
         }
-      
+        
     public:
-      /**
-       * Initialises a new texture.
-       * 
-       * @param width width int pixels
-       * @param height height int pixels
-       * @param texel_type texel type for the texture, possible values are
-       *        defined in this file (TEXEL_TYPE_COLOR, TEXEL_TYPE_DEPTH, ...)
-       */
-      
-      Texture2D(unsigned int width, unsigned int height, unsigned int texel_type)
+      Image2D(unsigned int width, unsigned int height, unsigned int data_type)
         {      
-          this->use_float_data = texel_type == TEXEL_TYPE_DEPTH;
-          
-          glGenTextures(1,&(this->to)); 
+          this->data_type = data_type;
           this->set_size(width,height);
         }
         
-      /**
-       * Gets the texture OpenGL identifier (so called name).
-       */
-        
-      GLuint get_id()
+      virtual ~Image2D()
         {
-          return this->to;
+        }
+        
+      int get_width()
+        {
+          return this->width;
+        }
+        
+      int get_height()
+        {
+          return this->height;
+        }
+        
+      int get_data_type()
+        {
+          return this->data_type;
         }
         
       void set_size(unsigned int width, unsigned int height)
         {
           unsigned int i;
+          float helper = 0.0;
           
           this->width = width;
           this->height = height;
         
           this->data.clear();
           
-          if (this->use_float_data)
+          switch (this->data_type)
             {
-              float helper = 0.0;
+              case TEXEL_TYPE_COLOR:
+                this->data.clear();
+                
+                for (i = 0; i < width * height; i++)
+                  this->data.push_back(Texel());
+                break;
               
-              for (i = 0; i < width * height; i++)
-                this->data_float.push_back(helper);
+              case TEXEL_TYPE_DEPTH:
+                this->data_float.clear();
+                
+                for (i = 0; i < width * height; i++)
+                  this->data_float.push_back(helper);
+                break;
+                
+              default:
+                break;
             }
-          else
-            {
-              for (i = 0; i < width * height; i++)
-                this->data.push_back(Texel());
-            } 
         }
         
       /**
@@ -957,34 +983,206 @@ class Texture2D
           return true;
         }
         
-      void set_pixel(unsigned int x, unsigned int y, float r, float g, float b, float a)
+      bool save_ppm(string filename)
         {
+          unsigned int i,j;
+          float r,g,b;
+
+          FILE *file_handle;
+          file_handle = fopen(filename.c_str(),"wb");
+
+          if (!file_handle)
+            return false;
+
+          fprintf(file_handle,"P6 %d %d 255 ",this->width,this->height);
+
+          for (j = 0; j < this->height; j++)
+            for (i = 0; i < this->width; i++)
+              {
+                this->get_pixel(i,j,&r,&g,&b);
+                fprintf(file_handle,"%c%c%c",
+                  ((unsigned char) (r * 255)),
+                  ((unsigned char) (g * 255)),
+                  ((unsigned char) (b * 255)));
+              }
+
+          fclose(file_handle);
+            return true;
+        }
+        
+      void set_pixel(unsigned int x, unsigned int y, float r, float g, float b, float a)
+        { 
           Texel texel;
           
-          if (this->use_float_data)
+          switch (this->data_type)
             {
-              this->data_float[this->coords_2d_to_1d(x,y)] = r;
+              case TEXEL_TYPE_COLOR:
+                texel.red = r;
+                texel.green = g;
+                texel.blue = b;
+                texel.alpha = a;
+                
+                this->data[this->coords_2d_to_1d(x,y)] = texel;            
+                break;
+              
+              case TEXEL_TYPE_DEPTH:
+                this->data_float[this->coords_2d_to_1d(x,y)] = r;
+                break;
+                
+              default:
+                break;
             }
-          else 
+        }
+      
+      void get_pixel(int x, int y, float *r, float *g, float *b)
+        {
+          int index = this->coords_2d_to_1d(x,y);
+          
+          switch (this->data_type)
             {
-              texel.set_value(r,g,b,a);
-              this->data[this->coords_2d_to_1d(x,y)] = texel;
+              case TEXEL_TYPE_COLOR:
+                *r = this->data[index].red;
+                *g = this->data[index].green;
+                *b = this->data[index].blue;
+                break;
+              
+              case TEXEL_TYPE_DEPTH:
+                *r = *g = *b = this->data_float[index];
+                break;
+                
+              default:
+                break;
             }
+        }
+        
+      void *get_data_pointer()
+        {
+          switch (this->data_type)
+            {
+              case TEXEL_TYPE_COLOR:
+                return &(this->data[0]);
+                break;
+
+              case TEXEL_TYPE_DEPTH:
+                return &(this->data_float[0]);
+                break;
+                
+              default:
+                return NULL;
+                break;
+            }
+        }
+      
+      virtual void print()
+        {
+          unsigned int x, y, index;
+          
+          for (y = 0; y < this->height; y++)
+            for (x = 0; x < this->width; x++)
+              {
+                index = this->coords_2d_to_1d(x,y);
+                
+                cout << x << "; " << y << ": ";
+                
+                switch (this->data_type)
+                  {
+                    case TEXEL_TYPE_COLOR:
+                      cout <<
+                      this->data[index].red << ", " <<
+                      this->data[index].green << ", " <<
+                      this->data[index].blue << ", " <<
+                      this->data[index].alpha << endl;
+                      break;
+                    
+                    case TEXEL_TYPE_DEPTH:
+                      cout << this->data_float[index] << endl; 
+                      
+                    default: break;
+                  }
+              }     
+        }      
+  };
+  
+class TextureCubeMap: public Texture
+  {
+  };
+  
+/**
+ * RGBA 2D image texture.
+ */
+  
+class Texture2D: public Texture
+  {
+    protected:
+      GLuint to;             // texture object id
+      Image2D *image_data;
+      
+    public:
+      /**
+       * Initialises a new texture.
+       * 
+       * @param width width int pixels
+       * @param height height int pixels
+       * @param texel_type texel type for the texture, possible values are
+       *        defined in this file (TEXEL_TYPE_COLOR, TEXEL_TYPE_DEPTH, ...)
+       */
+      
+      Texture2D(unsigned int width, unsigned int height, unsigned int texel_type = TEXEL_TYPE_COLOR)
+        {
+          this->image_data = new Image2D(width,height,texel_type);
+          glGenTextures(1,&(this->to));
+        }
+      
+      virtual ~Texture2D()
+        {
+          delete this->image_data;
+        }
+      
+      /**
+       * Gets the texture OpenGL identifier (so called name).
+       */
+        
+      GLuint get_id()
+        {
+          return this->to;
+        }
+        
+      Image2D *get_image_data()
+        {
+          return this->image_data;
+        }
+        
+      /**
+       * Loads the texture from ppm file format.
+       */
+        
+      bool load_ppm(string filename)
+        {
+          return this->image_data->load_ppm(filename);
         }
         
       /**
        * Uploads the texture data to GPU.
        */
         
-      void update_gpu()
+      virtual void update_gpu()
         {
           glBindTexture(GL_TEXTURE_2D,this->to);
           
-          if (this->use_float_data)
-            glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,this->width,this->height,0,GL_DEPTH_COMPONENT,GL_FLOAT,&(this->data_float[0]));
-          else
-            glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,this->width,this->height,0,GL_RGBA,GL_FLOAT,&(this->data[0]));
-          
+          switch (this->image_data->get_data_type())
+            {
+              case TEXEL_TYPE_COLOR:
+                glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,this->image_data->get_width(),this->image_data->get_height(),0,GL_RGBA,GL_FLOAT,this->image_data->get_data_pointer());
+                break;
+                
+              case TEXEL_TYPE_DEPTH:
+                glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,this->image_data->get_width(),this->image_data->get_height(),0,GL_DEPTH_COMPONENT,GL_FLOAT,this->image_data->get_data_pointer());
+                break;
+                
+              default:
+                break;
+            }
+
           glGenerateMipmap(GL_TEXTURE_2D);
           glBindTexture(GL_TEXTURE_2D,0);
         }
@@ -1013,6 +1211,11 @@ class Texture2D
               case 2: glActiveTexture(GL_TEXTURE2); break;
               case 3: glActiveTexture(GL_TEXTURE3); break;
               case 4: glActiveTexture(GL_TEXTURE4); break;
+              case 5: glActiveTexture(GL_TEXTURE5); break;
+              case 6: glActiveTexture(GL_TEXTURE6); break;
+              case 7: glActiveTexture(GL_TEXTURE7); break;
+              case 8: glActiveTexture(GL_TEXTURE8); break;
+              case 9: glActiveTexture(GL_TEXTURE9); break;
               
               default:
                 break;
@@ -1025,24 +1228,12 @@ class Texture2D
        * Prints the texture data to stdout.
        */
       
-      void print()
+      virtual void print()
         {
-          unsigned int x, y, index;
-          
-          for (y = 0; y < this->height; y++)
-            for (x = 0; x < this->width; x++)
-              {
-                index = this->coords_2d_to_1d(x,y);
-                
-                cout << x << "; " << y << ": " <<
-                  this->data[index].red << ", " <<
-                  this->data[index].green << ", " <<
-                  this->data[index].blue << ", " <<
-                  this->data[index].alpha << endl;
-              }     
+          this->image_data->print();
         }
   };
-
+  
 /**
  * Represents a frame buffer. It has a number of attachments,
  * such as color, depth, stencil etc.
@@ -1142,7 +1333,7 @@ class FrameBuffer
  * Represents a 3D geometry.
  */
   
-class Geometry3D
+class Geometry3D: public Printable, public GPUObject
   {
     protected:
       GLuint vbo;
@@ -1189,7 +1380,7 @@ class Geometry3D
        * Sends the geometry data to GPU.
        */
         
-      void update_gpu()
+      virtual void update_gpu()
         {
           glBindVertexArray(this->vao);
           glBindBuffer(GL_ARRAY_BUFFER,this->vbo);
@@ -1230,7 +1421,7 @@ class Geometry3D
           this->triangles.push_back(i3);
         }
         
-      void print()
+      virtual void print()
         {
           int i;
           
@@ -1298,15 +1489,15 @@ Geometry3D make_box(float width, float height, float depth)
     float half_height = height / 2.0;
     float half_depth = depth / 2.0;
     
-    result.add_vertex(-half_width,-half_height,-half_depth,0.0,0.0,0.0,-1.0,-1.0,-1.0); // 0
-    result.add_vertex(half_width,-half_height,-half_depth,0.0,0.0,0.0,1.0,-1.0,-1.0);   // 1
-    result.add_vertex(-half_width,half_height,-half_depth,0.0,0.0,0.0,-1.0,1.0,-1.0);   // 2
-    result.add_vertex(half_width,half_height,-half_depth,0.0,0.0,0.0,1.0,1.0,-1.0);     // 3
+    result.add_vertex(-half_width,-half_height,-half_depth,0.25,0.25,0.0,-1.0,-1.0,-1.0); // 0
+    result.add_vertex(half_width,-half_height,-half_depth,0.75,0.25,0.0,1.0,-1.0,-1.0);   // 1
+    result.add_vertex(-half_width,half_height,-half_depth,0.25,0.75,0.0,-1.0,1.0,-1.0);   // 2
+    result.add_vertex(half_width,half_height,-half_depth,0.75,0.75,0.0,1.0,1.0,-1.0);     // 3
 
-    result.add_vertex(-half_width,-half_height,half_depth,0.0,0.0,0.0,-1.0,-1.0,1.0);   // 4
-    result.add_vertex(half_width,-half_height,half_depth,0.0,0.0,0.0,1.0,-1.0,1.0);     // 5
-    result.add_vertex(-half_width,half_height,half_depth,0.0,0.0,0.0,-1.0,1.0,1.0);     // 6
-    result.add_vertex(half_width,half_height,half_depth,0.0,0.0,0.0,1.0,1.0,1.0);       // 7
+    result.add_vertex(-half_width,-half_height,half_depth,0.0,0.0,0.0,-1.0,-1.0,1.0);     // 4
+    result.add_vertex(half_width,-half_height,half_depth,1.0,0.0,0.0,1.0,-1.0,1.0);       // 5
+    result.add_vertex(-half_width,half_height,half_depth,0.0,1.0,0.0,-1.0,1.0,1.0);       // 6
+    result.add_vertex(half_width,half_height,half_depth,1.0,1.0,0.0,1.0,1.0,1.0);         // 7
     
     result.add_triangle(1,0,2); // front
     result.add_triangle(1,2,3); 
@@ -1413,6 +1604,9 @@ void parse_obj_line(string line,float data[4][3])
 
             try
               {
+                if (line[0] == '/')
+                  line = line.substr(1);
+                
                 if (line.length() >= 1)
                   data[i][j] = stof(line,&position);
 
@@ -1435,10 +1629,14 @@ void parse_obj_line(string line,float data[4][3])
   }
   
 /**
- * Loads a 3D geometry from obj file format.
+ * Loads a 3D geometry from obj file format. This is a simple method and doesn't
+ * support OBJ in its full specification.
+ * 
+ * @param filename file to be loaded
+ * @param flip whether to flip object vertically (due to obj coords)
  */
   
-Geometry3D load_obj(string filename)
+Geometry3D load_obj(string filename, bool flip=false)
   {
     Geometry3D result;
     
@@ -1446,6 +1644,8 @@ Geometry3D load_obj(string filename)
     string line;
     float obj_line_data[4][3];
     glm::vec3 helper_point;
+    
+    int flip_factor = flip ? -1 : 1;
 
     vector<glm::vec3> normals;
     vector<glm::vec3> texture_vertices;
@@ -1486,7 +1686,7 @@ Geometry3D load_obj(string filename)
               else                       // position vertex
                 {
                   parse_obj_line(line,obj_line_data);
-                  result.add_vertex(obj_line_data[0][0],obj_line_data[1][0],obj_line_data[2][0],0.0,0.0,0.0,1.0,0.0,0.0);
+                  result.add_vertex(obj_line_data[0][0],obj_line_data[1][0] * flip_factor,obj_line_data[2][0],0.0,0.0,0.0,1.0,0.0,0.0);
                   break;
                 }
 
