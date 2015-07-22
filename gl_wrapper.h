@@ -40,7 +40,20 @@ class Printable
 class GPUObject
   {
     public:
+      /**
+       Updates object data to GPU.
+       */
+      
       virtual void update_gpu() = 0;
+      
+      /**
+       If supported, loads the data from GPU and
+       saves them into the object.
+       */
+      
+      virtual void load_from_gpu()
+        {
+        }
   };
 
 /**
@@ -884,6 +897,15 @@ class Image2D: public Printable
           return this->data_type;
         }
         
+      void clear()
+        {
+          int i,j;
+          
+          for (j = 0; j < this->get_height(); j++)
+            for (i = 0; i < this->get_width(); i++)
+              this->set_pixel(i,j,0,0,0,0);
+        }
+        
       void set_size(unsigned int width, unsigned int height)
         {
           unsigned int i;
@@ -1135,7 +1157,12 @@ class Texture: public Printable, public GPUObject
       GLuint to;             // texture object id
 
     public:
-      virtual void bind(unsigned int unit) = 0;   
+      virtual void bind(unsigned int unit) = 0;  
+      
+      GLuint get_texture_object()
+        {
+          return this->to;
+        }
   };
   
 class TextureCubeMap: public Texture
@@ -1162,6 +1189,15 @@ class TextureCubeMap: public Texture
         {
           this->size = size;
           glGenTextures(1,&(this->to));
+          
+          glBindTexture(GL_TEXTURE_CUBE_MAP,this->to);
+          glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+          glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+          glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+          glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+          glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);           
+          glBindTexture(GL_TEXTURE_CUBE_MAP,0);
+
           this->image_front = new Image2D(size,size,texel_type);
           this->image_back = new Image2D(size,size,texel_type);
           this->image_left = new Image2D(size,size,texel_type);
@@ -1199,14 +1235,44 @@ class TextureCubeMap: public Texture
              GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
              GL_TEXTURE_CUBE_MAP_POSITIVE_Y};
           
-          glBindTexture (GL_TEXTURE_CUBE_MAP,this->to);
+          glBindTexture(GL_TEXTURE_CUBE_MAP,this->to);
+
+          for (i = 0; i < 6; i++)
+            {
+              glTexImage2D(targets[i],0,GL_RGBA,this->size,this->size,0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());          
+            }
+    
+          glGenerateMipmap(GL_TEXTURE_CUBE_MAP);         
+          glBindTexture(GL_TEXTURE_CUBE_MAP,0);
+        }
+        
+      virtual void load_from_gpu()
+        {
+          int i;
+          
+          glBindTexture(GL_TEXTURE_CUBE_MAP,this->to);
+
+          Image2D *images[] =
+            {this->image_front,
+             this->image_back,
+             this->image_left,
+             this->image_right,
+             this->image_bottom,
+             this->image_top};
+          
+          GLuint targets[] =
+            {GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+             GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+             GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+             GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+             GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+             GL_TEXTURE_CUBE_MAP_POSITIVE_Y};
           
           for (i = 0; i < 6; i++)
             {
-              glTexImage2D(targets[i],0,GL_RGBA,this->size,this->size,0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
+              images[i]->set_size(this->size,this->size);
+              glGetTexImage(targets[i],0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
             }
-            
-          glBindTexture (GL_TEXTURE_CUBE_MAP,0);
         }
         
       bool load_ppms(string front, string back, string left, string right, string bottom, string top)
@@ -1220,11 +1286,36 @@ class TextureCubeMap: public Texture
           result = result && this->image_bottom->load_ppm(bottom);
           result = result && this->image_top->load_ppm(top);
           
+          auto lambda_size_ok = [](Image2D *image, int size)
+            {
+              return (image->get_width() == size) && (image->get_height() == size);
+            };
+          
+          if (!lambda_size_ok(this->image_front,this->size) ||
+              !lambda_size_ok(this->image_back,this->size) ||
+              !lambda_size_ok(this->image_left,this->size) ||
+              !lambda_size_ok(this->image_right,this->size) ||
+              !lambda_size_ok(this->image_top,this->size) ||
+              !lambda_size_ok(this->image_bottom,this->size))
+            ErrorWriter::write_error("Loaded cubemap images don't have the same size.");
+            
           return result;
         }
         
       virtual void print()
         {
+          cout << "front:" << endl;
+          this->image_front->print();
+          cout << "back:" << endl;
+          this->image_back->print();
+          cout << "left:" << endl;
+          this->image_left->print();
+          cout << "right:" << endl;
+          this->image_right->print();
+          cout << "bottom:" << endl;
+          this->image_bottom->print();
+          cout << "top:" << endl;
+          this->image_top->print();
         }
         
       virtual void bind(unsigned int unit)
@@ -1327,6 +1418,24 @@ class Texture2D: public Texture
 
           glGenerateMipmap(GL_TEXTURE_2D);
           glBindTexture(GL_TEXTURE_2D,0);
+        }
+        
+      virtual void load_from_gpu()
+        {
+          glBindTexture(GL_TEXTURE_2D,this->to);
+          
+          switch (this->image_data->get_data_type())
+            {
+              case TEXEL_TYPE_COLOR:        
+                glGetTexImage(GL_TEXTURE_2D,0,GL_RGBA,GL_FLOAT,this->image_data->get_data_pointer());
+                break;
+                
+              case TEXEL_TYPE_DEPTH:
+                break;
+                
+              default:
+                break;
+            }
         }
         
       /**

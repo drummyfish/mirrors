@@ -19,6 +19,7 @@ GLint view_matrix_location;
 GLint mirror_location;
 GLint model_matrix_location;
 GLint projection_matrix_location;
+GLint camera_position_location;
 
 Geometry3D *geometry_cup;
 Geometry3D *geometry_cow;
@@ -49,36 +50,38 @@ void render()
     
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
     
+    glUniform3fv(camera_position_location,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));
+    
     // draw the cup:
     
-    glStencilFunc(GL_ALWAYS,1,0xFF);           // always pass the stencil test
-    texture_cup->bind(0);
+    texture_cup->bind(1);
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_cup.get_matrix()));
     geometry_cup->draw_as_triangles();
-    
-    texture_rock->bind(0);
+        
+    texture_rock->bind(1);
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_rock.get_matrix()));
     geometry_rock->draw_as_triangles();
     
-    texture_cow->bind(0);
+    texture_cow->bind(1);
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_cow.get_matrix()));
     geometry_cow->draw_as_triangles();
-    
-    texture_room->bind(0);
+ 
+    texture_room->bind(1);
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(glm::mat4(1.0)));
     geometry_room->draw_as_triangles();
 
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
    
     // draw the mirror:
-//    texture_cube->bind(0);
 
-    ErrorWriter::checkGlErrors("rendering loop");
+    texture_cube->bind(0);
 
     glUniform1ui(mirror_location,1);
-    geometry_mirror->draw_as_triangles();
+    geometry_mirror->draw_as_triangles();    
     glUniform1ui(mirror_location,0);
     
+    ErrorWriter::checkGlErrors("rendering loop");
+  
     glutSwapBuffers();
   }
   
@@ -140,6 +143,8 @@ int main(int argc, char** argv)
     CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.05,0.1,0.0));
     
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
+
+glEnable(GL_TEXTURE_CUBE_MAP_EXT); 
     
     Geometry3D g = load_obj("cup.obj",true);
     geometry_cup = &g;
@@ -178,7 +183,8 @@ int main(int argc, char** argv)
     texture_cup->update_gpu();
 
     texture_cube = new TextureCubeMap(512,TEXEL_TYPE_COLOR);
-    texture_cube->load_ppms("rock.ppm","rock.ppm","rock.ppm","rock.ppm","rock.ppm","rock.ppm");
+    cout << "cubemap loading: " << texture_cube->load_ppms("cow.ppm","cow.ppm","cow.ppm","cow.ppm","cow.ppm","cow.ppm") << endl;    
+
     texture_cube->update_gpu();
     
     transformation_cup.set_translation(glm::vec3(0.0,0.0,7.0));
@@ -202,6 +208,7 @@ int main(int argc, char** argv)
     Shader shader(file_text("shader.vs"),file_text("shader.fs"));
     
     light_direction_location = shader.get_uniform_location("light_direction");
+    camera_position_location = shader.get_uniform_location("camera_position");
     mirror_location = shader.get_uniform_location("mirror");
     sampler_location = shader.get_uniform_location("tex");
     sampler_cube_location = shader.get_uniform_location("tex_cube");    
@@ -212,7 +219,8 @@ int main(int argc, char** argv)
     glm::mat4 view_matrix = glm::mat4(1.0f);
     
     shader.use();
-    glUniform1i(sampler_location,0);
+    // 2D sampler and cube sampler must have different values, otherwise it doesn't work
+    glUniform1i(sampler_location,1);
     glUniform1i(sampler_cube_location,0);
     
     glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE, glm::value_ptr(projection_matrix));
