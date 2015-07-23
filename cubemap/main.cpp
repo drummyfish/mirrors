@@ -11,6 +11,8 @@ TransformationTRSModel transformation_rock;
 TransformationTRSModel transformation_mirror;
 TransformationTRSCamera transformation_camera;
 
+glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 100.0f);
+
 GLint color_location;
 GLint light_direction_location;
 GLint sampler_location;
@@ -34,7 +36,9 @@ Texture2D *texture_cow;
 Texture2D *texture_rock;
 Texture2D *texture_cup;
 
-TextureCubeMap *texture_cube;
+bool draw_mirror = true;
+
+EnvironmentCubeMap *cube_map;
 
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
@@ -45,33 +49,33 @@ glm::vec3 initial_camera_rotation;
 
 void draw_scene()
   {
-    // draw the cup:
-    
-    texture_cup->bind(1);
-    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_cup.get_matrix()));
-    geometry_cup->draw_as_triangles();
-        
-    texture_rock->bind(1);
-    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_rock.get_matrix()));
-    geometry_rock->draw_as_triangles();
-    
-    texture_cow->bind(1);
-    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_cow.get_matrix()));
-    geometry_cow->draw_as_triangles();
- 
     texture_room->bind(1);
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(glm::mat4(1.0)));
     geometry_room->draw_as_triangles();
 
+    texture_cup->bind(1);
+    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_cup.get_matrix()));
+    geometry_cup->draw_as_triangles();
+
+    texture_rock->bind(1);
+    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_rock.get_matrix()));
+    geometry_rock->draw_as_triangles();
+
+    texture_cow->bind(1);
+    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_cow.get_matrix()));
+    geometry_cow->draw_as_triangles();
+ 
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
    
     // draw the mirror:
-
-    texture_cube->bind(0);
-
-    glUniform1ui(mirror_location,1);
-    geometry_mirror->draw_as_triangles();    
-    glUniform1ui(mirror_location,0);
+    
+    if (draw_mirror)
+      {
+        cube_map->get_texture_color()->bind(0);
+        glUniform1ui(mirror_location,1);
+        geometry_mirror->draw_as_triangles();    
+        glUniform1ui(mirror_location,0);
+      }
   }
 
 void render()
@@ -81,6 +85,7 @@ void render()
     
     // set up the camera:
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
+    glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE, glm::value_ptr(projection_matrix));
     glUniform3fv(camera_position_location,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));
     
     draw_scene();
@@ -92,23 +97,34 @@ void render()
   
 void recompute_cubemap_side(GLuint side) 
   {
-    frame_buffer->set_textures(0,0,0,0,texture_cube,side,0,0,0,0);
-
-    frame_buffer->activate();   
+    frame_buffer->set_textures(0,0,0,0,cube_map->get_texture_color(),side,0,0,0,0);
+    
+    frame_buffer->activate(); 
+    // set the camera:
+    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(cube_map->get_camera_transformation(side).get_matrix()));
+    draw_mirror = false;
     draw_scene();
+    draw_mirror = true;
     frame_buffer->deactivate();
   }
   
 void recompute_cubemap()
   {
+    cube_map->transformation.set_translation(transformation_mirror.get_translation());
+//    cube_map->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
+    glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE,glm::value_ptr(cube_map->get_projection_matrix()));
+    
+    cube_map->setViewport();
     cout << "rendering cube map..." << endl;
-
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_X);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
+    cube_map->unsetViewport();
+    cube_map->get_texture_color()->load_from_gpu();
+    cube_map->get_texture_color()->save_ppms("cubemap_images/cube_map");
   }
   
 void special_callback(int key, int x, int y)
@@ -197,7 +213,7 @@ int main(int argc, char** argv)
     geometry_mirror->update_gpu();
     
     texture_room = new Texture2D(16,16,TEXEL_TYPE_COLOR);
-    texture_room->load_ppm("sky.ppm");
+    texture_room->load_ppm("sky_test.ppm");
     texture_room->update_gpu();
     
     texture_cow = new Texture2D(16,16,TEXEL_TYPE_COLOR);
@@ -212,10 +228,8 @@ int main(int argc, char** argv)
     texture_cup->load_ppm("cup.ppm");
     texture_cup->update_gpu();
 
-    texture_cube = new TextureCubeMap(512,TEXEL_TYPE_COLOR);
-    cout << "cubemap loading: " << texture_cube->load_ppms("cow.ppm","cow.ppm","cow.ppm","cow.ppm","cow.ppm","cow.ppm") << endl;    
-
-    texture_cube->update_gpu();
+    cube_map = new EnvironmentCubeMap(512);
+    cube_map->get_texture_color()->update_gpu();
     
     transformation_cup.set_translation(glm::vec3(0.0,0.0,7.0));
     transformation_cow.set_translation(glm::vec3(15.0,5.0,-2.0));
@@ -245,7 +259,6 @@ int main(int argc, char** argv)
     model_matrix_location = shader.get_uniform_location("model_matrix");
     view_matrix_location = shader.get_uniform_location("view_matrix");
     projection_matrix_location = shader.get_uniform_location("projection_matrix");
-    glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 100.0f);
     glm::mat4 view_matrix = glm::mat4(1.0f);
     
     shader.use();
@@ -253,7 +266,6 @@ int main(int argc, char** argv)
     glUniform1i(sampler_location,1);
     glUniform1i(sampler_cube_location,0);
     
-    glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE, glm::value_ptr(projection_matrix));
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(view_matrix));
     glUniform3f(light_direction_location,0.0,0.0,-1.0);
     glUniform1ui(mirror_location,0);
@@ -265,7 +277,7 @@ int main(int argc, char** argv)
     delete frame_buffer;
     delete texture_cup;
     delete texture_mirror;
-    delete texture_cube;
+    delete cube_map;
     delete texture_rock;
     delete texture_room;
     delete texture_cow;

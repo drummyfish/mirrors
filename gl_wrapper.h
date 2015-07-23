@@ -11,6 +11,7 @@
 #include <GL/freeglut.h>
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
 #include <iostream>
@@ -1169,7 +1170,7 @@ class TextureCubeMap: public Texture
   {
     protected:
       unsigned int size;
-    
+      
     public:
       Image2D *image_front;
       Image2D *image_back;
@@ -1205,7 +1206,7 @@ class TextureCubeMap: public Texture
           this->image_top = new Image2D(size,size,texel_type);
           this->image_bottom = new Image2D(size,size,texel_type);
         }
-        
+ 
       virtual ~TextureCubeMap()
         {
           delete this->image_front;
@@ -1348,6 +1349,123 @@ class TextureCubeMap: public Texture
             }
           
           glBindTexture(GL_TEXTURE_CUBE_MAP,this->to);
+        }
+  };
+  
+/**
+ * Represents a cube map that is used for capturing environment.
+ */
+  
+class EnvironmentCubeMap
+  {
+    protected:
+      unsigned int size;
+      TextureCubeMap *texture_color;
+      TextureCubeMap *texture_depth;
+      glm::mat4 projection_matrix;    // matrix used for cubemap texture rendering
+      GLint initial_viewport[4];
+      
+    public:
+      TransformationTRSModel transformation;    // contains the cubemap transformation, to be able to place it in the world, only translation is considered 
+      
+      EnvironmentCubeMap(int size)
+        {
+          this->size = size;
+          this->projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 100.0f);          
+          
+          this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
+          this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
+        }
+        
+      ~EnvironmentCubeMap()
+        {
+          delete this->texture_color;
+          delete this->texture_depth;
+        }
+      
+      glm::mat4 get_projection_matrix()
+        {
+          return this->projection_matrix;
+        }
+      
+      TextureCubeMap *get_texture_color()
+        {
+          return this->texture_color;
+        }
+      
+      TextureCubeMap *get_texture_depth()
+        {
+          return this->texture_depth;
+        }
+  
+      /**
+       Saves the current viewport settings and sets the new one
+       for cubemap rendering.
+       */
+  
+      void setViewport()
+        {
+          glGetIntegerv(GL_VIEWPORT,this->initial_viewport);   // save the old viewport
+          glViewport(0,0,this->size,this->size);
+        }
+      
+      /**
+       Restores the original viewport settings (saved when setViewport
+       was called).
+       */
+      
+      void unsetViewport()
+        {
+          glViewport(this->initial_viewport[0],this->initial_viewport[1],this->initial_viewport[2],this->initial_viewport[3]);
+        }
+  
+      /**
+       Gets the transformation for the camera by given cube map side
+       (such as GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...)
+       */
+  
+      TransformationTRSCamera get_camera_transformation(GLuint cube_side_target)
+        {
+          TransformationTRSCamera result;
+          
+          result.set_translation(this->transformation.get_translation());
+          result.set_rotation(this->transformation.get_rotation());
+          
+          switch (cube_side_target)
+            {
+              case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+                result.add_rotation(glm::vec3(0.0,0.0,M_PI));
+                // forward => do nothing
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+                // backward
+                result.add_rotation(glm::vec3(M_PI,0.0,0.0));
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+                // left
+                result.add_rotation(glm::vec3(0.0,M_PI / 2.0,M_PI));
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+                // right
+                result.add_rotation(glm::vec3(0.0,-1 * M_PI / 2.0,M_PI));
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+                result.add_rotation(glm::vec3(-1 * M_PI / 2.0,0.0,0.0));
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+                result.add_rotation(glm::vec3(M_PI / 2.0,0.0,0.0));
+                break;
+                
+              default:
+                break;
+            }
+          
+          return result;
         }
   };
   
