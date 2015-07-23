@@ -1302,6 +1302,16 @@ class TextureCubeMap: public Texture
           return result;
         }
         
+      void save_ppms(string name)
+        {
+          this->image_front->save_ppm(name + "_front.ppm");
+          this->image_back->save_ppm(name + "_back.ppm");
+          this->image_left->save_ppm(name + "_left.ppm");
+          this->image_right->save_ppm(name + "_right.ppm");
+          this->image_top->save_ppm(name + "_top.ppm");
+          this->image_bottom->save_ppm(name + "_bottom.ppm");
+        }
+        
       virtual void print()
         {
           cout << "front:" << endl;
@@ -1369,15 +1379,6 @@ class Texture2D: public Texture
       virtual ~Texture2D()
         {
           delete this->image_data;
-        }
-      
-      /**
-       * Gets the texture OpenGL identifier (so called name).
-       */
-        
-      GLuint get_id()
-        {
-          return this->to;
         }
         
       Image2D *get_image_data()
@@ -1497,7 +1498,13 @@ class FrameBuffer
           glGenFramebuffers(1,&(this->fbo)); 
         }
         
-      void set_textures(Texture2D *depth, Texture2D *stencil, Texture2D *color1, Texture2D *color2, Texture2D *color3)
+      /**
+       Sets the attachments for the framebuffer, i.e. the textures that will be
+       rendered to. If 0 is passed for a texture, it will not be used. Targets
+       are OpenGL targets (GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...).
+       */
+        
+      void set_textures(Texture *depth, GLuint depth_target, Texture *stencil, GLuint stencil_target, Texture *color1, GLuint color1_target, Texture *color2, GLuint color2_target, Texture *color3, GLuint color3_target)
         {
           vector<GLenum> draw_buffers;
           
@@ -1505,31 +1512,31 @@ class FrameBuffer
           
           if (depth != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,depth->get_id(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,depth_target,depth->get_texture_object(),0);
               draw_buffers.push_back(GL_DEPTH_ATTACHMENT);
             }
               
           if (stencil != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_STENCIL_ATTACHMENT,GL_TEXTURE_2D,depth->get_id(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_STENCIL_ATTACHMENT,stencil_target,stencil->get_texture_object(),0);
               draw_buffers.push_back(GL_STENCIL_ATTACHMENT);
             }
             
           if (color1 != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,color1->get_id(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,color1_target,color1->get_texture_object(),0);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT0);
             }
               
           if (color2 != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT1,GL_TEXTURE_2D,color1->get_id(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT1,color2_target,color1->get_texture_object(),0);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT1);
             }
               
           if (color3 != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT2,GL_TEXTURE_2D,color1->get_id(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT2,color3_target,color1->get_texture_object(),0);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT2);
             }
               

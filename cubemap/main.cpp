@@ -21,6 +21,8 @@ GLint model_matrix_location;
 GLint projection_matrix_location;
 GLint camera_position_location;
 
+FrameBuffer *frame_buffer;
+
 Geometry3D *geometry_cup;
 Geometry3D *geometry_cow;
 Geometry3D *geometry_rock;
@@ -41,17 +43,8 @@ bool clicked = false;     // whether mouse was clicked
 int initial_mouse_coords[2];
 glm::vec3 initial_camera_rotation;
 
-void render()
+void draw_scene()
   {
-    glClear(GL_COLOR_BUFFER_BIT);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    
-    // first pass:
-    
-    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
-    
-    glUniform3fv(camera_position_location,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));
-    
     // draw the cup:
     
     texture_cup->bind(1);
@@ -79,10 +72,43 @@ void render()
     glUniform1ui(mirror_location,1);
     geometry_mirror->draw_as_triangles();    
     glUniform1ui(mirror_location,0);
+  }
+
+void render()
+  {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    
+    // set up the camera:
+    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
+    glUniform3fv(camera_position_location,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));
+    
+    draw_scene();
     
     ErrorWriter::checkGlErrors("rendering loop");
   
     glutSwapBuffers();
+  }
+  
+void recompute_cubemap_side(GLuint side) 
+  {
+    frame_buffer->set_textures(0,0,0,0,texture_cube,side,0,0,0,0);
+
+    frame_buffer->activate();   
+    draw_scene();
+    frame_buffer->deactivate();
+  }
+  
+void recompute_cubemap()
+  {
+    cout << "rendering cube map..." << endl;
+
+    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
+    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
+    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
+    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
+    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
   }
   
 void special_callback(int key, int x, int y)
@@ -120,6 +146,10 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_END:
           transformation_mirror.add_rotation(glm::vec3(0.0,0.1,0.0));
           break;
+        
+        case GLUT_KEY_INSERT:
+          recompute_cubemap();
+          break;
           
         default:
           break;
@@ -143,8 +173,8 @@ int main(int argc, char** argv)
     CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.05,0.1,0.0));
     
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
-
-glEnable(GL_TEXTURE_CUBE_MAP_EXT); 
+    
+    frame_buffer = new FrameBuffer();
     
     Geometry3D g = load_obj("cup.obj",true);
     geometry_cup = &g;
@@ -232,6 +262,7 @@ glEnable(GL_TEXTURE_CUBE_MAP_EXT);
     
     session->start();
     
+    delete frame_buffer;
     delete texture_cup;
     delete texture_mirror;
     delete texture_cube;
