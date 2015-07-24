@@ -1170,6 +1170,7 @@ class TextureCubeMap: public Texture
   {
     protected:
       unsigned int size;
+      unsigned int texel_type;
       
     public:
       Image2D *image_front;
@@ -1189,6 +1190,7 @@ class TextureCubeMap: public Texture
       TextureCubeMap(unsigned int size, unsigned int texel_type = TEXEL_TYPE_COLOR)
         {
           this->size = size;
+          this->texel_type = texel_type;
           glGenTextures(1,&(this->to));
           
           glBindTexture(GL_TEXTURE_CUBE_MAP,this->to);
@@ -1240,9 +1242,21 @@ class TextureCubeMap: public Texture
 
           for (i = 0; i < 6; i++)
             {
-              glTexImage2D(targets[i],0,GL_RGBA,this->size,this->size,0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());          
+              switch (this->texel_type)
+                {
+                  case TEXEL_TYPE_COLOR:
+                    glTexImage2D(targets[i],0,GL_RGBA,this->size,this->size,0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
+                    break;
+                
+                  case TEXEL_TYPE_DEPTH:
+                    glTexImage2D(targets[i],0,GL_DEPTH_COMPONENT24,this->size,this->size,0,GL_DEPTH_COMPONENT,GL_FLOAT,images[i]->get_data_pointer());
+                    break;
+                
+                  default:
+                    break;
+                }     
             }
-    
+          
           glGenerateMipmap(GL_TEXTURE_CUBE_MAP);         
           glBindTexture(GL_TEXTURE_CUBE_MAP,0);
         }
@@ -1272,7 +1286,20 @@ class TextureCubeMap: public Texture
           for (i = 0; i < 6; i++)
             {
               images[i]->set_size(this->size,this->size);
-              glGetTexImage(targets[i],0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
+              
+              switch (this->texel_type)
+                {
+                  case TEXEL_TYPE_COLOR:
+                    glGetTexImage(targets[i],0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
+                    break;
+                    
+                  case TEXEL_TYPE_DEPTH:
+                    glGetTexImage(targets[i],0,GL_DEPTH_COMPONENT,GL_FLOAT,images[i]->get_data_pointer());
+                    break;
+                    
+                  default:
+                    break;
+                }
             }
         }
         
@@ -1356,36 +1383,42 @@ class TextureCubeMap: public Texture
  * Represents a cube map that is used for capturing environment.
  */
   
-class EnvironmentCubeMap
+class EnvironmentCubeMap: public GPUObject
   {
     protected:
       unsigned int size;
       TextureCubeMap *texture_color;
       TextureCubeMap *texture_depth;
-      glm::mat4 projection_matrix;    // matrix used for cubemap texture rendering
+      static glm::mat4 projection_matrix;    // matrix used for cubemap texture rendering
       GLint initial_viewport[4];
       
-    public:
+    public:    
       TransformationTRSModel transformation;    // contains the cubemap transformation, to be able to place it in the world, only translation is considered 
       
       EnvironmentCubeMap(int size)
         {
           this->size = size;
-          this->projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 100.0f);          
+          EnvironmentCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 100.0f);          
           
           this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
         }
         
-      ~EnvironmentCubeMap()
+      virtual ~EnvironmentCubeMap()
         {
           delete this->texture_color;
           delete this->texture_depth;
         }
       
+      virtual void update_gpu()
+        {
+          this->get_texture_color()->update_gpu();
+          this->get_texture_depth()->update_gpu();
+        }
+      
       glm::mat4 get_projection_matrix()
         {
-          return this->projection_matrix;
+          return EnvironmentCubeMap::projection_matrix;
         }
       
       TextureCubeMap *get_texture_color()
@@ -1468,7 +1501,9 @@ class EnvironmentCubeMap
           return result;
         }
   };
-  
+
+glm::mat4 EnvironmentCubeMap::projection_matrix;  
+      
 /**
  * RGBA 2D image texture.
  */
@@ -1542,7 +1577,6 @@ class Texture2D: public Texture
       virtual void load_from_gpu()
         {
           glBindTexture(GL_TEXTURE_2D,this->to);
-          
           switch (this->image_data->get_data_type())
             {
               case TEXEL_TYPE_COLOR:        
@@ -1550,11 +1584,14 @@ class Texture2D: public Texture
                 break;
                 
               case TEXEL_TYPE_DEPTH:
+                glGetTexImage(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,GL_FLOAT,this->image_data->get_data_pointer());
                 break;
                 
               default:
                 break;
             }
+
+          glBindTexture(GL_TEXTURE_2D,0);
         }
         
       /**
@@ -1622,7 +1659,7 @@ class FrameBuffer
        are OpenGL targets (GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...).
        */
         
-      void set_textures(Texture *depth, GLuint depth_target, Texture *stencil, GLuint stencil_target, Texture *color1, GLuint color1_target, Texture *color2, GLuint color2_target, Texture *color3, GLuint color3_target)
+      void set_textures(Texture *depth, GLuint depth_target, Texture *stencil, GLuint stencil_target, Texture *color, GLuint color_target)
         {
           vector<GLenum> draw_buffers;
           
@@ -1631,7 +1668,7 @@ class FrameBuffer
           if (depth != 0)
             {
               glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,depth_target,depth->get_texture_object(),0);
-              draw_buffers.push_back(GL_DEPTH_ATTACHMENT);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT1);
             }
               
           if (stencil != 0)
@@ -1640,28 +1677,15 @@ class FrameBuffer
               draw_buffers.push_back(GL_STENCIL_ATTACHMENT);
             }
             
-          if (color1 != 0)
+          if (color != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,color1_target,color1->get_texture_object(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,color_target,color->get_texture_object(),0);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT0);
             }
-              
-          if (color2 != 0)
-            {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT1,color2_target,color1->get_texture_object(),0);
-              draw_buffers.push_back(GL_COLOR_ATTACHMENT1);
-            }
-              
-          if (color3 != 0)
-            {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT2,color3_target,color1->get_texture_object(),0);
-              draw_buffers.push_back(GL_COLOR_ATTACHMENT2);
-            }
-              
-          glDrawBuffers(draw_buffers.size(),&(draw_buffers[0]));
-          
+             
+          glDrawBuffers(draw_buffers.size(),&(draw_buffers[0]));          
           GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER); 
-          
+           
           if (status != GL_FRAMEBUFFER_COMPLETE)
             {
               string helper;
@@ -1681,7 +1705,7 @@ class FrameBuffer
               
               ErrorWriter::write_error("An error occured while binding framebuffer attachments (" + helper + ").");
             }
-          
+           
           this->deactivate();          // unbind fbo
         }
         

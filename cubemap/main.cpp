@@ -49,6 +49,9 @@ glm::vec3 initial_camera_rotation;
 
 void draw_scene()
   {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    
     texture_room->bind(1);
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(glm::mat4(1.0)));
     geometry_room->draw_as_triangles();
@@ -80,9 +83,6 @@ void draw_scene()
 
 void render()
   {
-    glClear(GL_COLOR_BUFFER_BIT);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    
     // set up the camera:
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
     glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE, glm::value_ptr(projection_matrix));
@@ -97,9 +97,9 @@ void render()
   
 void recompute_cubemap_side(GLuint side) 
   {
-    frame_buffer->set_textures(0,0,0,0,cube_map->get_texture_color(),side,0,0,0,0);
-    
-    frame_buffer->activate(); 
+    cout << "rendering side" << endl;
+    frame_buffer->set_textures(cube_map->get_texture_depth(),side,0,0,cube_map->get_texture_color(),side);    
+    frame_buffer->activate();
     // set the camera:
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(cube_map->get_camera_transformation(side).get_matrix()));
     draw_mirror = false;
@@ -111,9 +111,7 @@ void recompute_cubemap_side(GLuint side)
 void recompute_cubemap()
   {
     cube_map->transformation.set_translation(transformation_mirror.get_translation());
-//    cube_map->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
     glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE,glm::value_ptr(cube_map->get_projection_matrix()));
-    
     cube_map->setViewport();
     cout << "rendering cube map..." << endl;
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_X);
@@ -124,7 +122,9 @@ void recompute_cubemap()
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
     cube_map->unsetViewport();
     cube_map->get_texture_color()->load_from_gpu();
+    cube_map->get_texture_depth()->load_from_gpu();
     cube_map->get_texture_color()->save_ppms("cubemap_images/cube_map");
+    cube_map->get_texture_depth()->save_ppms("cubemap_images/cube_map_depth");
   }
   
 void special_callback(int key, int x, int y)
@@ -229,7 +229,8 @@ int main(int argc, char** argv)
     texture_cup->update_gpu();
 
     cube_map = new EnvironmentCubeMap(512);
-    cube_map->get_texture_color()->update_gpu();
+    cube_map->update_gpu();
+    ErrorWriter::checkGlErrors("cube map init",true);
     
     transformation_cup.set_translation(glm::vec3(0.0,0.0,7.0));
     transformation_cow.set_translation(glm::vec3(15.0,5.0,-2.0));
