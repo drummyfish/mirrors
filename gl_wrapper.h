@@ -878,7 +878,7 @@ class Image2D: public Printable
           this->data_type = data_type;
           this->set_size(width,height);
         }
-        
+
       virtual ~Image2D()
         {
         }
@@ -1035,7 +1035,7 @@ class Image2D: public Printable
       bool save_ppm(string filename)
         {
           unsigned int i,j;
-          float r,g,b;
+          float r,g,b,a;
 
           FILE *file_handle;
           file_handle = fopen(filename.c_str(),"wb");
@@ -1048,7 +1048,7 @@ class Image2D: public Printable
           for (j = 0; j < this->height; j++)
             for (i = 0; i < this->width; i++)
               {
-                this->get_pixel(i,j,&r,&g,&b);
+                this->get_pixel(i,j,&r,&g,&b,&a);
                 fprintf(file_handle,"%c%c%c",
                   ((unsigned char) (r * 255)),
                   ((unsigned char) (g * 255)),
@@ -1057,6 +1057,30 @@ class Image2D: public Printable
 
           fclose(file_handle);
             return true;
+        }
+        
+      /**
+       Raises all pixels to given power (good for viewing depth maps). Good
+       value is 256.
+       */
+ 
+      void raise_to_power(unsigned int power)
+        {
+          float r,g,b,a;
+          unsigned int i,j;
+          
+          for (j = 0; j < this->height; j++)
+            for (i = 0; i < this->width; i++)
+              {
+                this->get_pixel(i,j,&r,&g,&b,&a);
+                
+                r = pow(r,power);
+                g = pow(g,power);
+                b = pow(b,power);
+                a = pow(a,power);
+                
+                this->set_pixel(i,j,r,g,b,a);
+              }
         }
         
       void set_pixel(unsigned int x, unsigned int y, float r, float g, float b, float a)
@@ -1083,7 +1107,7 @@ class Image2D: public Printable
             }
         }
       
-      void get_pixel(int x, int y, float *r, float *g, float *b)
+      void get_pixel(int x, int y, float *r, float *g, float *b, float *a)
         {
           int index = this->coords_2d_to_1d(x,y);
           
@@ -1093,6 +1117,7 @@ class Image2D: public Printable
                 *r = this->data[index].red;
                 *g = this->data[index].green;
                 *b = this->data[index].blue;
+                *a = this->data[index].alpha;
                 break;
               
               case TEXEL_TYPE_DEPTH:
@@ -1207,6 +1232,21 @@ class TextureCubeMap: public Texture
           this->image_right = new Image2D(size,size,texel_type);
           this->image_top = new Image2D(size,size,texel_type);
           this->image_bottom = new Image2D(size,size,texel_type);
+        }
+ 
+      /**
+       Raises all pixels to given power (good for viewing depth maps). Good
+       value is 256.
+       */
+ 
+      void raise_to_power(unsigned int power)
+        {
+          this->image_front->raise_to_power(power);
+          this->image_back->raise_to_power(power);
+          this->image_left->raise_to_power(power);
+          this->image_right->raise_to_power(power);
+          this->image_top->raise_to_power(power);
+          this->image_bottom->raise_to_power(power);
         }
  
       virtual ~TextureCubeMap()
@@ -1547,7 +1587,7 @@ class Texture2D: public Texture
         {
           return this->image_data->load_ppm(filename);
         }
-        
+       
       /**
        * Uploads the texture data to GPU.
        */
@@ -1668,7 +1708,7 @@ class FrameBuffer
           if (depth != 0)
             {
               glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,depth_target,depth->get_texture_object(),0);
-              draw_buffers.push_back(GL_COLOR_ATTACHMENT1);
+              draw_buffers.push_back(GL_NONE);
             }
               
           if (stencil != 0)

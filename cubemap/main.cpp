@@ -124,6 +124,9 @@ void recompute_cubemap()
     cube_map->get_texture_color()->load_from_gpu();
     cube_map->get_texture_depth()->load_from_gpu();
     cube_map->get_texture_color()->save_ppms("cubemap_images/cube_map");
+
+    cube_map->get_texture_depth()->raise_to_power(256);
+    
     cube_map->get_texture_depth()->save_ppms("cubemap_images/cube_map_depth");
   }
   
