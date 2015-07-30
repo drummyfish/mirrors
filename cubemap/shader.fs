@@ -9,7 +9,7 @@ uniform sampler2D tex;
 uniform samplerCube tex_cube;
 uniform bool mirror;
 
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
 float diffuse_intensity;
 float lighting_intensity;
 vec3 cube_coordinates;

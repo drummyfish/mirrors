@@ -5,6 +5,7 @@
 
 #define TEXEL_TYPE_COLOR 0
 #define TEXEL_TYPE_DEPTH 1
+#define TEXEL_TYPE_STENCIL 2
 
 #include <stdio.h>
 #include <GL/glew.h>
@@ -933,6 +934,13 @@ class Image2D: public Printable
                   this->data_float.push_back(helper);
                 break;
                 
+              case TEXEL_TYPE_STENCIL:
+                this->data_int.clear();
+                
+                for (i = 0; i < width * height; i++)
+                  this->data_int.push_back(0);
+                break;
+                
               default:
                 break;
             }
@@ -1083,6 +1091,13 @@ class Image2D: public Printable
               }
         }
         
+      /**
+       Sets pixels at given position to given value. The method behaves depending on the
+       texel type of the image, for TEXEL_TYPE_COLOR all arguments(r, g, b, a) are set
+       as they are, for TEXEL_TYPE_DEPTH only r argument is taken and for TEXEL_TYPE_STENCIL
+       only r argument is taken and rounded to int (so for example 254.8 becomes 255).
+       */
+        
       void set_pixel(unsigned int x, unsigned int y, float r, float g, float b, float a)
         { 
           Texel texel;
@@ -1102,10 +1117,23 @@ class Image2D: public Printable
                 this->data_float[this->coords_2d_to_1d(x,y)] = r;
                 break;
                 
+              case TEXEL_TYPE_STENCIL:
+                this->data_int[this->coords_2d_to_1d(x,y)] = round(r);
+                break;
+                
               default:
                 break;
             }
         }
+      
+      /**
+       Gets pixel at given position, the result is returned in r, g, b and a
+       arguments. The method behaves depending on the texel type set, for
+       TEXEL_TYPE_COLOR red, greed, blue and alpha values are returned as
+       they are, for TEXEL_TYPE_DEPTH the depth value will be returnd in
+       all output parameters and for TEXEL_TYPE_STENCIL the integer value
+       will be returned in all output parameters casted to float.
+       */
       
       void get_pixel(int x, int y, float *r, float *g, float *b, float *a)
         {
@@ -1121,12 +1149,103 @@ class Image2D: public Printable
                 break;
               
               case TEXEL_TYPE_DEPTH:
-                *r = *g = *b = this->data_float[index];
+                *r = *g = *b = *a = this->data_float[index];
+                break;
+                
+              case TEXEL_TYPE_STENCIL:
+                *r = *g = *b = *a = (int) this->data_int[index];
                 break;
                 
               default:
                 break;
             }
+        }
+        
+      /**
+       Returns the internal format to use (for glTexImage2D) for the texture as OpenGL enum value,
+       depending on the texel type of the image.
+       */
+        
+      GLuint get_internal_format()
+        {
+          switch (this->data_type)
+            {
+              case TEXEL_TYPE_COLOR:
+                return GL_RGBA;
+                break;
+              
+              case TEXEL_TYPE_DEPTH:
+                return GL_DEPTH_COMPONENT24;
+                break;
+                    
+              case TEXEL_TYPE_STENCIL:
+                return GL_INTENSITY;
+                break;
+                
+              default:
+                return GL_RGBA;
+                break;
+            }
+            
+          return GL_RGBA;
+        }
+
+      /**
+       Returns the data format the texture uses (for glTexImage2D) as OpenGL enum value,
+       depending on the texel type of the image.
+       */
+        
+      GLuint get_format()
+        {
+          switch (this->data_type)
+            {
+              case TEXEL_TYPE_COLOR:
+                return GL_RGBA;
+                break;
+              
+              case TEXEL_TYPE_DEPTH:
+                return GL_DEPTH_COMPONENT;
+                break;
+                    
+              case TEXEL_TYPE_STENCIL:
+                return GL_INTENSITY;
+                break;
+                
+              default:
+                return GL_RGBA;
+                break;
+            }
+            
+          return GL_RGBA;
+        }
+
+      /**
+       Returns the data type the texture uses (for glTexImage2D) as OpenGL enum value,
+       depending on the texel type of the image.
+       */
+        
+      GLuint get_type()
+        {
+          switch (this->data_type)
+            {
+              case TEXEL_TYPE_COLOR:
+                return GL_FLOAT;
+                break;
+              
+              case TEXEL_TYPE_DEPTH:
+                return GL_FLOAT;
+                break;
+                    
+              case TEXEL_TYPE_STENCIL:
+                return GL_INT;
+                break;
+                
+              default:
+                return GL_FLOAT;
+                break;
+            }
+            
+          return GL_FLOAT;
         }
         
       void *get_data_pointer()
@@ -1282,19 +1401,17 @@ class TextureCubeMap: public Texture
 
           for (i = 0; i < 6; i++)
             {
-              switch (this->texel_type)
-                {
-                  case TEXEL_TYPE_COLOR:
-                    glTexImage2D(targets[i],0,GL_RGBA,this->size,this->size,0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
-                    break;
-                
-                  case TEXEL_TYPE_DEPTH:
-                    glTexImage2D(targets[i],0,GL_DEPTH_COMPONENT24,this->size,this->size,0,GL_DEPTH_COMPONENT,GL_FLOAT,images[i]->get_data_pointer());
-                    break;
-                
-                  default:
-                    break;
-                }     
+              glTexImage2D(
+                targets[i],
+                0,
+                images[i]->get_internal_format(),
+                this->size,
+                this->size,
+                0,
+                images[i]->get_format(),
+                images[i]->get_type(),
+                images[i]->get_data_pointer()
+                );    
             }
           
           glGenerateMipmap(GL_TEXTURE_CUBE_MAP);         
@@ -1595,21 +1712,18 @@ class Texture2D: public Texture
       virtual void update_gpu()
         {
           glBindTexture(GL_TEXTURE_2D,this->to);
+        
+          glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            this->image_data->get_internal_format(),
+            this->image_data->get_width(),
+            this->image_data->get_height(),
+            0,
+            this->image_data->get_format(),
+            this->image_data->get_type(),
+            this->image_data->get_data_pointer());
           
-          switch (this->image_data->get_data_type())
-            {
-              case TEXEL_TYPE_COLOR:
-                glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,this->image_data->get_width(),this->image_data->get_height(),0,GL_RGBA,GL_FLOAT,this->image_data->get_data_pointer());
-                break;
-                
-              case TEXEL_TYPE_DEPTH:
-                glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,this->image_data->get_width(),this->image_data->get_height(),0,GL_DEPTH_COMPONENT,GL_FLOAT,this->image_data->get_data_pointer());
-                break;
-                
-              default:
-                break;
-            }
-
           glGenerateMipmap(GL_TEXTURE_2D);
           glBindTexture(GL_TEXTURE_2D,0);
         }
@@ -1899,17 +2013,17 @@ Geometry3D make_triangle(float side_length)
     return result;
   }
   
-Geometry3D make_quad(float width, float height)
+Geometry3D make_quad(float width, float height, float shift_z)
   {
     Geometry3D result;
     
     float half_width = width / 2.0;
     float half_height = height / 2.0;
     
-    result.add_vertex(-half_width,0,-half_height,0.0,0.0,0.0,0.0,1.0,0.0); 
-    result.add_vertex(half_width,0,-half_height,1.0,0.0,0.0,0.0,1.0,0.0);   
-    result.add_vertex(-half_width,0,half_height,0.0,1.0,0.0,0.0,1.0,0.0);  
-    result.add_vertex(half_width,0,half_height,1.0,1.0,0.0,0.0,1.0,0.0);    
+    result.add_vertex(-half_width,-half_height,shift_z,0.0,0.0,0.0,0.0,1.0,0.0); 
+    result.add_vertex(half_width,-half_height,shift_z,1.0,0.0,0.0,0.0,1.0,0.0);   
+    result.add_vertex(-half_width,half_height,shift_z,0.0,1.0,0.0,0.0,1.0,0.0);  
+    result.add_vertex(half_width,half_height,shift_z,1.0,1.0,0.0,0.0,1.0,0.0);    
   
     result.add_triangle(1,0,2);
     result.add_triangle(1,2,3); 
