@@ -11,11 +11,13 @@ TransformationTRSModel transformation_rock;
 TransformationTRSModel transformation_mirror;
 TransformationTRSCamera transformation_camera;
 
+glm::mat4 view_matrix = glm::mat4(1.0f);
 glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 100.0f);
 
 GLint color_location;
 GLint light_direction_location;
 GLint sampler_location;
+GLint sampler_location2;
 GLint sampler_cube_location;
 GLint view_matrix_location;
 GLint mirror_location;
@@ -23,18 +25,26 @@ GLint model_matrix_location;
 GLint projection_matrix_location;
 GLint camera_position_location;
 
-FrameBuffer *frame_buffer;
+Shader *shader1;
+Shader *shader2;
+
+FrameBuffer *frame_buffer_cube;      // for rendering to cubemap
+FrameBuffer *frame_buffer_camera;    // for "deferred shading" like rendering
 
 Geometry3D *geometry_cup;
 Geometry3D *geometry_cow;
 Geometry3D *geometry_rock;
 Geometry3D *geometry_room;
+Geometry3D *geometry_quad;
 Geometry3D *geometry_mirror;
 
 Texture2D *texture_room;
 Texture2D *texture_cow;
 Texture2D *texture_rock;
 Texture2D *texture_cup;
+
+Texture2D *texture_camera_color;
+Texture2D *texture_camera_depth;
 
 bool draw_mirror = true;
 
@@ -48,13 +58,9 @@ int initial_mouse_coords[2];
 glm::vec3 initial_camera_rotation;
 
 void draw_scene()
-  {
+  {    
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
-    
-    texture_room->bind(1);
-    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(glm::mat4(1.0)));
-    geometry_room->draw_as_triangles();
 
     texture_cup->bind(1);
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_cup.get_matrix()));
@@ -68,8 +74,12 @@ void draw_scene()
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_cow.get_matrix()));
     geometry_cow->draw_as_triangles();
  
+    texture_room->bind(1);
+    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(glm::mat4(1.0)));
+    geometry_room->draw_as_triangles();
+    
     glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
-   
+    
     // draw the mirror:
     
     if (draw_mirror)
@@ -81,31 +91,54 @@ void draw_scene()
       }
   }
 
+void draw_quad()  // for the second pass
+  {
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT);
+    texture_camera_color->bind(1);
+    geometry_quad->draw_as_triangles();
+    glEnable(GL_DEPTH_TEST);
+  }
+  
 void render()
   {
+    shader1->use();
+    glUniform1i(sampler_location,1);
+    glUniform1i(sampler_cube_location,0);
+    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(view_matrix));
+    glUniform3f(light_direction_location,0.0,0.0,-1.0);
+    glUniform1ui(mirror_location,0);
+    
     // set up the camera:
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
     glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE, glm::value_ptr(projection_matrix));
     glUniform3fv(camera_position_location,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));
     
+    // 1st pass:
+    frame_buffer_camera->activate();
     draw_scene();
+    frame_buffer_camera->deactivate();
+   
+    // 2nd pass:
+    shader2->use(); 
+    glUniform1i(sampler_location2,1);
+    draw_quad();
     
     ErrorWriter::checkGlErrors("rendering loop");
-  
     glutSwapBuffers();
   }
   
 void recompute_cubemap_side(GLuint side) 
   {
     cout << "rendering side" << endl;
-    frame_buffer->set_textures(cube_map->get_texture_depth(),side,0,0,cube_map->get_texture_color(),side);    
-    frame_buffer->activate();
+    frame_buffer_cube->set_textures(cube_map->get_texture_depth(),side,0,0,cube_map->get_texture_color(),side);    
+    frame_buffer_cube->activate();
     // set the camera:
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(cube_map->get_camera_transformation(side).get_matrix()));
     draw_mirror = false;
     draw_scene();
     draw_mirror = true;
-    frame_buffer->deactivate();
+    frame_buffer_cube->deactivate();
   }
   
 void recompute_cubemap()
@@ -168,6 +201,8 @@ void special_callback(int key, int x, int y)
         
         case GLUT_KEY_INSERT:
           recompute_cubemap();
+          texture_camera_color->load_from_gpu();
+          texture_camera_color->get_image_data()->save_ppm("camera.ppm");
           break;
           
         default:
@@ -193,7 +228,8 @@ int main(int argc, char** argv)
     
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
     
-    frame_buffer = new FrameBuffer();
+    frame_buffer_cube = new FrameBuffer();
+    frame_buffer_camera = new FrameBuffer();
     
     Geometry3D g = load_obj("cup.obj",true);
     geometry_cup = &g;
@@ -215,6 +251,10 @@ int main(int argc, char** argv)
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
     
+    Geometry3D g6 = make_quad(2.0,2.0,0.5);
+    geometry_quad = &g6;
+    geometry_quad->update_gpu();
+    
     texture_room = new Texture2D(16,16,TEXEL_TYPE_COLOR);
     texture_room->load_ppm("sky_test.ppm");
     texture_room->update_gpu();
@@ -231,6 +271,12 @@ int main(int argc, char** argv)
     texture_cup->load_ppm("cup.ppm");
     texture_cup->update_gpu();
 
+    texture_camera_color = new Texture2D(512,512,TEXEL_TYPE_COLOR);
+    texture_camera_color->update_gpu();
+    
+    texture_camera_depth = new Texture2D(512,512,TEXEL_TYPE_DEPTH);
+    texture_camera_depth->update_gpu();
+    
     cube_map = new EnvironmentCubeMap(512);
     cube_map->update_gpu();
     ErrorWriter::checkGlErrors("cube map init",true);
@@ -253,32 +299,32 @@ int main(int argc, char** argv)
     texture_mirror_depth->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     texture_mirror_depth->update_gpu();
     
-    Shader shader(file_text("shader.vs"),file_text("shader.fs"));
+    Shader shad1(file_text("shader.vs"),file_text("shader.fs"));
+    Shader shad2(file_text("shader2.vs"),file_text("shader2.fs"));
     
-    light_direction_location = shader.get_uniform_location("light_direction");
-    camera_position_location = shader.get_uniform_location("camera_position");
-    mirror_location = shader.get_uniform_location("mirror");
-    sampler_location = shader.get_uniform_location("tex");
-    sampler_cube_location = shader.get_uniform_location("tex_cube");    
-    model_matrix_location = shader.get_uniform_location("model_matrix");
-    view_matrix_location = shader.get_uniform_location("view_matrix");
-    projection_matrix_location = shader.get_uniform_location("projection_matrix");
-    glm::mat4 view_matrix = glm::mat4(1.0f);
+    shader1 = &shad1;
+    shader2 = &shad2;
     
-    shader.use();
-    // 2D sampler and cube sampler must have different values, otherwise it doesn't work
-    glUniform1i(sampler_location,1);
-    glUniform1i(sampler_cube_location,0);
+    light_direction_location = shader1->get_uniform_location("light_direction");
+    camera_position_location = shader1->get_uniform_location("camera_position");
+    mirror_location = shader1->get_uniform_location("mirror");
+    sampler_location = shader1->get_uniform_location("tex");
+    sampler_cube_location = shader1->get_uniform_location("tex_cube");    
+    model_matrix_location = shader1->get_uniform_location("model_matrix");
+    view_matrix_location = shader1->get_uniform_location("view_matrix");
+    projection_matrix_location = shader1->get_uniform_location("projection_matrix");
     
-    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(view_matrix));
-    glUniform3f(light_direction_location,0.0,0.0,-1.0);
-    glUniform1ui(mirror_location,0);
+    sampler_location2 = shader2->get_uniform_location("tex");
     
     ErrorWriter::checkGlErrors("after init",true);
     
+    frame_buffer_camera->set_textures(texture_camera_depth,GL_TEXTURE_2D,0,0,texture_camera_color,GL_TEXTURE_2D);
+        
     session->start();
     
-    delete frame_buffer;
+    delete frame_buffer_cube;
+    delete texture_camera_color;
+    delete frame_buffer_camera;
     delete texture_cup;
     delete texture_mirror;
     delete cube_map;
