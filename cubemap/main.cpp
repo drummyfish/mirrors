@@ -45,6 +45,7 @@ Texture2D *texture_cup;
 
 Texture2D *texture_camera_color;
 Texture2D *texture_camera_depth;
+Texture2D *texture_camera_position;
 
 bool draw_mirror = true;
 
@@ -99,8 +100,8 @@ void draw_quad()  // for the second pass
     geometry_quad->draw_as_triangles();
     glEnable(GL_DEPTH_TEST);
   }
-  
-void render()
+ 
+void set_up_pass1()
   {
     shader1->use();
     glUniform1i(sampler_location,1);
@@ -108,20 +109,30 @@ void render()
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(view_matrix));
     glUniform3f(light_direction_location,0.0,0.0,-1.0);
     glUniform1ui(mirror_location,0);
+  }
+  
+void set_up_pass2()
+  {
+    shader2->use(); 
+    glUniform1i(sampler_location2,1);
+  }
+ 
+void render()
+  {    
+    set_up_pass1();
     
     // set up the camera:
     glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
     glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE, glm::value_ptr(projection_matrix));
-    glUniform3fv(camera_position_location,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));
-    
+    glUniform3fv(camera_position_location,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));  
+
     // 1st pass:
     frame_buffer_camera->activate();
     draw_scene();
     frame_buffer_camera->deactivate();
    
     // 2nd pass:
-    shader2->use(); 
-    glUniform1i(sampler_location2,1);
+    set_up_pass2();
     draw_quad();
     
     ErrorWriter::checkGlErrors("rendering loop");
@@ -143,6 +154,7 @@ void recompute_cubemap_side(GLuint side)
   
 void recompute_cubemap()
   {
+    set_up_pass1();
     cube_map->transformation.set_translation(transformation_mirror.get_translation());
     glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE,glm::value_ptr(cube_map->get_projection_matrix()));
     cube_map->setViewport();
@@ -153,13 +165,11 @@ void recompute_cubemap()
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cube_map->unsetViewport();
-    cube_map->get_texture_color()->load_from_gpu();
+    cube_map->unsetViewport();  
+    cube_map->get_texture_color()->load_from_gpu();  
     cube_map->get_texture_depth()->load_from_gpu();
     cube_map->get_texture_color()->save_ppms("cubemap_images/cube_map");
-
-    cube_map->get_texture_depth()->raise_to_power(256);
-    
+    cube_map->get_texture_depth()->raise_to_power(256);  
     cube_map->get_texture_depth()->save_ppms("cubemap_images/cube_map_depth");
   }
   
@@ -202,7 +212,10 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_INSERT:
           recompute_cubemap();
           texture_camera_color->load_from_gpu();
-          texture_camera_color->get_image_data()->save_ppm("camera.ppm");
+          texture_camera_color->get_image_data()->save_ppm("camera/color.ppm");
+       //   texture_camera_depth->load_from_gpu();
+       //   texture_camera_depth->get_image_data()->raise_to_power(256); 
+       //   texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm");
           break;
           
         default:
@@ -271,10 +284,10 @@ int main(int argc, char** argv)
     texture_cup->load_ppm("cup.ppm");
     texture_cup->update_gpu();
 
-    texture_camera_color = new Texture2D(512,512,TEXEL_TYPE_COLOR);
+    texture_camera_color = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);
     texture_camera_color->update_gpu();
     
-    texture_camera_depth = new Texture2D(512,512,TEXEL_TYPE_DEPTH);
+    texture_camera_depth = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_DEPTH);
     texture_camera_depth->update_gpu();
     
     cube_map = new EnvironmentCubeMap(512);
