@@ -1737,8 +1737,8 @@ class Texture2D: public Texture
                 glGetTexImage(GL_TEXTURE_2D,0,GL_RGBA,GL_FLOAT,this->image_data->get_data_pointer());
                 break;
                 
-              case TEXEL_TYPE_DEPTH:
-                glGetTexImage(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,GL_FLOAT,this->image_data->get_data_pointer());
+              case TEXEL_TYPE_DEPTH:                   
+                glGetTexImage(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,GL_FLOAT,this->image_data->get_data_pointer());
                 break;
                 
               default:
