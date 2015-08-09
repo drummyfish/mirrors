@@ -1811,13 +1811,38 @@ class FrameBuffer
        Sets the attachments for the framebuffer, i.e. the textures that will be
        rendered to. If 0 is passed for a texture, it will not be used. Targets
        are OpenGL targets (GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...).
+       
+       help: https://www.opengl.org/wiki/Fragment_Shader
        */
         
-      void set_textures(Texture *depth, GLuint depth_target, Texture *stencil, GLuint stencil_target, Texture *color, GLuint color_target)
+      void set_textures(
+        Texture *depth, GLuint depth_target,
+        Texture *stencil, GLuint stencil_target,
+        Texture *color0, GLuint color0_target,
+        Texture *color1=0, GLuint color1_target=GL_TEXTURE_2D,
+        Texture *color2=0, GLuint color2_target=GL_TEXTURE_2D)
         {
           vector<GLenum> draw_buffers;
           
           this->activate();
+            
+          if (color0 != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,color0_target,color0->get_texture_object(),0);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT0);
+            }
+            
+          if (color1 != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT1,color1_target,color1->get_texture_object(),0);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT1);
+            }
+          
+          if (color2 != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT2,color2_target,color2->get_texture_object(),0);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT2);
+            }
           
           if (depth != 0)
             {
@@ -1829,12 +1854,6 @@ class FrameBuffer
             {
               glFramebufferTexture2D(GL_FRAMEBUFFER,GL_STENCIL_ATTACHMENT,stencil_target,stencil->get_texture_object(),0);
               draw_buffers.push_back(GL_STENCIL_ATTACHMENT);
-            }
-            
-          if (color != 0)
-            {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,color_target,color->get_texture_object(),0);
-              draw_buffers.push_back(GL_COLOR_ATTACHMENT0);
             }
              
           glDrawBuffers(draw_buffers.size(),&(draw_buffers[0]));          

@@ -10,6 +10,8 @@ uniform samplerCube tex_cube;
 uniform bool mirror;
 
 layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec3 outPosition;
+layout(location = 3) out vec3 outNormal;
 float diffuse_intensity;
 float lighting_intensity;
 vec3 cube_coordinates;
@@ -29,4 +31,7 @@ void main()
       FragColor = 0.3 * vec4(lighting_intensity, lighting_intensity, lighting_intensity, 1.0);
       FragColor += texture(tex, uv_coords);
     }
+    
+  outPosition = transformed_position.xyz;
+  outNormal = normalize(transformed_normal.xyz);
 }

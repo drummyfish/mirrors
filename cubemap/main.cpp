@@ -46,6 +46,7 @@ Texture2D *texture_cup;
 Texture2D *texture_camera_color;
 Texture2D *texture_camera_depth;
 Texture2D *texture_camera_position;
+Texture2D *texture_camera_normal;
 
 bool draw_mirror = true;
 
@@ -213,9 +214,13 @@ void special_callback(int key, int x, int y)
           recompute_cubemap();
           texture_camera_color->load_from_gpu();
           texture_camera_color->get_image_data()->save_ppm("camera/color.ppm");
-       //   texture_camera_depth->load_from_gpu();
-       //   texture_camera_depth->get_image_data()->raise_to_power(256); 
-       //   texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm");
+          texture_camera_depth->load_from_gpu();
+          texture_camera_depth->get_image_data()->raise_to_power(256); 
+          texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm"); 
+          texture_camera_position->load_from_gpu();
+          texture_camera_position->get_image_data()->save_ppm("camera/position.ppm");
+          texture_camera_normal->load_from_gpu();
+          texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm");
           break;
           
         default:
@@ -290,6 +295,12 @@ int main(int argc, char** argv)
     texture_camera_depth = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_DEPTH);
     texture_camera_depth->update_gpu();
     
+    texture_camera_position = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);
+    texture_camera_position->update_gpu();
+    
+    texture_camera_normal = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);
+    texture_camera_normal->update_gpu();
+    
     cube_map = new EnvironmentCubeMap(512);
     cube_map->update_gpu();
     ErrorWriter::checkGlErrors("cube map init",true);
@@ -331,7 +342,12 @@ int main(int argc, char** argv)
     
     ErrorWriter::checkGlErrors("after init",true);
     
-    frame_buffer_camera->set_textures(texture_camera_depth,GL_TEXTURE_2D,0,0,texture_camera_color,GL_TEXTURE_2D);
+    frame_buffer_camera->set_textures(
+      texture_camera_depth,GL_TEXTURE_2D,
+      0,0,
+      texture_camera_color,GL_TEXTURE_2D,
+      texture_camera_position,GL_TEXTURE_2D,
+      texture_camera_normal,GL_TEXTURE_2D);
         
     session->start();
     
