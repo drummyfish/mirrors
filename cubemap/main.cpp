@@ -218,6 +218,11 @@ void special_callback(int key, int x, int y)
           texture_camera_depth->get_image_data()->raise_to_power(256); 
           texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm"); 
           texture_camera_position->load_from_gpu();
+          
+          float r,g,b,a;
+          texture_camera_position->get_image_data()->get_pixel(300,200,&r,&g,&b,&a);
+          cout << r << " " << g << " " << b << " " << a << endl;
+          
           texture_camera_position->get_image_data()->save_ppm("camera/position.ppm");
           texture_camera_normal->load_from_gpu();
           texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm");
