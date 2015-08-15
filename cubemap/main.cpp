@@ -47,6 +47,7 @@ Texture2D *texture_camera_color;
 Texture2D *texture_camera_depth;
 Texture2D *texture_camera_position;
 Texture2D *texture_camera_normal;
+Texture2D *texture_camera_stencil;
 
 bool draw_mirror = true;
 
@@ -220,12 +221,15 @@ void special_callback(int key, int x, int y)
           texture_camera_position->load_from_gpu();
           
           float r,g,b,a;
-          texture_camera_position->get_image_data()->get_pixel(300,200,&r,&g,&b,&a);
-          cout << r << " " << g << " " << b << " " << a << endl;
           
+          texture_camera_position->get_image_data()->get_pixel(300,200,&r,&g,&b,&a);
           texture_camera_position->get_image_data()->save_ppm("camera/position.ppm");
+          
           texture_camera_normal->load_from_gpu();
           texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm");
+          
+          texture_camera_stencil->load_from_gpu();
+          texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm");
           break;
           
         default:
@@ -306,6 +310,9 @@ int main(int argc, char** argv)
     texture_camera_normal = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);
     texture_camera_normal->update_gpu();
     
+    texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
+    texture_camera_stencil->update_gpu();
+
     cube_map = new EnvironmentCubeMap(512);
     cube_map->update_gpu();
     ErrorWriter::checkGlErrors("cube map init",true);
@@ -352,8 +359,11 @@ int main(int argc, char** argv)
       0,0,
       texture_camera_color,GL_TEXTURE_2D,
       texture_camera_position,GL_TEXTURE_2D,
-      texture_camera_normal,GL_TEXTURE_2D);
-        
+      texture_camera_normal,GL_TEXTURE_2D,
+      texture_camera_stencil,GL_TEXTURE_2D);
+    
+    ErrorWriter::checkGlErrors("frame buffer init",true);
+    
     session->start();
     
     delete frame_buffer_cube;

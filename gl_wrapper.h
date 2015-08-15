@@ -899,13 +899,18 @@ class Image2D: public Printable
           return this->data_type;
         }
         
-      void clear()
+      void fill(float r, float g, float b, float a)
         {
           int i,j;
           
           for (j = 0; j < this->get_height(); j++)
             for (i = 0; i < this->get_width(); i++)
-              this->set_pixel(i,j,0,0,0,0);
+              this->set_pixel(i,j,r,g,b,a);
+        }
+        
+      void clear()
+        {
+          this->fill(0,0,0,0);
         }
         
       void set_size(unsigned int width, unsigned int height)
@@ -945,10 +950,6 @@ class Image2D: public Printable
                 break;
             }
         }
-        
-      /**
-       * Loads the texture from ppm file format.
-       */
         
       bool load_ppm(string filename)
         {
@@ -1179,7 +1180,7 @@ class Image2D: public Printable
                 break;
                     
               case TEXEL_TYPE_STENCIL:
-                return GL_INTENSITY;
+                return GL_LUMINANCE;
                 break;
                 
               default:
@@ -1208,7 +1209,7 @@ class Image2D: public Printable
                 break;
                     
               case TEXEL_TYPE_STENCIL:
-                return GL_INTENSITY;
+                return GL_LUMINANCE;
                 break;
                 
               default:
@@ -1258,6 +1259,10 @@ class Image2D: public Printable
 
               case TEXEL_TYPE_DEPTH:
                 return &(this->data_float[0]);
+                break;
+                
+              case TEXEL_TYPE_STENCIL:
+                return &(this->data_int[0]);
                 break;
                 
               default:
@@ -1730,21 +1735,17 @@ class Texture2D: public Texture
         
       virtual void load_from_gpu()
         {
-          glBindTexture(GL_TEXTURE_2D,this->to);
-          switch (this->image_data->get_data_type())
+          glBindTexture(GL_TEXTURE_2D,this->to);    
+          
+          
+          if (this->image_data->get_data_type() == TEXEL_TYPE_STENCIL)
             {
-              case TEXEL_TYPE_COLOR:        
-                glGetTexImage(GL_TEXTURE_2D,0,GL_RGBA,GL_FLOAT,this->image_data->get_data_pointer());
-                break;
-                
-              case TEXEL_TYPE_DEPTH:                   
-                glGetTexImage(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,GL_FLOAT,this->image_data->get_data_pointer());
-                break;
-                
-              default:
-                break;
+              glGetTexImage(GL_TEXTURE_2D,0,GL_RED_INTEGER,this->image_data->get_type(),this->image_data->get_data_pointer());
             }
-
+          else
+          
+          glGetTexImage(GL_TEXTURE_2D,0,this->image_data->get_format(),this->image_data->get_type(),this->image_data->get_data_pointer());
+          
           glBindTexture(GL_TEXTURE_2D,0);
         }
         
@@ -1812,6 +1813,8 @@ class FrameBuffer
        rendered to. If 0 is passed for a texture, it will not be used. Targets
        are OpenGL targets (GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...).
        
+       Stencil is not supported yet.
+       
        help: https://www.opengl.org/wiki/Fragment_Shader
        */
         
@@ -1820,7 +1823,8 @@ class FrameBuffer
         Texture *stencil, GLuint stencil_target,
         Texture *color0, GLuint color0_target,
         Texture *color1=0, GLuint color1_target=GL_TEXTURE_2D,
-        Texture *color2=0, GLuint color2_target=GL_TEXTURE_2D)
+        Texture *color2=0, GLuint color2_target=GL_TEXTURE_2D,
+        Texture *color3=0, GLuint color3_target=GL_TEXTURE_2D)
         {
           vector<GLenum> draw_buffers;
           
@@ -1844,18 +1848,25 @@ class FrameBuffer
               draw_buffers.push_back(GL_COLOR_ATTACHMENT2);
             }
           
+          if (color3 != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT3,color3_target,color3->get_texture_object(),0);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT3);
+            }
+          
           if (depth != 0)
             {
               glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,depth_target,depth->get_texture_object(),0);
               draw_buffers.push_back(GL_NONE);
             }
-              
+       /*        
           if (stencil != 0)
             {
               glFramebufferTexture2D(GL_FRAMEBUFFER,GL_STENCIL_ATTACHMENT,stencil_target,stencil->get_texture_object(),0);
-              draw_buffers.push_back(GL_STENCIL_ATTACHMENT);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT3);
             }
-             
+        */
+      
           glDrawBuffers(draw_buffers.size(),&(draw_buffers[0]));          
           GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER); 
            
