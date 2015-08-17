@@ -17,7 +17,13 @@ glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 100.0f
 GLint color_location;
 GLint light_direction_location;
 GLint sampler_location;
-GLint sampler_location2;
+
+GLint sampler_location2_color;
+GLint sampler_location2_normal;
+GLint sampler_location2_position;
+GLint sampler_location2_stencil;
+GLint texture_to_display_location;
+
 GLint sampler_cube_location;
 GLint view_matrix_location;
 GLint mirror_location;
@@ -50,6 +56,8 @@ Texture2D *texture_camera_normal;
 Texture2D *texture_camera_stencil;
 
 bool draw_mirror = true;
+
+int texture_to_display = 1;
 
 EnvironmentCubeMap *cube_map;
 
@@ -99,6 +107,9 @@ void draw_quad()  // for the second pass
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
     texture_camera_color->bind(1);
+    texture_camera_normal->bind(2);
+    texture_camera_position->bind(3);
+    texture_camera_stencil->bind(4);
     geometry_quad->draw_as_triangles();
     glEnable(GL_DEPTH_TEST);
   }
@@ -116,7 +127,11 @@ void set_up_pass1()
 void set_up_pass2()
   {
     shader2->use(); 
-    glUniform1i(sampler_location2,1);
+    glUniform1i(sampler_location2_color,1);
+    glUniform1i(sampler_location2_normal,2);
+    glUniform1i(sampler_location2_position,3);
+    glUniform1i(sampler_location2_stencil,4);
+    glUniform1i(texture_to_display_location,texture_to_display);
   }
  
 void render()
@@ -230,6 +245,22 @@ void special_callback(int key, int x, int y)
           
           texture_camera_stencil->load_from_gpu();
           texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm");
+          break;
+          
+        case GLUT_KEY_F1:
+          texture_to_display = 1;
+          break;
+        
+        case GLUT_KEY_F2:
+          texture_to_display = 2;
+          break;
+          
+        case GLUT_KEY_F3:
+          texture_to_display = 3;
+          break;
+          
+        case GLUT_KEY_F4:
+          texture_to_display = 4;
           break;
           
         default:
@@ -350,7 +381,11 @@ int main(int argc, char** argv)
     view_matrix_location = shader1->get_uniform_location("view_matrix");
     projection_matrix_location = shader1->get_uniform_location("projection_matrix");
     
-    sampler_location2 = shader2->get_uniform_location("tex");
+    sampler_location2_color = shader2->get_uniform_location("tex_color");
+    sampler_location2_normal = shader2->get_uniform_location("tex_normal");
+    sampler_location2_position = shader2->get_uniform_location("tex_position");
+    sampler_location2_stencil = shader2->get_uniform_location("tex_stencil");
+    texture_to_display_location = shader2->get_uniform_location("texture_to_display");
     
     ErrorWriter::checkGlErrors("after init",true);
     
