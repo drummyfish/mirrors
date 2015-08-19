@@ -24,7 +24,6 @@ Geometry3D *geometry_mirror;
 Texture2D *texture;
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
-FrameBuffer *frame_buffer;
 
 bool clicked = false;     // whether mouse was clicked
 int initial_mouse_coords[2];
@@ -151,7 +150,7 @@ int main(int argc, char** argv)
     transformation_cup.set_translation(glm::vec3(0.0,0.0,-10.0));
     transformation_cup.set_rotation(glm::vec3(3.1415,0.0,0));
     
-    Geometry3D g2 = make_quad(10,10);
+    Geometry3D g2 = make_quad(10,10,0);
     geometry_mirror = &g2;
     geometry_mirror->update_gpu();
     transformation_mirror.set_translation(glm::vec3(0.0,0.0,-20.0));
@@ -170,9 +169,6 @@ int main(int argc, char** argv)
     texture_mirror_depth->set_parameter_int(GL_TEXTURE_MIN_FILTER,GL_NEAREST);
     texture_mirror_depth->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     texture_mirror_depth->update_gpu();
-    
-    frame_buffer = new FrameBuffer();
-    frame_buffer->set_textures(texture_mirror_depth,0,texture_mirror,0,0);
     
     cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;
     
@@ -199,7 +195,6 @@ int main(int argc, char** argv)
     
     delete texture;
     delete texture_mirror;
-    delete frame_buffer;
     delete texture_mirror_depth;
     GLSession::clear();
     return 0;

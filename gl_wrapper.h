@@ -3,6 +3,30 @@
 
 #define GLM_FORCE_RADIANS
 
+/**
+ * @file gl_wrapper_h
+ * 
+ * This file provides classes and functions for basic
+ * work with OpenGL. This file is distributed under
+ * WTFPL license:
+ * 
+ * DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+ *                   Version 2, December 2004 
+ *
+ * Copyright (C) 2004 Sam Hocevar <sam@hocevar.net> 
+ *
+ * Everyone is permitted to copy and distribute verbatim or modified 
+ * copies of this license document, and changing it is allowed as long 
+ * as the name is changed. 
+ *
+ *           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
+ *  TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION 
+ *
+ * 0. You just DO WHAT THE FUCK YOU WANT TO.
+ * 
+ * @author Miloslav Číž
+ */
+
 #define TEXEL_TYPE_COLOR 0
 #define TEXEL_TYPE_DEPTH 1
 #define TEXEL_TYPE_STENCIL 2
@@ -144,19 +168,20 @@ void print_vec3(glm::vec3 vector)
       
 static string file_text(string filename)
   {
-    std::ifstream t(filename);
+    std::ifstream stream(filename);
           
-    if (!t.is_open())
+    if (!stream.is_open())
       {
         ErrorWriter::write_error("Could not open file '" + filename + "'.");
       }
           
-      std::string result((std::istreambuf_iterator<char>(t)),std::istreambuf_iterator<char>());
-      return result;
+    std::string result((std::istreambuf_iterator<char>(stream)),std::istreambuf_iterator<char>());
+    return result;
   }
   
 /**
- * A singleton class representing an OpenGL session. 
+ * A singleton class representing an OpenGL session. An object of this class has to be
+ * created before most other objects can be created.
  */
 
 class GLSession
@@ -566,7 +591,7 @@ class TransformationTRSCamera: public TransformationTRS
         
       virtual void recompute_scale_matrix()
         {
-          // no scale fot camera
+          // no scale for camera
         };
   };
   
@@ -899,6 +924,10 @@ class Image2D: public Printable
           return this->data_type;
         }
         
+      /**
+       * Filles the whole image with given color.
+       */
+        
       void fill(float r, float g, float b, float a)
         {
           int i,j;
@@ -907,6 +936,10 @@ class Image2D: public Printable
             for (i = 0; i < this->get_width(); i++)
               this->set_pixel(i,j,r,g,b,a);
         }
+        
+      /**
+       * Filles the image with (0,0,0,0) color.
+       */
         
       void clear()
         {
@@ -950,6 +983,10 @@ class Image2D: public Printable
                 break;
             }
         }
+        
+      /**
+       * Loads the image from ppm file format.
+       */
         
       bool load_ppm(string filename)
         {
@@ -1041,6 +1078,10 @@ class Image2D: public Printable
           return true;
         }
         
+      /**
+       * Saves the image to file in ppm format.
+       */
+        
       bool save_ppm(string filename)
         {
           unsigned int i,j;
@@ -1069,8 +1110,8 @@ class Image2D: public Printable
         }
         
       /**
-       Raises all pixels to given power (good for viewing depth maps). Good
-       value is 256.
+       * Raises all pixels to given power (good for viewing depth maps). Good
+       * value is 256.
        */
  
       void raise_to_power(unsigned int power)
@@ -1093,10 +1134,10 @@ class Image2D: public Printable
         }
         
       /**
-       Sets pixels at given position to given value. The method behaves depending on the
-       texel type of the image, for TEXEL_TYPE_COLOR all arguments(r, g, b, a) are set
-       as they are, for TEXEL_TYPE_DEPTH only r argument is taken and for TEXEL_TYPE_STENCIL
-       only r argument is taken and rounded to int (so for example 254.8 becomes 255).
+       * Sets pixels at given position to given value. The method behaves depending on the
+       * texel type of the image, for TEXEL_TYPE_COLOR all arguments(r, g, b, a) are set
+       * as they are, for TEXEL_TYPE_DEPTH only r argument is taken and for TEXEL_TYPE_STENCIL
+       * only r argument is taken and rounded to int (so for example 254.8 becomes 255).
        */
         
       void set_pixel(unsigned int x, unsigned int y, float r, float g, float b, float a)
@@ -1128,12 +1169,12 @@ class Image2D: public Printable
         }
       
       /**
-       Gets pixel at given position, the result is returned in r, g, b and a
-       arguments. The method behaves depending on the texel type set, for
-       TEXEL_TYPE_COLOR red, greed, blue and alpha values are returned as
-       they are, for TEXEL_TYPE_DEPTH the depth value will be returnd in
-       all output parameters and for TEXEL_TYPE_STENCIL the integer value
-       will be returned in all output parameters casted to float.
+       * Gets pixel at given position, the result is returned in r, g, b and a
+       * arguments. The method behaves depending on the texel type set, for
+       * TEXEL_TYPE_COLOR red, greed, blue and alpha values are returned as
+       * they are, for TEXEL_TYPE_DEPTH the depth value will be returnd in
+       * all output parameters and for TEXEL_TYPE_STENCIL the integer value
+       * will be returned in all output parameters casted to float.
        */
       
       void get_pixel(int x, int y, float *r, float *g, float *b, float *a)
@@ -1163,8 +1204,8 @@ class Image2D: public Printable
         }
         
       /**
-       Returns the internal format to use (for glTexImage2D) for the texture as OpenGL enum value,
-       depending on the texel type of the image.
+       * Returns the internal format to use (for glTexImage2D) for the texture as OpenGL enum value,
+       * depending on the texel type of the image.
        */
         
       GLuint get_internal_format()
@@ -1192,8 +1233,8 @@ class Image2D: public Printable
         }
 
       /**
-       Returns the data format the texture uses (for glTexImage2D) as OpenGL enum value,
-       depending on the texel type of the image.
+       * Returns the data format the texture uses (for glTexImage2D) as OpenGL enum value,
+       * depending on the texel type of the image.
        */
         
       GLuint get_format()
@@ -1221,8 +1262,8 @@ class Image2D: public Printable
         }
 
       /**
-       Returns the data type the texture uses (for glTexImage2D) as OpenGL enum value,
-       depending on the texel type of the image.
+       * Returns the data type the texture uses (for glTexImage2D) as OpenGL enum value,
+       * depending on the texel type of the image.
        */
         
       GLuint get_type()
@@ -1248,6 +1289,10 @@ class Image2D: public Printable
             
           return GL_FLOAT;
         }
+        
+      /**
+       * Gets a pointer to image data.
+       */
         
       void *get_data_pointer()
         {
@@ -1301,6 +1346,10 @@ class Image2D: public Printable
         }      
   };
   
+/**
+ * Abstract texture class.
+ */
+  
 class Texture: public Printable, public GPUObject
   {
     protected:
@@ -1314,6 +1363,10 @@ class Texture: public Printable, public GPUObject
           return this->to;
         }
   };
+  
+/**
+ * Represents a cubemap texture.
+ */
   
 class TextureCubeMap: public Texture
   {
@@ -1667,7 +1720,7 @@ class EnvironmentCubeMap: public GPUObject
 glm::mat4 EnvironmentCubeMap::projection_matrix;  
       
 /**
- * RGBA 2D image texture.
+ * RGBA 2D texture.
  */
   
 class Texture2D: public Texture
@@ -1910,7 +1963,9 @@ class FrameBuffer
   };
   
 /**
- * Represents a 3D geometry.
+ * Represents a 3D geometry consisting of vertices and triangles.
+ * Each vertex has a position a normal and texture coordinates
+ * (each one being vec3 of float, in that order).
  */
   
 class Geometry3D: public Printable, public GPUObject
@@ -2100,10 +2155,10 @@ Geometry3D make_box(float width, float height, float depth)
     return result;
   }
   
-  /**
-    Makes a matrix that represents reflection across plane given by
-    three points.
-   */
+/**
+ * Makes a matrix that represents reflection across plane given by
+ * three points.
+ */
   
 glm::mat4 make_reflection_matrix(glm::vec3 point1, glm::vec3 point2, glm::vec3 point3)
   {
@@ -2334,8 +2389,8 @@ Geometry3D load_obj(string filename, bool flip=false)
 class CameraHandler
   {
     protected:
-      static bool clicked;          // whether mouse was clicked
-      static bool clicked_right;    // whether mouse was clicked
+      static bool clicked;          // whether mouse left was clicked
+      static bool clicked_right;    // whether mouse right was clicked
       static int initial_mouse_coords[2];
       static glm::vec3 initial_camera_rotation;
       
