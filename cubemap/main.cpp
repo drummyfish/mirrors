@@ -19,7 +19,7 @@ Geometry3D *geometry_quad;
 Geometry3D *geometry_mirror;
 
 glm::mat4 view_matrix = glm::mat4(1.0f);
-glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 100.0f);
+glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 1000.0f);
 
 GLint uniform_location_light_direction;
 GLint uniform_location_texture_2d;
@@ -255,6 +255,10 @@ void special_callback(int key, int x, int y)
           texture_to_display = 4;
           break;
           
+        case GLUT_KEY_F5:
+          texture_to_display = 0;
+          break;
+          
         default:
           break;
       }
@@ -273,8 +277,9 @@ int main(int argc, char** argv)
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
     
-    CameraHandler::camera_transformation.set_translation(glm::vec3(5.5,2.0,8.0));
+    CameraHandler::camera_transformation.set_translation(glm::vec3(17.5,6.0,24.0));
     CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.05,0.1,0.0));
+    CameraHandler::translation_step = 2.0;
     
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
     
@@ -293,13 +298,12 @@ int main(int argc, char** argv)
     geometry_rock = &g3;
     geometry_rock->update_gpu();
     
-    Geometry3D g4 = make_box(60,60,60);
+    Geometry3D g4 = make_box(180,180,180);
     geometry_room = &g4;
     geometry_room->update_gpu();
     
-    //Geometry3D g5 = load_obj("teapot.obj");
-    Geometry3D g5 = make_box(1,1,1);
-    
+    Geometry3D g5 = load_obj("teapot.obj");
+
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
     
@@ -342,12 +346,14 @@ int main(int argc, char** argv)
     cube_map->update_gpu();
     ErrorWriter::checkGlErrors("cube map init",true);
     
-    transformation_cup.set_translation(glm::vec3(0.0,0.0,7.0));
-    transformation_cow.set_translation(glm::vec3(15.0,5.0,-2.0));
-    transformation_rock.set_translation(glm::vec3(-15.0,-1.0,-1.0));
-    transformation_rock.set_scale(glm::vec3(0.5,0.5,0.5));   
-    transformation_mirror.set_translation(glm::vec3(0.0,0.0,-1.0));
-    transformation_mirror.set_scale(glm::vec3(4.0,4.0,4.0));
+    transformation_cup.set_translation(glm::vec3(0.0,0.0,30.0));
+    transformation_cup.set_scale(glm::vec3(4.0,4.0,4.0));
+    transformation_cow.set_translation(glm::vec3(45.0,15.0,-6.0));
+    transformation_cow.set_scale(glm::vec3(4.0,4.0,4.0));
+    transformation_rock.set_translation(glm::vec3(-45.0,-3.0,-3.0));
+    transformation_rock.set_scale(glm::vec3(1.5,1.5,1.5));   
+    transformation_mirror.set_translation(glm::vec3(0.0,0.0,-3.0));
+    transformation_mirror.set_scale(glm::vec3(20.0,20.0,20.0));
     transformation_mirror.set_rotation(glm::vec3(0.0,0.0,0));
     
     texture_mirror = new Texture2D(512,512,TEXEL_TYPE_COLOR);

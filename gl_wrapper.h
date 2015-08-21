@@ -1243,7 +1243,7 @@ class Image2D: public Printable
           switch (this->data_type)
             {
               case TEXEL_TYPE_COLOR:
-                return GL_RGBA;
+                return GL_RGBA32F;
                 break;
               
               case TEXEL_TYPE_DEPTH:

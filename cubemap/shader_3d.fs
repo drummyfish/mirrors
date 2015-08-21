@@ -1,7 +1,5 @@
 #version 330
 
-#include general.s
-
 in vec3 transformed_normal;
 in vec4 transformed_position;
 in vec2 uv_coords;
@@ -27,9 +25,8 @@ void main()
       fragment_color = 0.3 * vec4(lighting_intensity, lighting_intensity, lighting_intensity, 1.0);
       fragment_color += texture(texture_2d,uv_coords);
     }
-  else
     
-  output_position = map_minus_n_n_0_1(transformed_position.xyz,position_scale);  
-  output_normal = map_minus_n_n_0_1(transformed_normal,1.0);
+  output_position = transformed_position.xyz;  
+  output_normal = transformed_normal.xyz;
   output_stencil = mirror ? vec3(1.0,1.0,1.0) : vec3(0.0,0.0,0.0);
 }
