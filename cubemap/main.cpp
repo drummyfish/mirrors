@@ -87,7 +87,6 @@ void draw_scene()
     
     if (draw_mirror)
       {
-        cube_map->get_texture_color()->bind(0);
         glUniform1ui(uniform_location_mirror,1);
         geometry_mirror->draw_as_triangles();    
         glUniform1ui(uniform_location_mirror,0);
@@ -98,6 +97,7 @@ void draw_quad()  // for the second pass
   {
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
+    cube_map->get_texture_color()->bind(0);
     texture_camera_color->bind(1);
     texture_camera_normal->bind(2);
     texture_camera_position->bind(3);
@@ -110,7 +110,6 @@ void set_up_pass1()
   {
     shader_3d->use();
     glUniform1i(uniform_location_texture_2d,1);
-    glUniform1i(uniform_location_texture_cube,0);
     glUniformMatrix4fv(uniform_location_view_matrix,1,GL_TRUE, glm::value_ptr(view_matrix));
     glUniform3f(uniform_location_light_direction,0.0,0.0,-1.0);
     glUniform1ui(uniform_location_mirror,0);
@@ -119,11 +118,13 @@ void set_up_pass1()
 void set_up_pass2()
   {
     shader_quad->use(); 
+    glUniform1i(uniform_location_texture_cube,0);
     glUniform1i(uniform_location_texture_color,1);
     glUniform1i(uniform_location_texture_normal,2);
     glUniform1i(uniform_location_texture_position,3);
     glUniform1i(uniform_location_texture_stencil,4);
     glUniform1i(uniform_location_texture_to_display,texture_to_display);
+    glUniform3fv(uniform_location_camera_position,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));
   }
  
 void render()
@@ -133,8 +134,7 @@ void render()
     // set up the camera:
     glUniformMatrix4fv(uniform_location_view_matrix,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
     glUniformMatrix4fv(uniform_location_projection_matrix,1,GL_TRUE, glm::value_ptr(projection_matrix));
-    glUniform3fv(uniform_location_camera_position,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));  
-
+    
     // 1st pass:
     frame_buffer_camera->activate();
     draw_scene();
@@ -365,10 +365,8 @@ int main(int argc, char** argv)
     shader_quad = &shad2;
     
     uniform_location_light_direction = shader_3d->get_uniform_location("light_direction");
-    uniform_location_camera_position = shader_3d->get_uniform_location("camera_position");
     uniform_location_mirror = shader_3d->get_uniform_location("mirror");
-    uniform_location_texture_2d = shader_3d->get_uniform_location("texture_2d");
-    uniform_location_texture_cube = shader_3d->get_uniform_location("texture_cube");    
+    uniform_location_texture_2d = shader_3d->get_uniform_location("texture_2d");   
     uniform_location_model_matrix = shader_3d->get_uniform_location("model_matrix");
     uniform_location_view_matrix = shader_3d->get_uniform_location("view_matrix");
     uniform_location_projection_matrix = shader_3d->get_uniform_location("projection_matrix");
@@ -378,6 +376,8 @@ int main(int argc, char** argv)
     uniform_location_texture_position = shader_quad->get_uniform_location("texture_position");
     uniform_location_texture_stencil = shader_quad->get_uniform_location("texture_stencil");
     uniform_location_texture_to_display = shader_quad->get_uniform_location("texture_to_display");
+    uniform_location_texture_cube = shader_quad->get_uniform_location("texture_cube"); 
+    uniform_location_camera_position = shader_quad->get_uniform_location("camera_position");
     
     ErrorWriter::checkGlErrors("after init",true);
     
