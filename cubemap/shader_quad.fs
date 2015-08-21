@@ -1,5 +1,7 @@
 #version 330
 
+#include general.s
+
 in vec3 transformed_normal;
 in vec4 transformed_position;
 in vec2 uv_coords;
@@ -18,22 +20,12 @@ vec3 cube_coordinates;
 vec3 normal;
 vec3 position;
 
-vec3 map_0_1_minus_n_n(vec3 input_vec, float n)
-  {
-    return (input_vec - vec3(0.5,0.5,0.5)) * 2 * n;
-  }
-
-vec3 map_minus_n_n_0_1(vec3 input_vec, float n)   // for mapping <-n,n> to <0,1> due to OpenGL clamping texture values
-  {
-    return (input_vec / n + vec3(1.0,1.0,1.0)) / 2.0;
-  }
-
 void main()
 {
   if (texture(texture_stencil, uv_coords) == vec4(1,1,1,0))
     {
       normal = map_0_1_minus_n_n(texture(texture_normal, uv_coords).xyz,1.0);
-      position = map_0_1_minus_n_n(texture(texture_position, uv_coords).xyz,16);
+      position = map_0_1_minus_n_n(texture(texture_position, uv_coords).xyz,position_scale);
       cube_coordinates = reflect(position - camera_position,normalize(normal));
      // cube_coordinates = normalize(normal);
       fragment_color = texture(texture_cube,cube_coordinates);

@@ -297,7 +297,9 @@ int main(int argc, char** argv)
     geometry_room = &g4;
     geometry_room->update_gpu();
     
-    Geometry3D g5 = load_obj("teapot.obj");
+    //Geometry3D g5 = load_obj("teapot.obj");
+    Geometry3D g5 = make_box(1,1,1);
+    
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
     
@@ -358,8 +360,8 @@ int main(int argc, char** argv)
     texture_mirror_depth->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     texture_mirror_depth->update_gpu();
     
-    Shader shad1(file_text("shader_3d.vs"),file_text("shader_3d.fs"));
-    Shader shad2(file_text("shader_quad.vs"),file_text("shader_quad.fs"));
+    Shader shad1(file_text("shader_3d.vs",true),file_text("shader_3d.fs",true));
+    Shader shad2(file_text("shader_quad.vs",true),file_text("shader_quad.fs",true));
     
     shader_3d = &shad1;
     shader_quad = &shad2;

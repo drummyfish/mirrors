@@ -1,5 +1,7 @@
 #version 330
 
+#include general.s
+
 in vec3 transformed_normal;
 in vec4 transformed_position;
 in vec2 uv_coords;
@@ -14,16 +16,6 @@ layout(location = 3) out vec3 output_stencil;    // (1,1,1) or (0,0,0) masking t
 float diffuse_intensity;
 float lighting_intensity;
 vec3 cube_coordinates;
-
-vec3 map_0_1_minus_n_n(vec3 input_vec, float n)
-  {
-    return (input_vec - vec3(0.5,0.5,0.5)) * 2 * n;
-  }
-
-vec3 map_minus_n_n_0_1(vec3 input_vec, float n)   // for mapping <-n,n> to <0,1> due to OpenGL clamping texture values
-  {
-    return (input_vec / n + vec3(1.0,1.0,1.0)) / 2.0;
-  }
   
 void main()
 {
@@ -35,8 +27,9 @@ void main()
       fragment_color = 0.3 * vec4(lighting_intensity, lighting_intensity, lighting_intensity, 1.0);
       fragment_color += texture(texture_2d,uv_coords);
     }
+  else
     
-  output_position = map_minus_n_n_0_1(transformed_position.xyz,16);  
+  output_position = map_minus_n_n_0_1(transformed_position.xyz,position_scale);  
   output_normal = map_minus_n_n_0_1(transformed_normal,1.0);
   output_stencil = mirror ? vec3(1.0,1.0,1.0) : vec3(0.0,0.0,0.0);
 }

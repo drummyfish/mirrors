@@ -164,18 +164,48 @@ void print_vec3(glm::vec3 vector)
 
 /**
   * Gets a text of given file.
+  * 
+  * @param preprocess if true, directives such as #include will be
+  *   preprocessed, otherwise not
   */
       
-static string file_text(string filename)
+static string file_text(string filename, bool preprocess=false)
   {
+    int include_limit = 256;
+    bool include_found;
+    string include_string = "#include ";
+    size_t position, position2,position3;
+    string filename2;
     std::ifstream stream(filename);
-          
+    
     if (!stream.is_open())
       {
         ErrorWriter::write_error("Could not open file '" + filename + "'.");
       }
-          
+    
     std::string result((std::istreambuf_iterator<char>(stream)),std::istreambuf_iterator<char>());
+       
+    if (preprocess)
+      {
+        while (include_limit >= 0) // each iteration replaces one #include
+          {
+            position = result.find(include_string);
+            include_found = position != string::npos;
+            
+            if (!include_found)
+              break;
+            
+            position3 = position + include_string.length();
+            position2 = result.find("\n",position3);
+            filename2 = result.substr(position3,position2 - position3);
+            result = result.replace(position,position2 - position,file_text(filename2));
+            include_limit--;
+          }
+          
+        if (include_limit < 0)
+          ErrorWriter::write_error("Include limit reached.");  
+      }
+          
     return result;
   }
   
