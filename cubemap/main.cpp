@@ -5,16 +5,14 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-TransformationTRSModel transformation_cup;
 TransformationTRSModel transformation_cow;
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
+TransformationTRSModel transformation_sky;
 TransformationTRSCamera transformation_camera;
 
-Geometry3D *geometry_cup;
-Geometry3D *geometry_cow;
 Geometry3D *geometry_scene;
-Geometry3D *geometry_room;
+Geometry3D *geometry_sky;
 Geometry3D *geometry_quad;
 Geometry3D *geometry_mirror;
 
@@ -41,10 +39,8 @@ Shader *shader_quad;                 // for second pass: draws textures on quad
 FrameBuffer *frame_buffer_cube;      // for rendering to cubemap
 FrameBuffer *frame_buffer_camera;    // for "deferred shading" like rendering
 
-Texture2D *texture_room;
-Texture2D *texture_cow;
+Texture2D *texture_sky;
 Texture2D *texture_scene;
-Texture2D *texture_cup;
 Texture2D *texture_camera_color;
 Texture2D *texture_camera_depth;
 Texture2D *texture_camera_position;
@@ -65,28 +61,19 @@ void draw_scene()
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
 
-    texture_cup->bind(1);
-    glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE,glm::value_ptr(transformation_cup.get_matrix()));
-    geometry_cup->draw_as_triangles();
-
+    texture_sky->bind(1);
+    glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE,glm::value_ptr(transformation_sky.get_matrix()));
+    geometry_sky->draw_as_triangles();
+    
     texture_scene->bind(1);
     glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE,glm::value_ptr(transformation_scene.get_matrix()));
     geometry_scene->draw_as_triangles();
-
-    texture_cow->bind(1);
-    glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE,glm::value_ptr(transformation_cow.get_matrix()));
-    geometry_cow->draw_as_triangles();
- 
-    texture_room->bind(1);
-    glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE,glm::value_ptr(glm::mat4(1.0)));
-    geometry_room->draw_as_triangles();
-    
-    glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
     
     // draw the mirror:
     
     if (draw_mirror)
       {
+        glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
         glUniform1ui(uniform_location_mirror,1);
         geometry_mirror->draw_as_triangles();    
         glUniform1ui(uniform_location_mirror,0);
@@ -221,22 +208,22 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_INSERT:
           recompute_cubemap();
           texture_camera_color->load_from_gpu();
-          texture_camera_color->get_image_data()->save_ppm("camera/color.ppm");
+          texture_camera_color->get_image_data()->save_ppm("camera/color.ppm",false);
           texture_camera_depth->load_from_gpu();
           texture_camera_depth->get_image_data()->raise_to_power(256); 
-          texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm"); 
+          texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm",false); 
           texture_camera_position->load_from_gpu();
           
           float r,g,b,a;
           
           texture_camera_position->get_image_data()->get_pixel(300,200,&r,&g,&b,&a);
-          texture_camera_position->get_image_data()->save_ppm("camera/position.ppm");
+          texture_camera_position->get_image_data()->save_ppm("camera/position.ppm",false);
           
           texture_camera_normal->load_from_gpu();
-          texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm");
+          texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm",false);
           
           texture_camera_stencil->load_from_gpu();
-          texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm");
+          texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
           break;
           
         case GLUT_KEY_F1:
@@ -286,21 +273,13 @@ int main(int argc, char** argv)
     frame_buffer_cube = new FrameBuffer();
     frame_buffer_camera = new FrameBuffer();
     
-    Geometry3D g = load_obj("cup.obj",true);
-    geometry_cup = &g;
-    geometry_cup->update_gpu();
-    
-    Geometry3D g2 = load_obj("cow.obj");
-    geometry_cow = &g2;
-    geometry_cow->update_gpu();
-    
     Geometry3D g3 = load_obj("scene.obj");
     geometry_scene = &g3;
     geometry_scene->update_gpu();
     
-    Geometry3D g4 = make_box(180,180,180);
-    geometry_room = &g4;
-    geometry_room->update_gpu();
+    Geometry3D g4 = load_obj("sky.obj");//make_box(180,180,180);
+    geometry_sky = &g4;
+    geometry_sky->update_gpu();
     
     Geometry3D g5 = load_obj("teapot.obj");
 
@@ -311,21 +290,13 @@ int main(int argc, char** argv)
     geometry_quad = &g6;
     geometry_quad->update_gpu();
     
-    texture_room = new Texture2D(16,16,TEXEL_TYPE_COLOR);
-    texture_room->load_ppm("sky_test.ppm");
-    texture_room->update_gpu();
-    
-    texture_cow = new Texture2D(16,16,TEXEL_TYPE_COLOR);
-    texture_cow->load_ppm("cow.ppm");
-    texture_cow->update_gpu();
+    texture_sky = new Texture2D(16,16,TEXEL_TYPE_COLOR);
+    texture_sky->load_ppm("sky.ppm");
+    texture_sky->update_gpu();
     
     texture_scene = new Texture2D(16,16,TEXEL_TYPE_COLOR);
     texture_scene->load_ppm("scene.ppm");
     texture_scene->update_gpu();
-    
-    texture_cup = new Texture2D(16,16,TEXEL_TYPE_COLOR);
-    texture_cup->load_ppm("cup.ppm");
-    texture_cup->update_gpu();
 
     texture_camera_color = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);
     texture_camera_color->update_gpu();
@@ -346,14 +317,11 @@ int main(int argc, char** argv)
     cube_map->update_gpu();
     ErrorWriter::checkGlErrors("cube map init",true);
     
-    transformation_cup.set_translation(glm::vec3(0.0,0.0,30.0));
-    transformation_cup.set_scale(glm::vec3(4.0,4.0,4.0));
-    transformation_cow.set_translation(glm::vec3(45.0,15.0,-6.0));
-    transformation_cow.set_scale(glm::vec3(4.0,4.0,4.0));
+    transformation_sky.set_scale(glm::vec3(50.0,50.0,50.0));
     transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
     transformation_scene.set_scale(glm::vec3(6,6,6));   
-    transformation_mirror.set_translation(glm::vec3(0.0,0.0,-3.0));
-    transformation_mirror.set_scale(glm::vec3(20.0,20.0,20.0));
+    transformation_mirror.set_translation(glm::vec3(0.0,30.0,-30.0));
+    transformation_mirror.set_scale(glm::vec3(15.0,15.0,15.0));
     transformation_mirror.set_rotation(glm::vec3(0.0,0.0,0));
     
     texture_mirror = new Texture2D(512,512,TEXEL_TYPE_COLOR);
@@ -404,12 +372,10 @@ int main(int argc, char** argv)
     delete frame_buffer_cube;
     delete texture_camera_color;
     delete frame_buffer_camera;
-    delete texture_cup;
     delete texture_mirror;
     delete cube_map;
     delete texture_scene;
-    delete texture_room;
-    delete texture_cow;
+    delete texture_sky;
     delete texture_mirror_depth;
     GLSession::clear();
     return 0;

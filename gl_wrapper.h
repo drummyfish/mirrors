@@ -1112,7 +1112,7 @@ class Image2D: public Printable
        * Saves the image to file in ppm format.
        */
         
-      bool save_ppm(string filename)
+      bool save_ppm(string filename, bool top_to_bottom=true)
         {
           unsigned int i,j;
           float r,g,b,a;
@@ -1125,14 +1125,19 @@ class Image2D: public Printable
 
           fprintf(file_handle,"P6 %d %d 255 ",this->width,this->height);
 
-          for (j = 0; j < this->height; j++)
+          unsigned int value_from, value_to;
+          value_from = top_to_bottom ? 0 : this->height - 1;
+          value_to = top_to_bottom ? this->height - 1 : 0;
+          int increment = top_to_bottom ? 1 : -1;
+          
+          for (j = value_from; j != value_to; j += increment)
             for (i = 0; i < this->width; i++)
               {
                 this->get_pixel(i,j,&r,&g,&b,&a);
                 fprintf(file_handle,"%c%c%c",
-                  ((unsigned char) (r * 255)),
-                  ((unsigned char) (g * 255)),
-                  ((unsigned char) (b * 255)));
+                  ((unsigned char) glm::clamp<float>((r * 255),0,255)),
+                  ((unsigned char) glm::clamp<float>((g * 255),0,255)),
+                  ((unsigned char) glm::clamp<float>((b * 255),0,255)));
               }
 
           fclose(file_handle);
