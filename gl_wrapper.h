@@ -2388,7 +2388,7 @@ Geometry3D load_obj(string filename, bool flip=false)
                   if (vt_index < texture_vertices.size() && vt_index >= 0)
                     {
                       result.vertices[indices[i]].texture_coord.x = texture_vertices[vt_index].x;
-                      result.vertices[indices[i]].texture_coord.y = texture_vertices[vt_index].y;
+                      result.vertices[indices[i]].texture_coord.y = 1.0 - texture_vertices[vt_index].y;
                       result.vertices[indices[i]].texture_coord.z = texture_vertices[vt_index].z;
                     }
                   

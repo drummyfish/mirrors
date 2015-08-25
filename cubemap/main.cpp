@@ -7,13 +7,13 @@
 
 TransformationTRSModel transformation_cup;
 TransformationTRSModel transformation_cow;
-TransformationTRSModel transformation_rock;
+TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
 TransformationTRSCamera transformation_camera;
 
 Geometry3D *geometry_cup;
 Geometry3D *geometry_cow;
-Geometry3D *geometry_rock;
+Geometry3D *geometry_scene;
 Geometry3D *geometry_room;
 Geometry3D *geometry_quad;
 Geometry3D *geometry_mirror;
@@ -43,7 +43,7 @@ FrameBuffer *frame_buffer_camera;    // for "deferred shading" like rendering
 
 Texture2D *texture_room;
 Texture2D *texture_cow;
-Texture2D *texture_rock;
+Texture2D *texture_scene;
 Texture2D *texture_cup;
 Texture2D *texture_camera_color;
 Texture2D *texture_camera_depth;
@@ -69,9 +69,9 @@ void draw_scene()
     glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE,glm::value_ptr(transformation_cup.get_matrix()));
     geometry_cup->draw_as_triangles();
 
-    texture_rock->bind(1);
-    glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE,glm::value_ptr(transformation_rock.get_matrix()));
-    geometry_rock->draw_as_triangles();
+    texture_scene->bind(1);
+    glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE,glm::value_ptr(transformation_scene.get_matrix()));
+    geometry_scene->draw_as_triangles();
 
     texture_cow->bind(1);
     glUniformMatrix4fv(uniform_location_model_matrix,1,GL_TRUE,glm::value_ptr(transformation_cow.get_matrix()));
@@ -294,9 +294,9 @@ int main(int argc, char** argv)
     geometry_cow = &g2;
     geometry_cow->update_gpu();
     
-    Geometry3D g3 = load_obj("rock.obj");
-    geometry_rock = &g3;
-    geometry_rock->update_gpu();
+    Geometry3D g3 = load_obj("scene.obj");
+    geometry_scene = &g3;
+    geometry_scene->update_gpu();
     
     Geometry3D g4 = make_box(180,180,180);
     geometry_room = &g4;
@@ -319,9 +319,9 @@ int main(int argc, char** argv)
     texture_cow->load_ppm("cow.ppm");
     texture_cow->update_gpu();
     
-    texture_rock = new Texture2D(16,16,TEXEL_TYPE_COLOR);
-    texture_rock->load_ppm("rock.ppm");
-    texture_rock->update_gpu();
+    texture_scene = new Texture2D(16,16,TEXEL_TYPE_COLOR);
+    texture_scene->load_ppm("scene.ppm");
+    texture_scene->update_gpu();
     
     texture_cup = new Texture2D(16,16,TEXEL_TYPE_COLOR);
     texture_cup->load_ppm("cup.ppm");
@@ -350,8 +350,8 @@ int main(int argc, char** argv)
     transformation_cup.set_scale(glm::vec3(4.0,4.0,4.0));
     transformation_cow.set_translation(glm::vec3(45.0,15.0,-6.0));
     transformation_cow.set_scale(glm::vec3(4.0,4.0,4.0));
-    transformation_rock.set_translation(glm::vec3(-45.0,-3.0,-3.0));
-    transformation_rock.set_scale(glm::vec3(1.5,1.5,1.5));   
+    transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
+    transformation_scene.set_scale(glm::vec3(6,6,6));   
     transformation_mirror.set_translation(glm::vec3(0.0,0.0,-3.0));
     transformation_mirror.set_scale(glm::vec3(20.0,20.0,20.0));
     transformation_mirror.set_rotation(glm::vec3(0.0,0.0,0));
@@ -407,7 +407,7 @@ int main(int argc, char** argv)
     delete texture_cup;
     delete texture_mirror;
     delete cube_map;
-    delete texture_rock;
+    delete texture_scene;
     delete texture_room;
     delete texture_cow;
     delete texture_mirror_depth;
