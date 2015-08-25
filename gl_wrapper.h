@@ -460,6 +460,18 @@ class TransformationTRS: public Transformation
           this->recompute_translation_matrix();
         };
         
+      /**
+       * Adds translation in "forward" direction.
+       */
+        
+      void add_translation_forward(float distance)
+        {
+          glm::vec3 helper;
+          helper = this->get_direction_forward();
+          helper *= distance;
+          this->add_translation(helper);
+        };
+        
       glm::vec3 get_direction(glm::vec3 initial_vector)
         {
           glm::mat4 transform = glm::mat4(1.0f);

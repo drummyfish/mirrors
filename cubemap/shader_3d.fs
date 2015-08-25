@@ -5,8 +5,9 @@ in vec4 transformed_position;
 in vec2 uv_coords;
 uniform vec3 light_direction;
 uniform sampler2D texture_2d;
-uniform bool mirror;                   // whether mirror is being rendered
+uniform bool mirror;                // whether mirror is being rendered
 uniform bool sky;                   // whether sky is being rendered
+uniform bool box;                   // whether marking box is being rendered
 
 layout(location = 0) out vec4 fragment_color;
 layout(location = 1) out vec3 output_position;   // x y z position in space (divided by 64)
@@ -25,12 +26,16 @@ void main()
     {
       fragment_color = texture(texture_2d,uv_coords);
     }
-  if (!mirror)
+  else if (box)
     {
-      fragment_color = 0.5 + 0.5 * vec4(lighting_intensity, lighting_intensity, lighting_intensity, 1.0);
+      fragment_color = vec4(1,0,0,1);
+    }
+  else if (!mirror)
+    {
+      fragment_color = 0.8 + 0.2 * vec4(lighting_intensity, lighting_intensity, lighting_intensity, 1.0);
       fragment_color *= texture(texture_2d,uv_coords);
     }
-    
+
   output_position = transformed_position.xyz;  
   output_normal = transformed_normal.xyz;
   output_stencil = mirror ? vec3(1.0,1.0,1.0) : vec3(0.0,0.0,0.0);

@@ -8,12 +8,14 @@
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
 TransformationTRSModel transformation_sky;
-TransformationTRSCamera transformation_camera;
+TransformationTRSModel transformation_cube_map1;
+TransformationTRSModel transformation_cube_map2;
 
 Geometry3D *geometry_scene;
 Geometry3D *geometry_sky;
 Geometry3D *geometry_quad;
 Geometry3D *geometry_mirror;
+Geometry3D *geometry_box;             // box marking the cube map positions
 
 glm::mat4 view_matrix = glm::mat4(1.0f);
 glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 1000.0f);
@@ -31,6 +33,7 @@ struct     // uniform locations
     GLint view_matrix;
     GLint mirror;
     GLint sky;
+    GLint box;
     GLint model_matrix;
     GLint projection_matrix;
     GLint camera_position;
@@ -54,7 +57,8 @@ bool draw_mirror = true;
 
 int texture_to_display = 1;
 
-EnvironmentCubeMap *cube_map;
+EnvironmentCubeMap *cube_map1;
+EnvironmentCubeMap *cube_map2;
 
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
@@ -74,10 +78,21 @@ void draw_scene()
     glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE,glm::value_ptr(transformation_scene.get_matrix()));
     geometry_scene->draw_as_triangles();
     
-    // draw the mirror:
+    // draw the mirror stuff:
     
     if (draw_mirror)
-      {
+      { // draw the mark boxes:
+        glUniform1ui(uniforms.box,1);
+        
+        glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(transformation_cube_map1.get_matrix()));
+        geometry_box->draw_as_triangles();
+        
+        glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(transformation_cube_map2.get_matrix()));
+        geometry_box->draw_as_triangles();
+        
+        glUniform1ui(uniforms.box,0);
+        
+        // draw the mirror:
         glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
         glUniform1ui(uniforms.mirror,1);
         geometry_mirror->draw_as_triangles();    
@@ -89,7 +104,7 @@ void draw_quad()  // for the second pass
   {
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
-    cube_map->get_texture_color()->bind(0);
+    cube_map1->get_texture_color()->bind(0);
     texture_camera_color->bind(1);
     texture_camera_normal->bind(2);
     texture_camera_position->bind(3);
@@ -143,10 +158,10 @@ void render()
 void recompute_cubemap_side(GLuint side) 
   {
     cout << "rendering side" << endl;
-    frame_buffer_cube->set_textures(cube_map->get_texture_depth(),side,0,0,cube_map->get_texture_color(),side);    
+    frame_buffer_cube->set_textures(cube_map1->get_texture_depth(),side,0,0,cube_map1->get_texture_color(),side);    
     frame_buffer_cube->activate();
     // set the camera:
-    glUniformMatrix4fv(uniforms.view_matrix,1,GL_TRUE,glm::value_ptr(cube_map->get_camera_transformation(side).get_matrix()));
+    glUniformMatrix4fv(uniforms.view_matrix,1,GL_TRUE,glm::value_ptr(cube_map1->get_camera_transformation(side).get_matrix()));
     draw_mirror = false;
     draw_scene();
     draw_mirror = true;
@@ -156,9 +171,9 @@ void recompute_cubemap_side(GLuint side)
 void recompute_cubemap()
   {
     set_up_pass1();
-    cube_map->transformation.set_translation(transformation_mirror.get_translation());
-    glUniformMatrix4fv(uniforms.projection_matrix,1,GL_TRUE,glm::value_ptr(cube_map->get_projection_matrix()));
-    cube_map->setViewport();
+    cube_map1->transformation.set_translation(transformation_cube_map1.get_translation());
+    glUniformMatrix4fv(uniforms.projection_matrix,1,GL_TRUE,glm::value_ptr(cube_map1->get_projection_matrix()));
+    cube_map1->setViewport();
     cout << "rendering cube map..." << endl;
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_X);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
@@ -166,12 +181,12 @@ void recompute_cubemap()
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
     recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cube_map->unsetViewport();  
-    cube_map->get_texture_color()->load_from_gpu();  
-    cube_map->get_texture_depth()->load_from_gpu();
-    cube_map->get_texture_color()->save_ppms("cubemap_images/cube_map");
-    cube_map->get_texture_depth()->raise_to_power(256);  
-    cube_map->get_texture_depth()->save_ppms("cubemap_images/cube_map_depth");
+    cube_map1->unsetViewport();  
+    cube_map1->get_texture_color()->load_from_gpu();  
+    cube_map1->get_texture_depth()->load_from_gpu();
+    cube_map1->get_texture_color()->save_ppms("cubemap_images/cube_map1");
+    cube_map1->get_texture_depth()->raise_to_power(256);  
+    cube_map1->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth");
   }
   
 void special_callback(int key, int x, int y)
@@ -251,6 +266,16 @@ void special_callback(int key, int x, int y)
           texture_to_display = 0;
           break;
           
+        case GLUT_KEY_F11:
+          transformation_cube_map1.set_translation(CameraHandler::camera_transformation.get_translation());
+          transformation_cube_map1.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
+          break;
+          
+        case GLUT_KEY_F12:
+          transformation_cube_map2.set_translation(CameraHandler::camera_transformation.get_translation());
+          transformation_cube_map2.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
+          break;
+          
         default:
           break;
       }
@@ -277,6 +302,10 @@ int main(int argc, char** argv)
     
     frame_buffer_cube = new FrameBuffer();
     frame_buffer_camera = new FrameBuffer();
+    
+    Geometry3D g2 = make_box(1,1,1);
+    geometry_box = &g2;
+    geometry_box->update_gpu();
     
     Geometry3D g3 = load_obj("scene.obj");
     geometry_scene = &g3;
@@ -318,9 +347,12 @@ int main(int argc, char** argv)
     texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
     texture_camera_stencil->update_gpu();
 
-    cube_map = new EnvironmentCubeMap(512);
-    cube_map->update_gpu();
+    cube_map1 = new EnvironmentCubeMap(512);
+    cube_map1->update_gpu();
     ErrorWriter::checkGlErrors("cube map init",true);
+    
+    transformation_cube_map1.set_translation(glm::vec3(18,35,-17));
+    transformation_cube_map2.set_translation(glm::vec3(-18,35,-22));
     
     transformation_sky.set_scale(glm::vec3(50.0,50.0,50.0));
     transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
@@ -352,6 +384,7 @@ int main(int argc, char** argv)
     uniforms.model_matrix = shader_3d->get_uniform_location("model_matrix");
     uniforms.view_matrix = shader_3d->get_uniform_location("view_matrix");
     uniforms.projection_matrix = shader_3d->get_uniform_location("projection_matrix");
+    uniforms.box = shader_3d->get_uniform_location("box");
     
     uniforms.texture_color = shader_quad->get_uniform_location("texture_color");
     uniforms.texture_normal = shader_quad->get_uniform_location("texture_normal");
@@ -379,7 +412,7 @@ int main(int argc, char** argv)
     delete texture_camera_color;
     delete frame_buffer_camera;
     delete texture_mirror;
-    delete cube_map;
+    delete cube_map1;
     delete texture_scene;
     delete texture_sky;
     delete texture_mirror_depth;
