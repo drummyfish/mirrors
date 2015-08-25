@@ -6,6 +6,7 @@ in vec2 uv_coords;
 uniform vec3 light_direction;
 uniform sampler2D texture_2d;
 uniform bool mirror;                   // whether mirror is being rendered
+uniform bool sky;                   // whether sky is being rendered
 
 layout(location = 0) out vec4 fragment_color;
 layout(location = 1) out vec3 output_position;   // x y z position in space (divided by 64)
@@ -20,6 +21,10 @@ void main()
   diffuse_intensity = clamp(dot(normalize(transformed_normal),-1 * light_direction),0.0,1.0);
   lighting_intensity = clamp(0.4 + diffuse_intensity,0.0,1.0);
   
+  if (sky)
+    {
+      fragment_color = texture(texture_2d,uv_coords);
+    }
   if (!mirror)
     {
       fragment_color = 0.5 + 0.5 * vec4(lighting_intensity, lighting_intensity, lighting_intensity, 1.0);
