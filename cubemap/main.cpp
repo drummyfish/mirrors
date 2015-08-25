@@ -5,7 +5,6 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-TransformationTRSModel transformation_cow;
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
 TransformationTRSModel transformation_sky;

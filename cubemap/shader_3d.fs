@@ -22,8 +22,8 @@ void main()
   
   if (!mirror)
     {
-      fragment_color = 0.3 * vec4(lighting_intensity, lighting_intensity, lighting_intensity, 1.0);
-      fragment_color += texture(texture_2d,uv_coords);
+      fragment_color = 0.5 + 0.5 * vec4(lighting_intensity, lighting_intensity, lighting_intensity, 1.0);
+      fragment_color *= texture(texture_2d,uv_coords);
     }
     
   output_position = transformed_position.xyz;  

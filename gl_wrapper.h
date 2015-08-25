@@ -1648,7 +1648,7 @@ class EnvironmentCubeMap: public GPUObject
       EnvironmentCubeMap(int size)
         {
           this->size = size;
-          EnvironmentCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 100.0f);          
+          EnvironmentCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 300.0f);          
           
           this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
