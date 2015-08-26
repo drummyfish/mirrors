@@ -27,7 +27,8 @@ struct     // uniform locations
     GLint texture_position;
     GLint texture_stencil;
     GLint texture_to_display;
-    GLint texture_cube;
+    GLint texture_cube1;
+    GLint texture_cube2;
     GLint view_matrix;
     GLint mirror;
     GLint sky;
@@ -102,7 +103,8 @@ void draw_quad()  // for the second pass
   {
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
-    cube_map2->get_texture_color()->bind(0);
+    cube_map1->get_texture_color()->bind(0);
+    cube_map2->get_texture_color()->bind(5);
     texture_camera_color->bind(1);
     texture_camera_normal->bind(2);
     texture_camera_position->bind(3);
@@ -123,7 +125,8 @@ void set_up_pass1()
 void set_up_pass2()
   {
     shader_quad->use(); 
-    glUniform1i(uniforms.texture_cube,0);
+    glUniform1i(uniforms.texture_cube1,0);
+    glUniform1i(uniforms.texture_cube2,5);
     glUniform1i(uniforms.texture_color,1);
     glUniform1i(uniforms.texture_normal,2);
     glUniform1i(uniforms.texture_position,3);
@@ -412,7 +415,8 @@ int main(int argc, char** argv)
     uniforms.texture_position = shader_quad->get_uniform_location("texture_position");
     uniforms.texture_stencil = shader_quad->get_uniform_location("texture_stencil");
     uniforms.texture_to_display = shader_quad->get_uniform_location("texture_to_display");
-    uniforms.texture_cube = shader_quad->get_uniform_location("texture_cube"); 
+    uniforms.texture_cube1 = shader_quad->get_uniform_location("texture_cube1"); 
+    uniforms.texture_cube2 = shader_quad->get_uniform_location("texture_cube2");
     uniforms.camera_position = shader_quad->get_uniform_location("camera_position");
     
     ErrorWriter::checkGlErrors("after init",true);

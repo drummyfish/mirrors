@@ -4,7 +4,8 @@ in vec3 transformed_normal;
 in vec4 transformed_position;
 in vec2 uv_coords;
 
-uniform samplerCube texture_cube;
+uniform samplerCube texture_cube1;
+uniform samplerCube texture_cube2;
 uniform vec3 camera_position;
 uniform int texture_to_display;      // which texture to display (1 = color, 2 = normal etc.)
 uniform sampler2D texture_color;
@@ -29,7 +30,13 @@ void main()
               position = texture(texture_position,uv_coords).xyz;
               cube_coordinates = reflect(position - camera_position,normalize(normal));
               // cube_coordinates = normalize(normal);
-              fragment_color = texture(texture_cube,cube_coordinates);
+              fragment_color = 
+                mix
+                  (
+                    texture(texture_cube1,cube_coordinates),
+                    texture(texture_cube2,cube_coordinates),
+                    0.5
+                  );
             }
           else
             fragment_color = texture(texture_color, uv_coords);
