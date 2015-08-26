@@ -8,8 +8,6 @@
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
 TransformationTRSModel transformation_sky;
-TransformationTRSModel transformation_cube_map1;
-TransformationTRSModel transformation_cube_map2;
 
 Geometry3D *geometry_scene;
 Geometry3D *geometry_sky;
@@ -84,10 +82,10 @@ void draw_scene()
       { // draw the mark boxes:
         glUniform1ui(uniforms.box,1);
         
-        glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(transformation_cube_map1.get_matrix()));
+        glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(cube_map1->transformation.get_matrix()));
         geometry_box->draw_as_triangles();
         
-        glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(transformation_cube_map2.get_matrix()));
+        glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(cube_map2->transformation.get_matrix()));
         geometry_box->draw_as_triangles();
         
         glUniform1ui(uniforms.box,0);
@@ -104,7 +102,7 @@ void draw_quad()  // for the second pass
   {
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
-    cube_map1->get_texture_color()->bind(0);
+    cube_map2->get_texture_color()->bind(0);
     texture_camera_color->bind(1);
     texture_camera_normal->bind(2);
     texture_camera_position->bind(3);
@@ -155,13 +153,13 @@ void render()
     glutSwapBuffers();
   }
   
-void recompute_cubemap_side(GLuint side) 
+void recompute_cubemap_side(EnvironmentCubeMap *cube_map, GLuint side) 
   {
     cout << "rendering side" << endl;
-    frame_buffer_cube->set_textures(cube_map1->get_texture_depth(),side,0,0,cube_map1->get_texture_color(),side);    
+    frame_buffer_cube->set_textures(cube_map->get_texture_depth(),side,0,0,cube_map->get_texture_color(),side);    
     frame_buffer_cube->activate();
     // set the camera:
-    glUniformMatrix4fv(uniforms.view_matrix,1,GL_TRUE,glm::value_ptr(cube_map1->get_camera_transformation(side).get_matrix()));
+    glUniformMatrix4fv(uniforms.view_matrix,1,GL_TRUE,glm::value_ptr(cube_map->get_camera_transformation(side).get_matrix()));
     draw_mirror = false;
     draw_scene();
     draw_mirror = true;
@@ -171,22 +169,41 @@ void recompute_cubemap_side(GLuint side)
 void recompute_cubemap()
   {
     set_up_pass1();
-    cube_map1->transformation.set_translation(transformation_cube_map1.get_translation());
     glUniformMatrix4fv(uniforms.projection_matrix,1,GL_TRUE,glm::value_ptr(cube_map1->get_projection_matrix()));
+    
     cube_map1->setViewport();
-    cout << "rendering cube map..." << endl;
-    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_X);
-    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
-    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
-    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
-    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
-    recompute_cubemap_side(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
+    cout << "rendering cube map 1..." << endl;
+    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
+    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
+    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
+    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
+    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
     cube_map1->unsetViewport();  
+    
+    cout << "saving images" << endl;
     cube_map1->get_texture_color()->load_from_gpu();  
     cube_map1->get_texture_depth()->load_from_gpu();
     cube_map1->get_texture_color()->save_ppms("cubemap_images/cube_map1");
     cube_map1->get_texture_depth()->raise_to_power(256);  
     cube_map1->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth");
+    
+    cube_map2->setViewport();
+    cout << "rendering cube map 2..." << endl;
+    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
+    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
+    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
+    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
+    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
+    cube_map2->unsetViewport();
+    
+    cout << "saving images" << endl;
+    cube_map2->get_texture_color()->load_from_gpu();  
+    cube_map2->get_texture_depth()->load_from_gpu();
+    cube_map2->get_texture_color()->save_ppms("cubemap_images/cube_map2");
+    cube_map2->get_texture_depth()->raise_to_power(256);  
+    cube_map2->get_texture_depth()->save_ppms("cubemap_images/cube_map2_depth");   
   }
   
 void special_callback(int key, int x, int y)
@@ -267,13 +284,13 @@ void special_callback(int key, int x, int y)
           break;
           
         case GLUT_KEY_F11:
-          transformation_cube_map1.set_translation(CameraHandler::camera_transformation.get_translation());
-          transformation_cube_map1.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
+          cube_map1->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
+          cube_map1->transformation.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
           break;
           
         case GLUT_KEY_F12:
-          transformation_cube_map2.set_translation(CameraHandler::camera_transformation.get_translation());
-          transformation_cube_map2.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
+          cube_map2->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
+          cube_map2->transformation.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
           break;
           
         default:
@@ -349,10 +366,14 @@ int main(int argc, char** argv)
 
     cube_map1 = new EnvironmentCubeMap(512);
     cube_map1->update_gpu();
+    
+    cube_map2 = new EnvironmentCubeMap(512);
+    cube_map2->update_gpu();
+    
     ErrorWriter::checkGlErrors("cube map init",true);
     
-    transformation_cube_map1.set_translation(glm::vec3(18,35,-17));
-    transformation_cube_map2.set_translation(glm::vec3(-18,35,-22));
+    cube_map1->transformation.set_translation(glm::vec3(18,35,-17));
+    cube_map2->transformation.set_translation(glm::vec3(-18,35,-22));
     
     transformation_sky.set_scale(glm::vec3(50.0,50.0,50.0));
     transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
