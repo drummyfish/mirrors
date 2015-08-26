@@ -1126,7 +1126,7 @@ class Image2D: public Printable
         
       bool save_ppm(string filename, bool top_to_bottom=true)
         {
-          unsigned int i,j;
+          int i,j;
           float r,g,b,a;
 
           FILE *file_handle;
@@ -1137,13 +1137,13 @@ class Image2D: public Printable
 
           fprintf(file_handle,"P6 %d %d 255 ",this->width,this->height);
 
-          unsigned int value_from, value_to;
+          int value_from, value_to;
           value_from = top_to_bottom ? 0 : this->height - 1;
-          value_to = top_to_bottom ? this->height - 1 : 0;
+          value_to = top_to_bottom ? this->height : -1;
           int increment = top_to_bottom ? 1 : -1;
           
           for (j = value_from; j != value_to; j += increment)
-            for (i = 0; i < this->width; i++)
+            for (i = 0; ((unsigned int) i) < this->width; i++)
               {
                 this->get_pixel(i,j,&r,&g,&b,&a);
                 fprintf(file_handle,"%c%c%c",
