@@ -775,6 +775,80 @@ class Shader
             }
         }
   };
+
+/**
+ * Represnts a uniform shader variable.
+ */
+
+class UniformVariable
+  {
+    protected:
+      GLint location;
+      bool location_retrieved;
+      string name;
+      
+      void pre_update_check()
+        {
+          if (!this->location_retrieved)
+            ErrorWriter::write_error("Updating uniform variable without its location retrieved.");
+        }
+      
+    public:
+      UniformVariable(string name)
+        {
+          this->name = name;
+          this->location = 0;
+          location_retrieved = false;
+        }
+        
+      /**
+       * Retrieves the location from given shader.
+       */
+        
+      bool retrieve_location(Shader *shader)
+        {
+          this->location = shader->get_uniform_location(this->name.c_str());
+        
+          if (this->location == 0)
+            {
+              ErrorWriter::write_error("Uniform variable '" + this->name + "' couldn't retrieve its location.");
+              return false;
+            }
+            
+          this->location_retrieved = true;
+          return true;
+        }
+        
+      void update_uint(unsigned int value)
+        {
+          this->pre_update_check();
+          glUniform1ui(this->location,value);
+        }
+        
+      void update_int(int value)
+        {
+          this->pre_update_check();
+          glUniform1i(this->location,value);
+        }
+        
+      void update_mat4(glm::mat4 value)
+        {
+          this->pre_update_check();
+          glUniformMatrix4fv(this->location,1,GL_TRUE,glm::value_ptr(value));
+        }
+        
+      void update_vec3(glm::vec3 value)
+        {
+          this->pre_update_check();
+          glUniform3fv(this->location,1,glm::value_ptr(value));
+        }
+        
+      void update_float_3(float value1, float value2, float value3)
+        {
+          this->pre_update_check();
+          glUniform3f(this->location,value1,value2,value3);
+        }
+  };
   
 /**
  * Represents a 3D vertex with position, normal and texture

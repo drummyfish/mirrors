@@ -18,25 +18,24 @@ Geometry3D *geometry_box;             // box marking the cube map positions
 glm::mat4 view_matrix = glm::mat4(1.0f);
 glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 1000.0f);
 
-struct     // uniform locations
-  {
-    GLint light_direction;
-    GLint texture_2d;
-    GLint texture_color;
-    GLint texture_normal;
-    GLint texture_position;
-    GLint texture_stencil;
-    GLint texture_to_display;
-    GLint texture_cube1;
-    GLint texture_cube2;
-    GLint view_matrix;
-    GLint mirror;
-    GLint sky;
-    GLint box;
-    GLint model_matrix;
-    GLint projection_matrix;
-    GLint camera_position;
-  } uniforms;
+UniformVariable uniform_mirror("mirror");
+UniformVariable uniform_light_direction("light_direction");
+UniformVariable uniform_texture_2d("texture_2d");
+UniformVariable uniform_texture_color("texture_color");
+UniformVariable uniform_texture_normal("texture_normal");
+UniformVariable uniform_texture_position("texture_position");
+UniformVariable uniform_texture_stencil("texture_stencil");
+UniformVariable uniform_texture_to_display("texture_to_display");
+UniformVariable uniform_texture_cube1("texture_cube1");
+UniformVariable uniform_texture_cube2("texture_cube2");
+UniformVariable uniform_texture_cube_depth1("texture_cube_depth1");
+UniformVariable uniform_texture_cube_depth2("texture_cube_depth2");
+UniformVariable uniform_view_matrix("view_matrix");
+UniformVariable uniform_sky("sky");
+UniformVariable uniform_box("box");
+UniformVariable uniform_model_matrix("model_matrix");
+UniformVariable uniform_projection_matrix("projection_matrix");
+UniformVariable uniform_camera_position("camera_position");
 
 Shader *shader_3d;                   // for first pass: renders a 3D scene
 Shader *shader_quad;                 // for second pass: draws textures on quad
@@ -67,35 +66,35 @@ void draw_scene()
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
 
-    glUniform1ui(uniforms.sky,1);
+    uniform_sky.update_int(1);
+    
     texture_sky->bind(1);
-    glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE,glm::value_ptr(transformation_sky.get_matrix()));
+    uniform_model_matrix.update_mat4(transformation_sky.get_matrix());
     geometry_sky->draw_as_triangles();
-    glUniform1ui(uniforms.sky,0);
+    uniform_sky.update_int(0);
     
     texture_scene->bind(1);
-    glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE,glm::value_ptr(transformation_scene.get_matrix()));
+    
+    uniform_model_matrix.update_mat4(transformation_scene.get_matrix());
     geometry_scene->draw_as_triangles();
     
     // draw the mirror stuff:
     
     if (draw_mirror)
       { // draw the mark boxes:
-        glUniform1ui(uniforms.box,1);
-        
-        glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(cube_map1->transformation.get_matrix()));
+        uniform_box.update_int(1);
+        uniform_model_matrix.update_mat4(cube_map1->transformation.get_matrix());
         geometry_box->draw_as_triangles();
         
-        glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(cube_map2->transformation.get_matrix()));
-        geometry_box->draw_as_triangles();
-        
-        glUniform1ui(uniforms.box,0);
+        uniform_model_matrix.update_mat4(cube_map2->transformation.get_matrix());
+        geometry_box->draw_as_triangles();       
+        uniform_box.update_int(0);
         
         // draw the mirror:
-        glUniformMatrix4fv(uniforms.model_matrix,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
-        glUniform1ui(uniforms.mirror,1);
+        uniform_model_matrix.update_mat4(transformation_mirror.get_matrix());
+        uniform_mirror.update_int(1);
         geometry_mirror->draw_as_triangles();    
-        glUniform1ui(uniforms.mirror,0);
+        uniform_mirror.update_int(0);
       }
   }
 
@@ -105,6 +104,10 @@ void draw_quad()  // for the second pass
     glClear(GL_COLOR_BUFFER_BIT);
     cube_map1->get_texture_color()->bind(0);
     cube_map2->get_texture_color()->bind(5);
+    
+    cube_map1->get_texture_depth()->bind(6);
+    cube_map2->get_texture_depth()->bind(7);
+    
     texture_camera_color->bind(1);
     texture_camera_normal->bind(2);
     texture_camera_position->bind(3);
@@ -116,23 +119,28 @@ void draw_quad()  // for the second pass
 void set_up_pass1()
   {
     shader_3d->use();
-    glUniform1i(uniforms.texture_2d,1);
-    glUniformMatrix4fv(uniforms.view_matrix,1,GL_TRUE, glm::value_ptr(view_matrix));
-    glUniform3f(uniforms.light_direction,0.0,0.0,-1.0);
-    glUniform1ui(uniforms.mirror,0);
+    uniform_texture_2d.update_int(1);
+    uniform_view_matrix.update_mat4(view_matrix);
+    uniform_light_direction.update_float_3(0.0,0.0,-1.0);
+    uniform_mirror.update_int(0);
   }
   
 void set_up_pass2()
   {
     shader_quad->use(); 
-    glUniform1i(uniforms.texture_cube1,0);
-    glUniform1i(uniforms.texture_cube2,5);
-    glUniform1i(uniforms.texture_color,1);
-    glUniform1i(uniforms.texture_normal,2);
-    glUniform1i(uniforms.texture_position,3);
-    glUniform1i(uniforms.texture_stencil,4);
-    glUniform1i(uniforms.texture_to_display,texture_to_display);
-    glUniform3fv(uniforms.camera_position,1,glm::value_ptr(CameraHandler::camera_transformation.get_translation()));
+    
+    uniform_texture_cube1.update_int(0);
+    uniform_texture_cube2.update_int(5);
+    
+    uniform_texture_cube_depth1.update_int(6);
+    uniform_texture_cube_depth2.update_int(7);
+    
+    uniform_texture_color.update_int(1);
+    uniform_texture_normal.update_int(2);
+    uniform_texture_position.update_int(3);
+    uniform_texture_stencil.update_int(4);
+    uniform_texture_to_display.update_int(texture_to_display);
+    uniform_camera_position.update_vec3(CameraHandler::camera_transformation.get_translation());
   }
  
 void render()
@@ -140,8 +148,8 @@ void render()
     set_up_pass1();
     
     // set up the camera:
-    glUniformMatrix4fv(uniforms.view_matrix,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
-    glUniformMatrix4fv(uniforms.projection_matrix,1,GL_TRUE, glm::value_ptr(projection_matrix));
+    uniform_view_matrix.update_mat4(CameraHandler::camera_transformation.get_matrix());
+    uniform_projection_matrix.update_mat4(projection_matrix);
     
     // 1st pass:
     frame_buffer_camera->activate();
@@ -162,7 +170,8 @@ void recompute_cubemap_side(EnvironmentCubeMap *cube_map, GLuint side)
     frame_buffer_cube->set_textures(cube_map->get_texture_depth(),side,0,0,cube_map->get_texture_color(),side);    
     frame_buffer_cube->activate();
     // set the camera:
-    glUniformMatrix4fv(uniforms.view_matrix,1,GL_TRUE,glm::value_ptr(cube_map->get_camera_transformation(side).get_matrix()));
+    uniform_view_matrix.update_mat4(cube_map->get_camera_transformation(side).get_matrix());
+    
     draw_mirror = false;
     draw_scene();
     draw_mirror = true;
@@ -172,7 +181,7 @@ void recompute_cubemap_side(EnvironmentCubeMap *cube_map, GLuint side)
 void recompute_cubemap()
   {
     set_up_pass1();
-    glUniformMatrix4fv(uniforms.projection_matrix,1,GL_TRUE,glm::value_ptr(cube_map1->get_projection_matrix()));
+    uniform_projection_matrix.update_mat4(cube_map1->get_projection_matrix());
     
     cube_map1->setViewport();
     cout << "rendering cube map 1..." << endl;
@@ -401,23 +410,25 @@ int main(int argc, char** argv)
     shader_3d = &shad1;
     shader_quad = &shad2;
     
-    uniforms.light_direction = shader_3d->get_uniform_location("light_direction");
-    uniforms.mirror = shader_3d->get_uniform_location("mirror");
-    uniforms.sky = shader_3d->get_uniform_location("sky");
-    uniforms.texture_2d = shader_3d->get_uniform_location("texture_2d");   
-    uniforms.model_matrix = shader_3d->get_uniform_location("model_matrix");
-    uniforms.view_matrix = shader_3d->get_uniform_location("view_matrix");
-    uniforms.projection_matrix = shader_3d->get_uniform_location("projection_matrix");
-    uniforms.box = shader_3d->get_uniform_location("box");
+    uniform_mirror.retrieve_location(shader_3d);
+    uniform_light_direction.retrieve_location(shader_3d);
+    uniform_sky.retrieve_location(shader_3d);
+    uniform_texture_2d.retrieve_location(shader_3d);   
+    uniform_model_matrix.retrieve_location(shader_3d);
+    uniform_view_matrix.retrieve_location(shader_3d);
+    uniform_projection_matrix.retrieve_location(shader_3d);
+    uniform_box.retrieve_location(shader_3d);
     
-    uniforms.texture_color = shader_quad->get_uniform_location("texture_color");
-    uniforms.texture_normal = shader_quad->get_uniform_location("texture_normal");
-    uniforms.texture_position = shader_quad->get_uniform_location("texture_position");
-    uniforms.texture_stencil = shader_quad->get_uniform_location("texture_stencil");
-    uniforms.texture_to_display = shader_quad->get_uniform_location("texture_to_display");
-    uniforms.texture_cube1 = shader_quad->get_uniform_location("texture_cube1"); 
-    uniforms.texture_cube2 = shader_quad->get_uniform_location("texture_cube2");
-    uniforms.camera_position = shader_quad->get_uniform_location("camera_position");
+    uniform_texture_color.retrieve_location(shader_quad);
+    uniform_texture_normal.retrieve_location(shader_quad);
+    uniform_texture_position.retrieve_location(shader_quad);
+    uniform_texture_stencil.retrieve_location(shader_quad);
+    uniform_texture_to_display.retrieve_location(shader_quad);
+    uniform_texture_cube1.retrieve_location(shader_quad); 
+    uniform_texture_cube2.retrieve_location(shader_quad);
+    uniform_texture_cube_depth1.retrieve_location(shader_quad);
+    uniform_texture_cube_depth2.retrieve_location(shader_quad);
+    uniform_camera_position.retrieve_location(shader_quad);
     
     ErrorWriter::checkGlErrors("after init",true);
     
