@@ -789,8 +789,8 @@ class UniformVariable
       
       void pre_update_check()
         {
-          if (!this->location_retrieved)
-            ErrorWriter::write_error("Updating uniform variable without its location retrieved.");
+          //if (!this->location_retrieved)
+          //  ErrorWriter::write_error("Updating uniform variable without its location retrieved.");
         }
       
     public:
@@ -1725,6 +1725,7 @@ class EnvironmentCubeMap: public GPUObject
       unsigned int size;
       TextureCubeMap *texture_color;
       TextureCubeMap *texture_depth;
+      TextureCubeMap *texture_position;
       static glm::mat4 projection_matrix;    // matrix used for cubemap texture rendering
       GLint initial_viewport[4];
       
@@ -1737,18 +1738,21 @@ class EnvironmentCubeMap: public GPUObject
           EnvironmentCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 300.0f);          
           
           this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
+          this->texture_position = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
         }
         
       virtual ~EnvironmentCubeMap()
         {
           delete this->texture_color;
+          delete this->texture_position;
           delete this->texture_depth;
         }
       
       virtual void update_gpu()
         {
           this->get_texture_color()->update_gpu();
+          this->get_texture_position()->update_gpu();
           this->get_texture_depth()->update_gpu();
         }
       
@@ -1765,6 +1769,11 @@ class EnvironmentCubeMap: public GPUObject
       TextureCubeMap *get_texture_depth()
         {
           return this->texture_depth;
+        }
+  
+      TextureCubeMap *get_texture_position()
+        {
+          return this->texture_position;
         }
   
       /**

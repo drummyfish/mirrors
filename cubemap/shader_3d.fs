@@ -2,6 +2,7 @@
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
+in vec4 world_position;
 in vec2 uv_coords;
 uniform vec3 light_direction;
 uniform sampler2D texture_2d;
@@ -36,7 +37,7 @@ void main()
       fragment_color *= texture(texture_2d,uv_coords);
     }
 
-  output_position = transformed_position.xyz;  
+  output_position = world_position.xyz;  
   output_normal = transformed_normal.xyz;
   output_stencil = mirror ? vec3(1.0,1.0,1.0) : vec3(0.0,0.0,0.0);
 }
