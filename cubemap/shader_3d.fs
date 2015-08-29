@@ -1,14 +1,14 @@
 #version 330
 
-in vec3 transformed_normal;
-in vec4 transformed_position;
+in vec3 transformed_normal;         // normal in world space
+in vec4 transformed_position;       // position in world space
 in vec4 world_position;
 in vec2 uv_coords;
 uniform vec3 light_direction;
 uniform sampler2D texture_2d;
 uniform bool mirror;                // whether mirror is being rendered
 uniform bool sky;                   // whether sky is being rendered
-uniform bool box;                   // whether marking box is being rendered
+uniform bool marker;                // whether marking geometry is being rendered
 
 layout(location = 0) out vec4 fragment_color;
 layout(location = 1) out vec3 output_position;   // x y z position in space (divided by 64)
@@ -27,7 +27,7 @@ void main()
     {
       fragment_color = texture(texture_2d,uv_coords);
     }
-  else if (box)
+  else if (marker)
     {
       fragment_color = vec4(1,0,0,1);
     }

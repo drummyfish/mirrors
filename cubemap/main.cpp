@@ -10,8 +10,9 @@ TransformationTRSModel transformation_mirror;
 TransformationTRSModel transformation_sky;
 
 Geometry3D *geometry_scene;
-Geometry3D *geometry_sky;
-Geometry3D *geometry_quad;
+Geometry3D *geometry_sky;             // skybox
+Geometry3D *geometry_line;            // helper marking line
+Geometry3D *geometry_quad;            // quad for the second render pass
 Geometry3D *geometry_mirror;
 Geometry3D *geometry_box;             // box marking the cube map positions
 
@@ -32,10 +33,13 @@ UniformVariable uniform_texture_cube_position1("texture_cube_position1");
 UniformVariable uniform_texture_cube_position2("texture_cube_position2");
 UniformVariable uniform_view_matrix("view_matrix");
 UniformVariable uniform_sky("sky");
-UniformVariable uniform_box("box");
+UniformVariable uniform_marker("marker");
 UniformVariable uniform_model_matrix("model_matrix");
 UniformVariable uniform_projection_matrix("projection_matrix");
 UniformVariable uniform_camera_position("camera_position");
+
+UniformVariable uniform_cube_position1("cube_position1");
+UniformVariable uniform_cube_position2("cube_position2");
 
 Shader *shader_3d;                   // for first pass: renders a 3D scene
 Shader *shader_quad;                 // for second pass: draws textures on quad
@@ -78,17 +82,22 @@ void draw_scene()
     uniform_model_matrix.update_mat4(transformation_scene.get_matrix());
     geometry_scene->draw_as_triangles();
     
+    uniform_marker.update_int(1);
+    uniform_model_matrix.update_mat4(glm::mat4(1.0));
+    geometry_line->draw_as_lines();
+    uniform_marker.update_int(0);
+    
     // draw the mirror stuff:
     
     if (draw_mirror)
       { // draw the mark boxes:
-        uniform_box.update_int(1);
+        uniform_marker.update_int(1);
         uniform_model_matrix.update_mat4(cube_map1->transformation.get_matrix());
         geometry_box->draw_as_triangles();
         
         uniform_model_matrix.update_mat4(cube_map2->transformation.get_matrix());
         geometry_box->draw_as_triangles();       
-        uniform_box.update_int(0);
+        uniform_marker.update_int(0);
         
         // draw the mirror:
         uniform_model_matrix.update_mat4(transformation_mirror.get_matrix());
@@ -128,6 +137,9 @@ void set_up_pass1()
 void set_up_pass2()
   {
     shader_quad->use(); 
+    
+    uniform_cube_position1.update_vec3(cube_map1->transformation.get_translation());
+    uniform_cube_position2.update_vec3(cube_map1->transformation.get_translation());
     
     uniform_texture_cube1.update_int(0);
     uniform_texture_cube2.update_int(5);
@@ -334,6 +346,13 @@ int main(int argc, char** argv)
     frame_buffer_cube = new FrameBuffer();
     frame_buffer_camera = new FrameBuffer();
     
+    Geometry3D g1;
+    geometry_line = &g1;
+    geometry_line->add_vertex(-10,10,5);
+    geometry_line->add_vertex(10,5,-10);
+    geometry_line->add_triangle(0,1,0);
+    geometry_line->update_gpu();
+    
     Geometry3D g2 = make_box(1,1,1);
     geometry_box = &g2;
     geometry_box->update_gpu();
@@ -346,7 +365,7 @@ int main(int argc, char** argv)
     geometry_sky = &g4;
     geometry_sky->update_gpu();
     
-    Geometry3D g5 = load_obj("teapot.obj");
+    Geometry3D g5 = make_box(2,2,2);//load_obj("teapot.obj");
 
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
@@ -419,7 +438,7 @@ int main(int argc, char** argv)
     uniform_model_matrix.retrieve_location(shader_3d);
     uniform_view_matrix.retrieve_location(shader_3d);
     uniform_projection_matrix.retrieve_location(shader_3d);
-    uniform_box.retrieve_location(shader_3d);
+    uniform_marker.retrieve_location(shader_3d);
     
     uniform_texture_color.retrieve_location(shader_quad);
     uniform_texture_normal.retrieve_location(shader_quad);
@@ -431,6 +450,8 @@ int main(int argc, char** argv)
     uniform_texture_cube_position1.retrieve_location(shader_quad);
     uniform_texture_cube_position2.retrieve_location(shader_quad);
     uniform_camera_position.retrieve_location(shader_quad);
+    uniform_cube_position1.retrieve_location(shader_quad);
+    uniform_cube_position2.retrieve_location(shader_quad);
     
     ErrorWriter::checkGlErrors("after init",true);
     

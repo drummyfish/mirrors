@@ -8,6 +8,8 @@ uniform samplerCube texture_cube1;
 uniform samplerCube texture_cube2;
 uniform samplerCube texture_cube_position1;
 uniform samplerCube texture_cube_position2;
+uniform vec3 cube_position1;
+uniform vec3 cube_position2;
 
 uniform vec3 camera_position;
 uniform int texture_to_display;      // which texture to display (1 = color, 2 = normal etc.)
@@ -18,11 +20,21 @@ uniform sampler2D texture_stencil;
 
 out vec4 fragment_color;
 
-vec3 cube_coordinates;
+vec3 cube_coordinates1, cube_coordinates2, cube_coordinates_current;
 vec3 normal;
-vec3 position;
+vec3 position1, position2;
+vec3 reflection_vector;
 
 float helper;
+float distance;
+float best_candidate_distance;
+vec4 best_candidate_color;
+vec3 tested_point;
+
+float distance_to_line(vec3 line_point1, vec3 line_point2, vec3 point)
+{
+  return abs((point - line_point1) * (point - line_point2)) / abs(line_point2 - line_point1);
+}
 
 void main()
 {
@@ -31,23 +43,49 @@ void main()
         case 1:
           if (texture(texture_stencil, uv_coords) == vec4(1,1,1,0))
             { // drawing mirror here
+              best_candidate_distance = 99999999999.0;
+              best_candidate_color = vec4(0.0,0.0,0.0,1.0);
+            
               normal = texture(texture_normal,uv_coords).xyz;
-              position = texture(texture_position,uv_coords).xyz;
-              cube_coordinates = reflect(position - camera_position,normalize(normal));
-              // cube_coordinates = normalize(normal);
+              position1 = texture(texture_position,uv_coords).xyz;
+              reflection_vector = reflect(normalize(position1 - camera_position),normal);
+              position2 = position1 + reflection_vector * 10;
               
-              // helper = pow(texture(texture_cube_depth1,cube_coordinates).x,256);
-              // fragment_color = vec4(helper,helper,helper,1);
+              // iterate through first cubemap:
+              cube_coordinates1 = normalize(position1 - cube_position1);
+              cube_coordinates2 = normalize(position2 - cube_position1); 
               
-              fragment_color = texture(texture_cube_position1,cube_coordinates);
+              for (helper = 0; helper <= 1.0; helper += 0.05)
+                {
+                  cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
+                  tested_point = texture(texture_cube_position1,cube_coordinates_current).xyz;
+                  distance = distance_to_line(position1,position2,tested_point);
+                  
+                  if (distance < best_candidate_distance)
+                    {
+                      best_candidate_distance = distance;
+                      best_candidate_color = texture(texture_cube1,cube_coordinates_current);
+                    }
+                }
               
-              //fragment_color = 
-              //  mix
-              //    (
-              //      texture(texture_cube1,cube_coordinates),
-              //      texture(texture_cube2,cube_coordinates),
-              //      0.5
-              //    );
+              // iterate through second cubemap:
+              cube_coordinates1 = normalize(position1 - cube_position2);
+              cube_coordinates2 = normalize(position2 - cube_position2); 
+              
+              for (helper = 0; helper <= 1.0; helper += 0.05)
+                {
+                  cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
+                  tested_point = texture(texture_cube_position2,cube_coordinates_current).xyz;
+                  distance = distance_to_line(position1,position2,tested_point);
+                  
+                  if (distance < best_candidate_distance)
+                    {
+                      best_candidate_distance = distance;
+                      best_candidate_color = texture(texture_cube1,cube_coordinates_current);
+                    }
+                }
+              
+              fragment_color = best_candidate_color;
             }
           else
             fragment_color = texture(texture_color, uv_coords);

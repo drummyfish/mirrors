@@ -697,12 +697,8 @@ class Shader
       GLint get_uniform_location(string name)
         {
           GLint result;
-          
           result = glGetUniformLocation(this->shader_program,name.c_str());
           
-          if (result < 0)
-            ErrorWriter::write_error("Could not get uniform location of '" + name + "'.");
-            
           return result;
         }
       
@@ -809,7 +805,7 @@ class UniformVariable
         {
           this->location = shader->get_uniform_location(this->name.c_str());
         
-          if (this->location == 0)
+          if (this->location < 0)
             {
               ErrorWriter::write_error("Uniform variable '" + this->name + "' couldn't retrieve its location.");
               return false;
@@ -2141,6 +2137,13 @@ class Geometry3D: public Printable, public GPUObject
           glBindVertexArray(0);
         };
         
+      void draw_as_lines()
+        {
+          glBindVertexArray(this->vao);
+          glDrawElements(GL_LINE_STRIP,this->triangles.size() * 3,GL_UNSIGNED_INT,0);
+          glBindVertexArray(0);
+        };
+        
       /**
        * Sends the geometry data to GPU.
        */
@@ -2165,7 +2168,7 @@ class Geometry3D: public Printable, public GPUObject
           return &(this->triangles);
         }
         
-      void add_vertex(double x, double y, double z, double u, double v, double w, double normal_x, double normal_y, double normal_z)
+      void add_vertex(double x, double y, double z, double u=0, double v=0, double w=0, double normal_x=0, double normal_y=0, double normal_z=-1)
         {
           Vertex3D new_vertex;
           new_vertex.position = glm::vec3(x,y,z);
@@ -2173,12 +2176,6 @@ class Geometry3D: public Printable, public GPUObject
           new_vertex.normal = glm::vec3(normal_x,normal_y,normal_z);
           this->vertices.push_back(new_vertex);
         }
-        
-      void add_vertex(double x, double y, double z)
-        {
-          this->add_vertex(x,y,z,0.0,0.0,0.0,1.0,0.0,0.0);
-        }
-        
       void add_triangle(unsigned int i1, unsigned int i2, unsigned int i3)
         {
           this->triangles.push_back(i1);
