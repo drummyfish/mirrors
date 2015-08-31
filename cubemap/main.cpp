@@ -37,7 +37,6 @@ UniformVariable uniform_marker("marker");
 UniformVariable uniform_model_matrix("model_matrix");
 UniformVariable uniform_projection_matrix("projection_matrix");
 UniformVariable uniform_camera_position("camera_position");
-
 UniformVariable uniform_cube_position1("cube_position1");
 UniformVariable uniform_cube_position2("cube_position2");
 
@@ -65,8 +64,49 @@ EnvironmentCubeMap *cube_map2;
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
 
+int info_countdown = 0;
+
+void temp()  // temporary debugging method, delete later
+  {
+    unsigned char data[3];
+    float data_float[3];
+    int i;
+    float n = 50;
+    
+    cout << "debug:" << endl;    
+    
+    //glReadPixels(552,WINDOW_HEIGHT - 474,1,1,GL_RGB,GL_UNSIGNED_BYTE,data);
+    glReadPixels(519,WINDOW_HEIGHT - 392,1,1,GL_RGB,GL_UNSIGNED_BYTE,data);
+
+    for (i = 0; i < 3; i++)
+      {
+        data_float[i] = (data[i] / 255.0 - 0.5) * 2 * n;
+        cout << data_float[i] << endl;
+
+        cout << ((int) data[i]) << endl;
+      }
+  }
+
+void print_info()
+  {
+    cout << "camera position: ";
+    print_vec3(CameraHandler::camera_transformation.get_translation());
+   
+    cout << "camera rotation: ";
+    print_vec3(CameraHandler::camera_transformation.get_rotation()); 
+  
+    cout << "cube1 position: ";
+    print_vec3(cube_map1->transformation.get_translation());
+    
+    
+    cout << "camera to cube1: ";
+    print_vec3(glm::normalize(cube_map1->transformation.get_translation() - CameraHandler::camera_transformation.get_translation()));
+    
+    cout << "-------" << endl;
+  }
+
 void draw_scene()
-  {    
+  {        
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -84,7 +124,7 @@ void draw_scene()
     
     uniform_marker.update_int(1);
     uniform_model_matrix.update_mat4(glm::mat4(1.0));
-    geometry_line->draw_as_lines();
+    // geometry_line->draw_as_lines();
     uniform_marker.update_int(0);
     
     // draw the mirror stuff:
@@ -157,6 +197,14 @@ void set_up_pass2()
  
 void render()
   {    
+    info_countdown--;
+    
+    if (info_countdown < 0)
+      {
+        info_countdown = 64;
+        print_info();
+      }
+    
     set_up_pass1();
     
     // set up the camera:
@@ -277,9 +325,6 @@ void special_callback(int key, int x, int y)
           texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm",false); 
           texture_camera_position->load_from_gpu();
           
-          float r,g,b,a;
-          
-          texture_camera_position->get_image_data()->get_pixel(300,200,&r,&g,&b,&a);
           texture_camera_position->get_image_data()->save_ppm("camera/position.ppm",false);
           
           texture_camera_normal->load_from_gpu();
@@ -287,6 +332,8 @@ void special_callback(int key, int x, int y)
           
           texture_camera_stencil->load_from_gpu();
           texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
+          
+          temp();
           break;
           
         case GLUT_KEY_F1:
@@ -337,8 +384,8 @@ int main(int argc, char** argv)
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
     
-    CameraHandler::camera_transformation.set_translation(glm::vec3(17.5,6.0,24.0));
-    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.05,0.1,0.0));
+    CameraHandler::camera_transformation.set_translation(glm::vec3(-26.6799,43.5812,0.842486));
+    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.19,-7.415,0));
     CameraHandler::translation_step = 2.0;
     
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
@@ -365,7 +412,7 @@ int main(int argc, char** argv)
     geometry_sky = &g4;
     geometry_sky->update_gpu();
     
-    Geometry3D g5 = make_box(2,2,2);//load_obj("teapot.obj");
+    Geometry3D g5 = make_box_sharp(3,3,3);//load_obj("teapot.obj");
 
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();

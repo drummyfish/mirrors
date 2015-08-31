@@ -18,6 +18,6 @@ void main()
   world_position = vec4(position,1.0) * model_matrix;
   transformed_position = world_position * view_matrix;
   gl_Position = transformed_position * projection_matrix;
-  transformed_normal = normalize(normal);
+  transformed_normal = normalize(vec4(normal,0.0) * model_matrix).xyz;
   uv_coords = texture_coords.xy;
 }

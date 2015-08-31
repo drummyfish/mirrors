@@ -2242,7 +2242,7 @@ Geometry3D make_quad(float width, float height, float shift_z)
     
     return result;
   }
-  
+
 Geometry3D make_box(float width, float height, float depth)
   {
     Geometry3D result;
@@ -2278,6 +2278,75 @@ Geometry3D make_box(float width, float height, float depth)
     
     result.add_triangle(0,1,4); // bottom
     result.add_triangle(4,1,5);
+    
+    return result;
+  }
+
+/**
+ * Makes a box with separate sides and sharp edges.
+ */
+  
+Geometry3D make_box_sharp(float width, float height, float depth)
+  {
+    Geometry3D result;
+    
+    float half_width = width / 2.0;
+    float half_height = height / 2.0;
+    float half_depth = depth / 2.0;
+    
+    // front:
+    result.add_vertex(-half_width,-half_height,half_depth,0.25,0.25,0.0,0.0,0.0,1.0);  // 0
+    result.add_vertex(half_width,-half_height,half_depth,0.75,0.25,0.0,0.0,0.0,1.0);   // 1
+    result.add_vertex(-half_width,half_height,half_depth,0.25,0.75,0.0,0.0,0.0,1.0);   // 2
+    result.add_vertex(half_width,half_height,half_depth,0.75,0.75,0.0,0.0,0.0,1.0);    // 3
+
+    result.add_triangle(1,0,2);
+    result.add_triangle(1,2,3); 
+    
+    // left vertices:
+    result.add_vertex(-half_width,-half_height,-half_depth,0.25,0.25,0.0,-1.0,0.0,0.0); // 4 
+    result.add_vertex(-half_width,-half_height,half_depth,0.75,0.25,0.0,-1.0,0.0,0.0);  // 5
+    result.add_vertex(-half_width,half_height,-half_depth,0.25,0.75,0.0,-1.0,0.0,0.0);  // 6
+    result.add_vertex(-half_width,half_height,half_depth,0.75,0.75,0.0,-1.0,0.0,0.0);   // 7
+    
+    result.add_triangle(5,4,6);
+    result.add_triangle(5,6,7);
+    
+    // right vertices:
+    result.add_vertex(half_width,-half_height,-half_depth,0.25,0.25,0.0,1.0,0.0,0.0);   // 8
+    result.add_vertex(half_width,-half_height,half_depth,0.75,0.25,0.0,1.0,0.0,0.0);    // 9
+    result.add_vertex(half_width,half_height,-half_depth,0.25,0.75,0.0,1.0,0.0,0.0);    // 10
+    result.add_vertex(half_width,half_height,half_depth,0.75,0.75,0.0,1.0,0.0,0.0);     // 11
+    
+    result.add_triangle(9,8,10);
+    result.add_triangle(9,10,11);
+    
+    // back vertices:
+    result.add_vertex(-half_width,-half_height,-half_depth,0.0,0.0,0.0,0.0,0.0,-1.0);    // 12
+    result.add_vertex(half_width,-half_height,-half_depth,1.0,0.0,0.0,0.0,0.0,-1.0);     // 13
+    result.add_vertex(-half_width,half_height,-half_depth,0.0,1.0,0.0,0.0,0.0,-1.0);     // 14
+    result.add_vertex(half_width,half_height,-half_depth,1.0,1.0,0.0,0.0,0.0,-1.0);      // 15
+    
+    result.add_triangle(13,12,14);
+    result.add_triangle(13,14,15);
+    
+    // top vertices:
+    result.add_vertex(-half_width,half_height,-half_depth,0.25,0.25,0.0,0.0,1.0,0.0);   // 16
+    result.add_vertex(-half_width,half_height,half_depth,0.75,0.25,0.0,0.0,1.0,0.0);    // 17
+    result.add_vertex(half_width,half_height,-half_depth,0.25,0.75,0.0,0.0,1.0,0.0);    // 18
+    result.add_vertex(half_width,half_height,half_depth,0.75,0.75,0.0,0.0,1.0,0.0);     // 19
+    
+    result.add_triangle(17,16,18);
+    result.add_triangle(17,18,19);
+    
+    // bottom vertices:
+    result.add_vertex(-half_width,-half_height,-half_depth,0.25,0.25,0.0,0.0,-1.0,0.0); // 20
+    result.add_vertex(-half_width,-half_height,half_depth,0.75,0.25,0.0,0.0,-1.0,0.0);  // 21
+    result.add_vertex(half_width,-half_height,-half_depth,0.25,0.75,0.0,0.0,-1.0,0.0);  // 22
+    result.add_vertex(half_width,-half_height,half_depth,0.75,0.75,0.0,0.0,-1.0,0.0);   // 23
+    
+    result.add_triangle(21,20,22);
+    result.add_triangle(21,22,23);
     
     return result;
   }
