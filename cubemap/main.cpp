@@ -71,6 +71,7 @@ int info_countdown = 0;
 void print_info()
   {
     profiler.print();
+    profiler.reset();
     
     cout << "-----" << endl;
     

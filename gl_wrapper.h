@@ -2739,7 +2739,8 @@ class Profiler: public Printable
         
       void record_value(unsigned int index, double value)
         {
-          this->cumulative_values[index] += value;
+          if (this->frames_to_be_skipped == 0)
+            this->cumulative_values[index] += value;
         }
         
       /**
@@ -2749,7 +2750,15 @@ class Profiler: public Printable
        
       void next_frame()
         {
-          this->frames_recorded_total++;
+          if (this->frames_to_be_skipped <= 0)
+            {
+              this->frames_recorded_total++;
+              this->frames_to_be_skipped = this->skip_frames;
+            }
+          else
+            {
+              this->frames_to_be_skipped--;
+            }
         }
       
       /**
