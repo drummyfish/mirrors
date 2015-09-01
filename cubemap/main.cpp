@@ -66,27 +66,6 @@ Texture2D *texture_mirror_depth;
 
 int info_countdown = 0;
 
-void temp()  // temporary debugging method, delete later
-  {
-    unsigned char data[3];
-    float data_float[3];
-    int i;
-    float n = 50;
-    
-    cout << "debug:" << endl;    
-    
-    //glReadPixels(552,WINDOW_HEIGHT - 474,1,1,GL_RGB,GL_UNSIGNED_BYTE,data);
-    glReadPixels(519,WINDOW_HEIGHT - 392,1,1,GL_RGB,GL_UNSIGNED_BYTE,data);
-
-    for (i = 0; i < 3; i++)
-      {
-        data_float[i] = (data[i] / 255.0 - 0.5) * 2 * n;
-        cout << data_float[i] << endl;
-
-        cout << ((int) data[i]) << endl;
-      }
-  }
-
 void print_info()
   {
     cout << "camera position: ";
@@ -332,8 +311,6 @@ void special_callback(int key, int x, int y)
           
           texture_camera_stencil->load_from_gpu();
           texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
-          
-          temp();
           break;
           
         case GLUT_KEY_F1:
@@ -412,7 +389,7 @@ int main(int argc, char** argv)
     geometry_sky = &g4;
     geometry_sky->update_gpu();
     
-    Geometry3D g5 = make_box_sharp(3,3,3);//load_obj("teapot.obj");
+    Geometry3D g5 = load_obj("teapot.obj");//make_box_sharp(3,3,3);//
 
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();

@@ -35,34 +35,34 @@ vec3 camera_to_position1;
 
 float distance_to_line(vec3 line_point1, vec3 line_point2, vec3 point)
 {
+  /* this is too computationally intense, let's fix using this method by
+     using "distance" texture instead of world-position texture and simply
+     computing distance of two points in 3D */
   return abs(cross(point - line_point1,point - line_point2)) / abs(line_point2 - line_point1);
 }
-
-bool temp;
 
 void main()
 {
   switch (texture_to_display)
       {
-        case 1:          
-          best_candidate_distance = 99999999999.0;
-          best_candidate_color = vec4(0.0,0.0,0.0,1.0);
-            
-          normal = texture(texture_normal,uv_coords).xyz;
-          position1 = texture(texture_position,uv_coords).xyz;
-          camera_to_position1 = normalize(position1 - camera_position);
-          reflection_vector = reflect(camera_to_position1,normal);
-          position2 = position1 + reflection_vector * 70;
-        
+        case 1:
           if (texture(texture_stencil, uv_coords) == vec4(1,1,1,0))
             { // drawing mirror here
+              
+              best_candidate_distance = 99999999999.0;
+              best_candidate_color = vec4(0.0,0.0,0.0,1.0);
+            
+              normal = textureLod(texture_normal,uv_coords,0).xyz;
+              position1 = textureLod(texture_position,uv_coords,0).xyz;
+              camera_to_position1 = normalize(position1 - camera_position);
+              reflection_vector = reflect(camera_to_position1,normal);
+              position2 = position1 + reflection_vector * 300;
               
               // iterate through first cubemap:
               cube_coordinates1 = normalize(position1 - cube_position1);
               cube_coordinates2 = normalize(position2 - cube_position1);
               
-              
-              for (helper = 0; helper <= 1.0; helper += 0.0025)
+              for (helper = 0; helper <= 1.0; helper += 0.005)
                 {
                   cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
                   tested_point = textureLod(texture_cube_position1,cube_coordinates_current,0).xyz;
@@ -76,15 +76,7 @@ void main()
                     }
                 }
               
-              fragment_color = best_candidate_color;
-              //fragment_color = best_candidate_distance < 0.5 ? best_candidate_color : vec4(0,0,0,1);
-              
-              //temp = best_candidate_distance < 0.1;
-              
-              //fragment_color = vec4(map_minus_n_n_0_1(best_candidate_color.xyz,50),1.0);              
-              //fragment_color = texture(texture_cube1,cube_coordinates1);      
-              //fragment_color = vec4(reflection_vector,1.0);
-              //fragment_color = texture(texture_cube1,reflection_vector);
+              fragment_color = best_candidate_distance < 1.0 ? best_candidate_color * 0.75 : vec4(1,0,0,1);
             }
           else
             fragment_color = texture(texture_color, uv_coords);
