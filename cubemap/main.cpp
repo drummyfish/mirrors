@@ -64,10 +64,16 @@ EnvironmentCubeMap *cube_map2;
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
 
+Profiler profiler;
+
 int info_countdown = 0;
 
 void print_info()
   {
+    profiler.print();
+    
+    cout << "-----" << endl;
+    
     cout << "camera position: ";
     print_vec3(CameraHandler::camera_transformation.get_translation());
    
@@ -177,6 +183,9 @@ void render()
   {    
     info_countdown--;
     
+    profiler.record_value(0,-50);
+    profiler.record_value(1,1.2);
+    
     if (info_countdown < 0)
       {
         info_countdown = 64;
@@ -200,6 +209,8 @@ void render()
     
     ErrorWriter::checkGlErrors("rendering loop");
     glutSwapBuffers();
+    
+    profiler.next_frame();
   }
   
 void recompute_cubemap_side(EnvironmentCubeMap *cube_map, GLuint side) 
@@ -359,6 +370,9 @@ int main(int argc, char** argv)
     session->window_size[0] = WINDOW_WIDTH;
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
+    
+    profiler.new_value("test 1");
+    profiler.new_value("test 2");
     
     CameraHandler::camera_transformation.set_translation(glm::vec3(-26.6799,43.5812,0.842486));
     CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.19,-7.415,0));

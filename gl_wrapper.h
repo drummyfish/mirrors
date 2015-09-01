@@ -2691,6 +2691,109 @@ class CameraHandler
         }
   };
   
+/**
+ * Serves for gathering statistics about rendering and performance,
+ * can serve optimizations. The object holds a set of named double values
+ * that are being recorded each frame (with possible skip) and their
+ * average values can be retrieved or printed.
+ */
+  
+class Profiler: public Printable
+  {
+    protected:
+      int skip_frames;    ///< how many frames should be skipped before recording values
+      int frames_to_be_skipped;
+      
+      int frames_recorded_total;
+      
+      vector<double> cumulative_values;
+      vector<string> value_names;         ///< corresponding names to cumulative_values
+
+    public:
+      Profiler()
+        {
+          this->skip_frames = 16;
+          this->frames_to_be_skipped = 0;
+          this->frames_recorded_total = 0;
+          this->reset();
+        }
+        
+      /**
+       * Creates a new value to be recorded. Values must be created before
+       * any recording happens.
+       */
+        
+      void new_value(string value_name)
+        {
+          this->cumulative_values.push_back(0.0);
+          this->value_names.push_back(value_name);
+        }
+        
+      /**
+       * Records given value, this should be called every rendering frame for
+       * each recorded value (for frame skipping call set_fram_skip(...) method).
+       * 
+       * @param index value index
+       * @param value value to be recorded
+       */
+        
+      void record_value(unsigned int index, double value)
+        {
+          this->cumulative_values[index] += value;
+        }
+        
+      /**
+       * This must be called at the end of each rendering frame (for frame skipping
+       * call set_fram_skip(...) method).
+       */ 
+       
+      void next_frame()
+        {
+          this->frames_recorded_total++;
+        }
+      
+      /**
+       * Resets all values so the recording will start from scratch.
+       */
+        
+      void reset()
+        {
+          unsigned int i;
+          
+          for (i = 0; i < this->cumulative_values.size(); i++)
+            this->cumulative_values[i] = 0.0;
+          
+           this->frames_recorded_total = 0;
+        }
+        
+      /**
+       * Sets frame skip value. Value recording will only happen after the
+       * set value of frames.
+       */ 
+       
+      void set_frame_skip(unsigned int number_of_frames)
+        {
+          this->skip_frames = number_of_frames;
+        }
+        
+      double get_average_value(unsigned int index)
+        {
+          return this->cumulative_values[index] / this->frames_recorded_total;
+        }
+        
+      virtual void print()
+        {
+          unsigned int i;
+          
+          cout << "profiling info:" << endl;
+          cout << "  total frames recorded (" << this->skip_frames << " frame skip):" << this->frames_recorded_total << endl;
+          cout << "  average values recorded:" << endl;
+          
+          for (i = 0; i < this->cumulative_values.size(); i++)
+            cout << "    " << this->value_names[i] << ": " << this->get_average_value(i) << endl;
+        };
+  };
+  
 bool CameraHandler::clicked = false;
 bool CameraHandler::clicked_right = false;
 float CameraHandler::translation_step = 0.5;
