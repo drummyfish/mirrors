@@ -52,21 +52,22 @@ void main()
               best_candidate_distance = 99999999999.0;
               best_candidate_color = vec4(0.0,0.0,0.0,1.0);
             
+              // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
+                  
               normal = textureLod(texture_normal,uv_coords,0).xyz;
               position1 = textureLod(texture_position,uv_coords,0).xyz;
               camera_to_position1 = normalize(position1 - camera_position);
               reflection_vector = reflect(camera_to_position1,normal);
-              position2 = position1 + reflection_vector * 300;
+              position2 = position1 + reflection_vector * 1000;
               
               // iterate through first cubemap:
               cube_coordinates1 = normalize(position1 - cube_position1);
               cube_coordinates2 = normalize(position2 - cube_position1);
               
-              for (helper = 0; helper <= 1.0; helper += 0.005)
+              for (helper = 0; helper <= 1.0; helper += 0.0025)
                 {
                   cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
                   tested_point = textureLod(texture_cube_position1,cube_coordinates_current,0).xyz;
-                  // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
                   distance = distance_to_line(position1,position2,tested_point);
                   
                   if (distance < best_candidate_distance)
@@ -76,7 +77,25 @@ void main()
                     }
                 }
               
-              fragment_color = best_candidate_distance < 1.0 ? best_candidate_color * 0.75 : vec4(1,0,0,1);
+              cube_coordinates1 = normalize(position1 - cube_position2);
+              cube_coordinates2 = normalize(position2 - cube_position2);
+              
+              for (helper = 0; helper <= 1.0; helper += 0.0025)
+                {
+                  cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
+                  tested_point = textureLod(texture_cube_position2,cube_coordinates_current,0).xyz;
+                  // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
+                  distance = distance_to_line(position1,position2,tested_point);
+                  
+                  if (distance < best_candidate_distance)
+                    {
+                      best_candidate_distance = distance;
+                      best_candidate_color = textureLod(texture_cube2,cube_coordinates_current,0);
+                    }
+                }
+              
+              //fragment_color = best_candidate_distance < 2.0 ? best_candidate_color * 0.75 : vec4(1,0,0,1);
+              fragment_color = best_candidate_color * 0.75;
             }
           else
             fragment_color = texture(texture_color, uv_coords);

@@ -77,7 +77,6 @@ void print_info()
     cout << "cube1 position: ";
     print_vec3(cube_map1->transformation.get_translation());
     
-    
     cout << "camera to cube1: ";
     print_vec3(glm::normalize(cube_map1->transformation.get_translation() - CameraHandler::camera_transformation.get_translation()));
     
@@ -158,7 +157,7 @@ void set_up_pass2()
     shader_quad->use(); 
     
     uniform_cube_position1.update_vec3(cube_map1->transformation.get_translation());
-    uniform_cube_position2.update_vec3(cube_map1->transformation.get_translation());
+    uniform_cube_position2.update_vec3(cube_map2->transformation.get_translation());
     
     uniform_texture_cube1.update_int(0);
     uniform_texture_cube2.update_int(5);
@@ -389,8 +388,9 @@ int main(int argc, char** argv)
     geometry_sky = &g4;
     geometry_sky->update_gpu();
     
-    Geometry3D g5 = load_obj("teapot.obj");//make_box_sharp(3,3,3);//
-
+    Geometry3D g5 = load_obj("teapot.obj");
+    //Geometry3D g5 = make_box_sharp(3,3,3);
+    
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
     
