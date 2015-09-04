@@ -74,9 +74,13 @@ void main()
                     {
                       best_candidate_distance = distance;
                       best_candidate_color = textureLod(texture_cube1,cube_coordinates_current,0);
+                    
+                      if (distance < 0.001)  // first hit -> stop
+                        break;
                     }
                 }
               
+              /*
               cube_coordinates1 = normalize(position1 - cube_position2);
               cube_coordinates2 = normalize(position2 - cube_position2);
               
@@ -93,7 +97,7 @@ void main()
                       best_candidate_color = textureLod(texture_cube2,cube_coordinates_current,0);
                     }
                 }
-              
+              */
               //fragment_color = best_candidate_distance < 2.0 ? best_candidate_color * 0.75 : vec4(1,0,0,1);
               fragment_color = best_candidate_color * 0.75;
             }

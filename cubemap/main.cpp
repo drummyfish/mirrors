@@ -247,15 +247,6 @@ void recompute_cubemap()
     recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
     cube_map1->unsetViewport();  
     
-    cout << "saving images" << endl;
-    cube_map1->get_texture_color()->load_from_gpu();  
-    cube_map1->get_texture_depth()->load_from_gpu();
-    cube_map1->get_texture_position()->load_from_gpu();  
-    cube_map1->get_texture_color()->save_ppms("cubemap_images/cube_map1");
-    cube_map1->get_texture_position()->save_ppms("cubemap_images/cube_map1_position");
-    cube_map1->get_texture_depth()->raise_to_power(256);  
-    cube_map1->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth");
-    
     cube_map2->setViewport();
     cout << "rendering cube map 2..." << endl;
     recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_POSITIVE_X);
@@ -264,18 +255,13 @@ void recompute_cubemap()
     recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
     recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
     recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cube_map2->unsetViewport();
-    
-    cout << "saving images" << endl;
-    cube_map2->get_texture_color()->load_from_gpu();  
-    cube_map2->get_texture_depth()->load_from_gpu();
-    cube_map2->get_texture_color()->save_ppms("cubemap_images/cube_map2");
-    cube_map2->get_texture_depth()->raise_to_power(256);  
-    cube_map2->get_texture_depth()->save_ppms("cubemap_images/cube_map2_depth");   
+    cube_map2->unsetViewport();  
   }
   
 void save_images()
   {
+    cout << "saving images" << endl;
+    
     texture_camera_color->load_from_gpu();
     texture_camera_color->get_image_data()->save_ppm("camera/color.ppm",false);
     texture_camera_depth->load_from_gpu();
@@ -287,6 +273,20 @@ void save_images()
     texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm",false);
     texture_camera_stencil->load_from_gpu();
     texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
+  
+    cube_map1->get_texture_color()->load_from_gpu();  
+    cube_map1->get_texture_depth()->load_from_gpu();
+    cube_map1->get_texture_position()->load_from_gpu();  
+    cube_map1->get_texture_color()->save_ppms("cubemap_images/cube_map1");
+    cube_map1->get_texture_position()->save_ppms("cubemap_images/cube_map1_position");
+    cube_map1->get_texture_depth()->raise_to_power(256);  
+    cube_map1->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth");
+    
+    cube_map2->get_texture_color()->load_from_gpu();  
+    cube_map2->get_texture_depth()->load_from_gpu();
+    cube_map2->get_texture_color()->save_ppms("cubemap_images/cube_map2");
+    cube_map2->get_texture_depth()->raise_to_power(256);  
+    cube_map2->get_texture_depth()->save_ppms("cubemap_images/cube_map2_depth"); 
   }  
 
 void special_callback(int key, int x, int y)
@@ -411,8 +411,8 @@ int main(int argc, char** argv)
     geometry_sky = &g4;
     geometry_sky->update_gpu();
     
-    Geometry3D g5 = load_obj("teapot.obj");
-    //Geometry3D g5 = make_box_sharp(3,3,3);
+    //Geometry3D g5 = load_obj("teapot.obj");
+    Geometry3D g5 = make_box_sharp(3,3,3);
     
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
