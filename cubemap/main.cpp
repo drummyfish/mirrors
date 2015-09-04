@@ -71,6 +71,7 @@ int info_countdown = 0;
 void print_info()
   {
     profiler->print();
+    cout << "approximate time/mirror pixel (us): " <<  (1000.0 * profiler->get_average_value(1) / profiler->get_average_value(2)) << endl;
     profiler->reset();
     
     cout << "-----" << endl;
