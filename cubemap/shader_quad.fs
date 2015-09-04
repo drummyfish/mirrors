@@ -1,5 +1,6 @@
 #version 330
 #include general.s
+#define INTERSECTION_LIMIT 2 // what distance means intersection
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
@@ -49,7 +50,7 @@ float distance_to_line(vec3 line_point1, vec3 line_point2, vec3 point)
 float decide_interpolation_step(vec3 coordinates1, vec3 coordinates2)
   {
     float angle = dot(coordinates1,coordinates2);
-    return 1.0 / (-512 * angle + 513);
+    return 1.0 / (-255 * angle + 256);
   }
   
 vec3 get_point_on_line_by_vector(vec3 vector)
@@ -82,13 +83,10 @@ void main()
                 
                 // iterate through first cubemap:
                 position1_to_cube_center = cube_position1 - position1;
-                
                 angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
-                side1 = length(position1_to_cube_center);
-                
+                side1 = length(position1_to_cube_center);               
                 cube_coordinates1 = normalize(position1 - cube_position1);
                 cube_coordinates2 = normalize(position2 - cube_position1);
-      
                 interpolation_step = decide_interpolation_step(cube_coordinates1,cube_coordinates2);
       
                 for (helper = 0; helper <= 1.0; helper += interpolation_step)
@@ -104,31 +102,37 @@ void main()
                         best_candidate_distance = distance;
                         best_candidate_color = textureLod(texture_cube1,cube_coordinates_current,0);
                     
-                        if (distance < 0.01)  // first hit -> stop
+                        if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
                           break;
                       }
                   }
               
-                /*
+                // iterate through second cubemap:
+                position1_to_cube_center = cube_position2 - position1;
+                angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
+                side1 = length(position1_to_cube_center);               
                 cube_coordinates1 = normalize(position1 - cube_position2);
                 cube_coordinates2 = normalize(position2 - cube_position2);
-              
+                interpolation_step = decide_interpolation_step(cube_coordinates1,cube_coordinates2);
+      
                 for (helper = 0; helper <= 1.0; helper += 0.0025)
                   {
                     cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
                     tested_point = textureLod(texture_cube_position2,cube_coordinates_current,0).xyz;
-                    // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
-                    tested_point2 = get_point_on_line_by_vector(cube_coordinates_current); 
-                    distance = distance(tested_point,tested_point2);
+                    tested_point2 = get_point_on_line_by_vector(cube_coordinates_current);
+                    distance = length(tested_point - tested_point2);
                   
                     if (distance < best_candidate_distance)
                       {
                         best_candidate_distance = distance;
                         best_candidate_color = textureLod(texture_cube2,cube_coordinates_current,0);
+                      
+                        if (distance <= INTERSECTION_LIMIT)
+                          break;
                       }
                   }
-                */
-                fragment_color = best_candidate_distance < 1.0 ? best_candidate_color * 0.75 : vec4(1,0,0,1);
+                
+                fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
                 //fragment_color = best_candidate_color * 0.75;
               }
             else
