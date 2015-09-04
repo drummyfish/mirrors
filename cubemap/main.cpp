@@ -121,13 +121,16 @@ void draw_scene()
         geometry_box->draw_as_triangles();
         
         uniform_model_matrix.update_mat4(cube_map2->transformation.get_matrix());
+        
         geometry_box->draw_as_triangles();       
         uniform_marker.update_int(0);
         
         // draw the mirror:
         uniform_model_matrix.update_mat4(transformation_mirror.get_matrix());
         uniform_mirror.update_int(1);
+        profiler->fragment_count_measure_begin();
         geometry_mirror->draw_as_triangles();    
+        profiler->record_value(2,profiler->fragment_count_measure_end());
         uniform_mirror.update_int(0);
       }
   }
@@ -182,12 +185,7 @@ void set_up_pass2()
  
 void render()
   {        
-    profiler->time_measure_begin();
-    
     info_countdown--;
-    
-    profiler->record_value(0,-50);
-    profiler->record_value(1,1.2);
     
     if (info_countdown < 0)
       {
@@ -202,18 +200,21 @@ void render()
     uniform_projection_matrix.update_mat4(projection_matrix);
     
     // 1st pass:
+    profiler->time_measure_begin();
     frame_buffer_camera->activate();
     draw_scene();
     frame_buffer_camera->deactivate();
+    profiler->record_value(0,profiler->time_measure_end());
    
     // 2nd pass:
+    profiler->time_measure_begin();
     set_up_pass2();
     draw_quad();
+    profiler->record_value(1,profiler->time_measure_end());
     
     ErrorWriter::checkGlErrors("rendering loop");
     glutSwapBuffers();
     
-    profiler->record_value(1,profiler->time_measure_end());
     profiler->next_frame();
   }
   
@@ -378,8 +379,9 @@ int main(int argc, char** argv)
     session->init(render);
     
     profiler = new Profiler();
-    profiler->new_value("test 1");
+    profiler->new_value("pass 1");
     profiler->new_value("pass 2");
+    profiler->new_value("mirror fragments");
     
     CameraHandler::camera_transformation.set_translation(glm::vec3(-26.6799,43.5812,0.842486));
     CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.19,-7.415,0));

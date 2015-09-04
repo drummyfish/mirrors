@@ -2742,6 +2742,19 @@ class Profiler: public Printable
           glBeginQuery(GL_TIME_ELAPSED,this->time_query_id);
         }
         
+      void fragment_count_measure_begin()
+        {
+          glBeginQuery(GL_SAMPLES_PASSED,this->fragment_count_query_id);
+        }
+        
+      unsigned int fragment_count_measure_end()
+        {
+          GLuint fragment_count;
+          glEndQuery(GL_SAMPLES_PASSED);
+          glGetQueryObjectuiv(this->fragment_count_query_id,GL_QUERY_RESULT,&fragment_count);
+          return fragment_count;
+        }
+        
       /**
        * Stops measuring time and returns the time measured from
        * time_measure_start(...) call.
@@ -2753,7 +2766,7 @@ class Profiler: public Printable
         {
           GLuint time_passed;
           glEndQuery(GL_TIME_ELAPSED);
-          glGetQueryObjectuiv(time_query_id,GL_QUERY_RESULT,&time_passed);
+          glGetQueryObjectuiv(this->time_query_id,GL_QUERY_RESULT,&time_passed);
           return (time_passed / 1000000.0);
         }
       
