@@ -39,6 +39,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
+#include <ctime>
 #include <iostream>
 #include <string>
 #include <string.h>
@@ -2695,7 +2696,9 @@ class CameraHandler
  * Serves for gathering statistics about rendering and performance,
  * can serve optimizations. The object holds a set of named double values
  * that are being recorded each frame (with possible skip) and their
- * average values can be retrieved or printed.
+ * average values can be retrieved or printed. This class also provides
+ * methods for measuring metrics such as time or rasterised fragments
+ * (using OpenGL queries).
  */
   
 class Profiler: public Printable
@@ -2709,15 +2712,51 @@ class Profiler: public Printable
       vector<double> cumulative_values;
       vector<string> value_names;         ///< corresponding names to cumulative_values
 
+      GLuint time_query_id;
+      GLuint fragment_count_query_id;
+      
     public:
       Profiler()
         {
+          if (!GLSession::is_initialised())
+            ErrorWriter::write_error("Initialising profiler object before GLSession was initialised.");
+            
+          glGenQueries(1,&this->time_query_id);
+          glGenQueries(1,&this->fragment_count_query_id);
           this->skip_frames = 16;
           this->frames_to_be_skipped = 0;
           this->frames_recorded_total = 0;
           this->reset();
         }
         
+      virtual ~Profiler()
+        {
+        }
+        
+      /**
+       * Starts measuting time of OpenGL commands.
+       */
+        
+      void time_measure_begin()
+        {
+          glBeginQuery(GL_TIME_ELAPSED,this->time_query_id);
+        }
+        
+      /**
+       * Stops measuring time and returns the time measured from
+       * time_measure_start(...) call.
+       * 
+       * @return number of miliseconds
+       */
+        
+      double time_measure_end()
+        {
+          GLuint time_passed;
+          glEndQuery(GL_TIME_ELAPSED);
+          glGetQueryObjectuiv(time_query_id,GL_QUERY_RESULT,&time_passed);
+          return (time_passed / 1000000.0);
+        }
+      
       /**
        * Creates a new value to be recorded. Values must be created before
        * any recording happens.

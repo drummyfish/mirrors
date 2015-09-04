@@ -64,14 +64,14 @@ EnvironmentCubeMap *cube_map2;
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
 
-Profiler profiler;
+Profiler *profiler;
 
 int info_countdown = 0;
 
 void print_info()
   {
-    profiler.print();
-    profiler.reset();
+    profiler->print();
+    profiler->reset();
     
     cout << "-----" << endl;
     
@@ -181,11 +181,13 @@ void set_up_pass2()
   }
  
 void render()
-  {    
+  {        
+    profiler->time_measure_begin();
+    
     info_countdown--;
     
-    profiler.record_value(0,-50);
-    profiler.record_value(1,1.2);
+    profiler->record_value(0,-50);
+    profiler->record_value(1,1.2);
     
     if (info_countdown < 0)
       {
@@ -211,7 +213,8 @@ void render()
     ErrorWriter::checkGlErrors("rendering loop");
     glutSwapBuffers();
     
-    profiler.next_frame();
+    profiler->record_value(1,profiler->time_measure_end());
+    profiler->next_frame();
   }
   
 void recompute_cubemap_side(EnvironmentCubeMap *cube_map, GLuint side) 
@@ -270,6 +273,21 @@ void recompute_cubemap()
     cube_map2->get_texture_depth()->save_ppms("cubemap_images/cube_map2_depth");   
   }
   
+void save_images()
+  {
+    texture_camera_color->load_from_gpu();
+    texture_camera_color->get_image_data()->save_ppm("camera/color.ppm",false);
+    texture_camera_depth->load_from_gpu();
+    texture_camera_depth->get_image_data()->raise_to_power(256); 
+    texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm",false); 
+    texture_camera_position->load_from_gpu();
+    texture_camera_position->get_image_data()->save_ppm("camera/position.ppm",false);
+    texture_camera_normal->load_from_gpu();
+    texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm",false);
+    texture_camera_stencil->load_from_gpu();
+    texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
+  }  
+
 void special_callback(int key, int x, int y)
   {
     switch(key)
@@ -308,20 +326,7 @@ void special_callback(int key, int x, int y)
         
         case GLUT_KEY_INSERT:
           recompute_cubemap();
-          texture_camera_color->load_from_gpu();
-          texture_camera_color->get_image_data()->save_ppm("camera/color.ppm",false);
-          texture_camera_depth->load_from_gpu();
-          texture_camera_depth->get_image_data()->raise_to_power(256); 
-          texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm",false); 
-          texture_camera_position->load_from_gpu();
-          
-          texture_camera_position->get_image_data()->save_ppm("camera/position.ppm",false);
-          
-          texture_camera_normal->load_from_gpu();
-          texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm",false);
-          
-          texture_camera_stencil->load_from_gpu();
-          texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
+          //save_images();
           break;
           
         case GLUT_KEY_F1:
@@ -372,8 +377,9 @@ int main(int argc, char** argv)
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
     
-    profiler.new_value("test 1");
-    profiler.new_value("test 2");
+    profiler = new Profiler();
+    profiler->new_value("test 1");
+    profiler->new_value("pass 2");
     
     CameraHandler::camera_transformation.set_translation(glm::vec3(-26.6799,43.5812,0.842486));
     CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.19,-7.415,0));
@@ -514,6 +520,7 @@ int main(int argc, char** argv)
     delete texture_scene;
     delete texture_sky;
     delete texture_mirror_depth;
+    delete profiler;
     GLSession::clear();
     return 0;
   }
