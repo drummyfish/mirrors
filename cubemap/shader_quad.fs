@@ -44,7 +44,7 @@ float distance_to_line(vec3 line_point1, vec3 line_point2, vec3 point)
     /* this is too computationally intense, let's fix using this method by
        using "distance" texture instead of world-position texture and simply
        computing distance of two points in 3D */
-    return abs(cross(point - line_point1,point - line_point2)) / abs(line_point2 - line_point1);
+    return length(cross(point - line_point1,point - line_point2)) / length(line_point2 - line_point1);
   }
 
 float decide_interpolation_step(vec3 coordinates1, vec3 coordinates2)

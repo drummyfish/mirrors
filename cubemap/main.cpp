@@ -408,7 +408,7 @@ int main(int argc, char** argv)
     geometry_scene = &g3;
     geometry_scene->update_gpu();
     
-    Geometry3D g4 = load_obj("sky.obj");//make_box(180,180,180);
+    Geometry3D g4 = make_box_sharp(6,6,6);
     geometry_sky = &g4;
     geometry_sky->update_gpu();
     
