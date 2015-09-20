@@ -448,7 +448,7 @@ int main(int argc, char** argv)
     cubemaps[0]->transformation.set_translation(glm::vec3(18,35,-17));
     cubemaps[1]->transformation.set_translation(glm::vec3(-18,35,-22));
     
-    transformation_sky.set_scale(glm::vec3(50.0,50.0,50.0));
+    transformation_sky.set_scale(glm::vec3(100.0,100.0,100.0));
     transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
     transformation_scene.set_scale(glm::vec3(6,6,6));   
     transformation_mirror.set_translation(glm::vec3(0.0,30.0,-30.0));
