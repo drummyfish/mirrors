@@ -27,16 +27,17 @@ UniformVariable uniform_texture_normal("texture_normal");
 UniformVariable uniform_texture_position("texture_position");
 UniformVariable uniform_texture_stencil("texture_stencil");
 UniformVariable uniform_texture_to_display("texture_to_display");
-UniformVariable uniform_texture_cube1("texture_cube1");
-UniformVariable uniform_texture_cube2("texture_cube2");
-UniformVariable uniform_texture_cube_position1("texture_cube_position1");
-UniformVariable uniform_texture_cube_position2("texture_cube_position2");
 UniformVariable uniform_view_matrix("view_matrix");
 UniformVariable uniform_sky("sky");
 UniformVariable uniform_marker("marker");
 UniformVariable uniform_model_matrix("model_matrix");
 UniformVariable uniform_projection_matrix("projection_matrix");
 UniformVariable uniform_camera_position("camera_position");
+
+UniformVariable uniform_texture_cube1("texture_cube1");
+UniformVariable uniform_texture_cube2("texture_cube2");
+UniformVariable uniform_texture_cube_position1("texture_cube_position1");
+UniformVariable uniform_texture_cube_position2("texture_cube_position2");
 UniformVariable uniform_cube_position1("cube_position1");
 UniformVariable uniform_cube_position2("cube_position2");
 
@@ -58,8 +59,7 @@ bool draw_mirror = true;
 
 int texture_to_display = 1;
 
-EnvironmentCubeMap *cube_map1;
-EnvironmentCubeMap *cube_map2;
+EnvironmentCubeMap *cubemaps[2];
 
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
@@ -83,10 +83,10 @@ void print_info()
     print_vec3(CameraHandler::camera_transformation.get_rotation()); 
   
     cout << "cube1 position: ";
-    print_vec3(cube_map1->transformation.get_translation());
+    print_vec3(cubemaps[0]->transformation.get_translation());
     
     cout << "camera to cube1: ";
-    print_vec3(glm::normalize(cube_map1->transformation.get_translation() - CameraHandler::camera_transformation.get_translation()));
+    print_vec3(glm::normalize(cubemaps[0]->transformation.get_translation() - CameraHandler::camera_transformation.get_translation()));
     
     cout << "-------" << endl;
   }
@@ -118,10 +118,10 @@ void draw_scene()
     if (draw_mirror)
       { // draw the mark boxes:
         uniform_marker.update_int(1);
-        uniform_model_matrix.update_mat4(cube_map1->transformation.get_matrix());
+        uniform_model_matrix.update_mat4(cubemaps[0]->transformation.get_matrix());
         geometry_box->draw_as_triangles();
         
-        uniform_model_matrix.update_mat4(cube_map2->transformation.get_matrix());
+        uniform_model_matrix.update_mat4(cubemaps[1]->transformation.get_matrix());
         
         geometry_box->draw_as_triangles();       
         uniform_marker.update_int(0);
@@ -140,16 +140,14 @@ void draw_quad()  // for the second pass
   {
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
-    cube_map1->get_texture_color()->bind(0);
-    cube_map2->get_texture_color()->bind(5);
     
-    cube_map1->get_texture_position()->bind(6);
-    cube_map2->get_texture_position()->bind(7);
+    cubemaps[0]->bind_textures();
+    cubemaps[1]->bind_textures();
     
-    texture_camera_color->bind(1);
-    texture_camera_normal->bind(2);
-    texture_camera_position->bind(3);
-    texture_camera_stencil->bind(4);
+    texture_camera_color->bind(0);
+    texture_camera_normal->bind(1);
+    texture_camera_position->bind(2);
+    texture_camera_stencil->bind(3);
     geometry_quad->draw_as_triangles();
     glEnable(GL_DEPTH_TEST);
   }
@@ -167,19 +165,13 @@ void set_up_pass2()
   {
     shader_quad->use(); 
     
-    uniform_cube_position1.update_vec3(cube_map1->transformation.get_translation());
-    uniform_cube_position2.update_vec3(cube_map2->transformation.get_translation());
+    cubemaps[0]->update_uniforms();
+    cubemaps[1]->update_uniforms();
     
-    uniform_texture_cube1.update_int(0);
-    uniform_texture_cube2.update_int(5);
-    
-    uniform_texture_cube_position1.update_int(6);
-    uniform_texture_cube_position2.update_int(7);
-    
-    uniform_texture_color.update_int(1);
-    uniform_texture_normal.update_int(2);
-    uniform_texture_position.update_int(3);
-    uniform_texture_stencil.update_int(4);
+    uniform_texture_color.update_int(0);
+    uniform_texture_normal.update_int(1);
+    uniform_texture_position.update_int(2);
+    uniform_texture_stencil.update_int(3);
     uniform_texture_to_display.update_int(texture_to_display);
     uniform_camera_position.update_vec3(CameraHandler::camera_transformation.get_translation());
   }
@@ -236,27 +228,27 @@ void recompute_cubemap_side(EnvironmentCubeMap *cube_map, GLuint side)
 void recompute_cubemap()
   {
     set_up_pass1();
-    uniform_projection_matrix.update_mat4(cube_map1->get_projection_matrix());
+    uniform_projection_matrix.update_mat4(cubemaps[0]->get_projection_matrix());
     
-    cube_map1->setViewport();
+    cubemaps[0]->setViewport();
     cout << "rendering cube map 1..." << endl;
-    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_POSITIVE_X);
-    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
-    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
-    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
-    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
-    recompute_cubemap_side(cube_map1,GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cube_map1->unsetViewport();  
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
+    cubemaps[0]->unsetViewport();  
     
-    cube_map2->setViewport();
+    cubemaps[1]->setViewport();
     cout << "rendering cube map 2..." << endl;
-    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_POSITIVE_X);
-    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
-    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
-    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
-    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
-    recompute_cubemap_side(cube_map2,GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cube_map2->unsetViewport();  
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
+    cubemaps[1]->unsetViewport();  
   }
   
 void save_images()
@@ -275,19 +267,19 @@ void save_images()
     texture_camera_stencil->load_from_gpu();
     texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
   
-    cube_map1->get_texture_color()->load_from_gpu();  
-    cube_map1->get_texture_depth()->load_from_gpu();
-    cube_map1->get_texture_position()->load_from_gpu();  
-    cube_map1->get_texture_color()->save_ppms("cubemap_images/cube_map1");
-    cube_map1->get_texture_position()->save_ppms("cubemap_images/cube_map1_position");
-    cube_map1->get_texture_depth()->raise_to_power(256);  
-    cube_map1->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth");
+    cubemaps[0]->get_texture_color()->load_from_gpu();  
+    cubemaps[0]->get_texture_depth()->load_from_gpu();
+    cubemaps[0]->get_texture_position()->load_from_gpu();  
+    cubemaps[0]->get_texture_color()->save_ppms("cubemap_images/cubemaps[0]");
+    cubemaps[0]->get_texture_position()->save_ppms("cubemap_images/cubemaps0_position");
+    cubemaps[0]->get_texture_depth()->raise_to_power(256);  
+    cubemaps[0]->get_texture_depth()->save_ppms("cubemap_images/cubemaps0_depth");
     
-    cube_map2->get_texture_color()->load_from_gpu();  
-    cube_map2->get_texture_depth()->load_from_gpu();
-    cube_map2->get_texture_color()->save_ppms("cubemap_images/cube_map2");
-    cube_map2->get_texture_depth()->raise_to_power(256);  
-    cube_map2->get_texture_depth()->save_ppms("cubemap_images/cube_map2_depth"); 
+    cubemaps[1]->get_texture_color()->load_from_gpu();  
+    cubemaps[1]->get_texture_depth()->load_from_gpu();
+    cubemaps[1]->get_texture_color()->save_ppms("cubemap_images/cubemaps1");
+    cubemaps[1]->get_texture_depth()->raise_to_power(256);  
+    cubemaps[1]->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth"); 
   }  
 
 void special_callback(int key, int x, int y)
@@ -352,13 +344,13 @@ void special_callback(int key, int x, int y)
           break;
           
         case GLUT_KEY_F11:
-          cube_map1->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
-          cube_map1->transformation.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
+          cubemaps[0]->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
+          cubemaps[0]->transformation.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
           break;
           
         case GLUT_KEY_F12:
-          cube_map2->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
-          cube_map2->transformation.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
+          cubemaps[1]->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
+          cubemaps[1]->transformation.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
           break;
           
         default:
@@ -445,16 +437,16 @@ int main(int argc, char** argv)
     texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
     texture_camera_stencil->update_gpu();
 
-    cube_map1 = new EnvironmentCubeMap(512);
-    cube_map1->update_gpu();
+    cubemaps[0] = new EnvironmentCubeMap(512,"cubemaps[0].texture_color","cubemaps[0].texture_position","cubemaps[0].position",4,5);
+    cubemaps[0]->update_gpu();
     
-    cube_map2 = new EnvironmentCubeMap(512);
-    cube_map2->update_gpu();
+    cubemaps[1] = new EnvironmentCubeMap(512,"cubemaps[1].texture_color","cubemaps[1].texture_position","cubemaps[1].position",6,7);
+    cubemaps[1]->update_gpu();
     
     ErrorWriter::checkGlErrors("cube map init",true);
     
-    cube_map1->transformation.set_translation(glm::vec3(18,35,-17));
-    cube_map2->transformation.set_translation(glm::vec3(-18,35,-22));
+    cubemaps[0]->transformation.set_translation(glm::vec3(18,35,-17));
+    cubemaps[1]->transformation.set_translation(glm::vec3(-18,35,-22));
     
     transformation_sky.set_scale(glm::vec3(50.0,50.0,50.0));
     transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
@@ -488,18 +480,14 @@ int main(int argc, char** argv)
     uniform_projection_matrix.retrieve_location(shader_3d);
     uniform_marker.retrieve_location(shader_3d);
     
+    cubemaps[0]->retrieve_uniform_locations(shader_quad);
+    cubemaps[1]->retrieve_uniform_locations(shader_quad);
     uniform_texture_color.retrieve_location(shader_quad);
     uniform_texture_normal.retrieve_location(shader_quad);
     uniform_texture_position.retrieve_location(shader_quad);
     uniform_texture_stencil.retrieve_location(shader_quad);
     uniform_texture_to_display.retrieve_location(shader_quad);
-    uniform_texture_cube1.retrieve_location(shader_quad); 
-    uniform_texture_cube2.retrieve_location(shader_quad);
-    uniform_texture_cube_position1.retrieve_location(shader_quad);
-    uniform_texture_cube_position2.retrieve_location(shader_quad);
     uniform_camera_position.retrieve_location(shader_quad);
-    uniform_cube_position1.retrieve_location(shader_quad);
-    uniform_cube_position2.retrieve_location(shader_quad);
     
     ErrorWriter::checkGlErrors("after init",true);
     
@@ -519,7 +507,8 @@ int main(int argc, char** argv)
     delete texture_camera_color;
     delete frame_buffer_camera;
     delete texture_mirror;
-    delete cube_map1;
+    delete cubemaps[0];
+    delete cubemaps[1];
     delete texture_scene;
     delete texture_sky;
     delete texture_mirror_depth;

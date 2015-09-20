@@ -6,12 +6,14 @@ in vec3 transformed_normal;
 in vec4 transformed_position;
 in vec2 uv_coords;
 
-uniform samplerCube texture_cube1;
-uniform samplerCube texture_cube2;
-uniform samplerCube texture_cube_position1;
-uniform samplerCube texture_cube_position2;
-uniform vec3 cube_position1;
-uniform vec3 cube_position2;
+struct environment_cubemap
+  {
+    samplerCube texture_color;        // contains color
+    samplerCube texture_position;     // contains world position
+    vec3 position;                            // cubemap world position
+  };
+
+uniform environment_cubemap cubemaps[2];
 
 uniform vec3 camera_position;
 uniform int texture_to_display;      // which texture to display (1 = color, 2 = normal etc.)
@@ -82,25 +84,25 @@ void main()
                 position1_to_position2 = position2 - position1;
                 
                 // iterate through first cubemap:
-                position1_to_cube_center = cube_position1 - position1;
+                position1_to_cube_center = cubemaps[0].position - position1;
                 angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
                 side1 = length(position1_to_cube_center);               
-                cube_coordinates1 = normalize(position1 - cube_position1);
-                cube_coordinates2 = normalize(position2 - cube_position1);
+                cube_coordinates1 = normalize(position1 - cubemaps[0].position);
+                cube_coordinates2 = normalize(position2 - cubemaps[0].position);
                 interpolation_step = decide_interpolation_step(cube_coordinates1,cube_coordinates2);
       
                 for (helper = 0; helper <= 1.0; helper += interpolation_step)
                   {
                     cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
                     // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
-                    tested_point = textureLod(texture_cube_position1,cube_coordinates_current,0).xyz;
+                    tested_point = textureLod(cubemaps[0].texture_position,cube_coordinates_current,0).xyz;
                     tested_point2 = get_point_on_line_by_vector(cube_coordinates_current); 
                     distance = length(tested_point - tested_point2);
                   
                     if (distance < best_candidate_distance)
                       {
                         best_candidate_distance = distance;
-                        best_candidate_color = textureLod(texture_cube1,cube_coordinates_current,0);
+                        best_candidate_color = textureLod(cubemaps[0].texture_color,cube_coordinates_current,0);
                     
                         if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
                           break;
@@ -108,24 +110,24 @@ void main()
                   }
               
                 // iterate through second cubemap:
-                position1_to_cube_center = cube_position2 - position1;
+                position1_to_cube_center = cubemaps[1].position - position1;
                 angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
                 side1 = length(position1_to_cube_center);               
-                cube_coordinates1 = normalize(position1 - cube_position2);
-                cube_coordinates2 = normalize(position2 - cube_position2);
+                cube_coordinates1 = normalize(position1 - cubemaps[1].position);
+                cube_coordinates2 = normalize(position2 - cubemaps[1].position);
                 interpolation_step = decide_interpolation_step(cube_coordinates1,cube_coordinates2);
       
                 for (helper = 0; helper <= 1.0; helper += 0.0025)
                   {
                     cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
-                    tested_point = textureLod(texture_cube_position2,cube_coordinates_current,0).xyz;
+                    tested_point = textureLod(cubemaps[1].texture_position,cube_coordinates_current,0).xyz;
                     tested_point2 = get_point_on_line_by_vector(cube_coordinates_current);
                     distance = length(tested_point - tested_point2);
                   
                     if (distance < best_candidate_distance)
                       {
                         best_candidate_distance = distance;
-                        best_candidate_color = textureLod(texture_cube2,cube_coordinates_current,0);
+                        best_candidate_color = textureLod(cubemaps[1].texture_color,cube_coordinates_current,0);
                       
                         if (distance <= INTERSECTION_LIMIT)
                           break;

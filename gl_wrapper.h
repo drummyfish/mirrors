@@ -1721,15 +1721,34 @@ class EnvironmentCubeMap: public GPUObject
     protected:
       unsigned int size;
       TextureCubeMap *texture_color;
-      TextureCubeMap *texture_depth;
+      TextureCubeMap *texture_depth;     // <---- DELETE THIS
       TextureCubeMap *texture_position;
       static glm::mat4 projection_matrix;    // matrix used for cubemap texture rendering
       GLint initial_viewport[4];
       
+      // uniforms associated with the cubemap
+      UniformVariable *uniform_texture_color;
+      UniformVariable *uniform_texture_position;
+      UniformVariable *uniform_position;
+      
+      unsigned int texture_color_sampler;
+      unsigned int texture_position_sampler;
+      
     public:    
       TransformationTRSModel transformation;    // contains the cubemap transformation, to be able to place it in the world, only translation is considered 
       
-      EnvironmentCubeMap(int size)
+      /**
+       * Creates a new object.
+       * 
+       * @param size size of cubemap side in pixels
+       * @param uniform_texture_color_name name of the uniform variable (sampler cube) for color
+       * @param uniform_texture_position_name name of the uniform variable (sampler cube) for position
+       * @param uniform_position_name name of the uniform variable (vec3) for cubemap position
+       * @param texture_color_sampler number of texture sampler to use for color texture
+       * @param texture_position_sampler number of texture sampler to use for position texture
+       */
+      
+      EnvironmentCubeMap(int size, string uniform_texture_color_name, string uniform_texture_position_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_position_sampler)
         {
           this->size = size;
           EnvironmentCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 300.0f);          
@@ -1737,6 +1756,49 @@ class EnvironmentCubeMap: public GPUObject
           this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_position = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
+        
+          this->uniform_texture_color = new UniformVariable(uniform_texture_color_name);
+          this->uniform_texture_position = new UniformVariable(uniform_texture_position_name);
+          this->uniform_position = new UniformVariable(uniform_position_name);
+          
+          this->texture_color_sampler = texture_color_sampler;
+          this->texture_position_sampler = texture_position_sampler;
+        }
+        
+      /**
+       * Retrieves uniform locations from given shader.
+       */
+        
+      bool retrieve_uniform_locations(Shader *shader)
+        {
+          bool result = true;
+          
+          result = result && this->uniform_texture_color->retrieve_location(shader);
+          result = result && this->uniform_texture_position->retrieve_location(shader);
+          result = result && this->uniform_position->retrieve_location(shader);
+          
+          return result;
+        }
+        
+      /**
+       * Updates the uniform variables (which must have been initialised with retrieve_uniform_locations()).
+       */
+        
+      void update_uniforms()
+        {
+          this->uniform_texture_color->update_int((int) this->texture_color_sampler);
+          this->uniform_texture_position->update_int((int) this->texture_position_sampler);
+          this->uniform_position->update_vec3(this->transformation.get_translation());
+        }
+        
+      /**
+       * Binds the textures to samplers that were set with the constructor.
+       */
+        
+      void bind_textures()
+        {
+          this->texture_color->bind(this->texture_color_sampler);
+          this->texture_position->bind(this->texture_position_sampler);
         }
         
       virtual ~EnvironmentCubeMap()
@@ -1744,6 +1806,10 @@ class EnvironmentCubeMap: public GPUObject
           delete this->texture_color;
           delete this->texture_position;
           delete this->texture_depth;
+          
+          delete this->uniform_texture_color;
+          delete this->uniform_texture_position;
+          delete this->uniform_position; 
         }
       
       virtual void update_gpu()
