@@ -1,6 +1,7 @@
 #version 330
 #include general.s
 #define INTERSECTION_LIMIT 2 // what distance means intersection
+#define NUMBER_OF_CUBEMAPS 2
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
@@ -13,7 +14,7 @@ struct environment_cubemap
     vec3 position;                            // cubemap world position
   };
 
-uniform environment_cubemap cubemaps[2];
+uniform environment_cubemap cubemaps[NUMBER_OF_CUBEMAPS];
 
 uniform vec3 camera_position;
 uniform int texture_to_display;      // which texture to display (1 = color, 2 = normal etc.)
@@ -34,8 +35,8 @@ float helper;
 float distance;
 float best_candidate_distance;
 float interpolation_step;
-
 float angle1, angle2, side1;
+int i;
 
 vec4 best_candidate_color;
 vec3 tested_point, tested_point2;
@@ -83,54 +84,41 @@ void main()
                 position2 = position1 + reflection_vector * 1000;
                 position1_to_position2 = position2 - position1;
                 
-                // iterate through first cubemap:
-                position1_to_cube_center = cubemaps[0].position - position1;
-                angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
-                side1 = length(position1_to_cube_center);               
-                cube_coordinates1 = normalize(position1 - cubemaps[0].position);
-                cube_coordinates2 = normalize(position2 - cubemaps[0].position);
-                interpolation_step = decide_interpolation_step(cube_coordinates1,cube_coordinates2);
-      
-                for (helper = 0; helper <= 1.0; helper += interpolation_step)
+                for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate through cubemaps
                   {
-                    cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
-                    // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
-                    tested_point = textureLod(cubemaps[0].texture_position,cube_coordinates_current,0).xyz;
-                    tested_point2 = get_point_on_line_by_vector(cube_coordinates_current); 
-                    distance = length(tested_point - tested_point2);
-                  
-                    if (distance < best_candidate_distance)
+                    position1_to_cube_center = cubemaps[i].position - position1;
+                    angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
+                    side1 = length(position1_to_cube_center);               
+                    cube_coordinates1 = normalize(position1 - cubemaps[i].position);
+                    cube_coordinates2 = normalize(position2 - cubemaps[i].position);
+                    interpolation_step = decide_interpolation_step(cube_coordinates1,cube_coordinates2);
+      
+                    for (helper = 0; helper <= 1.0; helper += interpolation_step)
                       {
-                        best_candidate_distance = distance;
-                        best_candidate_color = textureLod(cubemaps[0].texture_color,cube_coordinates_current,0);
+                        cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
+                        // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
+                        
+                        if (i == 0)   // for some reason cubemaps[i] causes and error - resolve this later
+                          tested_point = textureLod(cubemaps[0].texture_position,cube_coordinates_current,0).xyz;
+                        else
+                          tested_point = textureLod(cubemaps[1].texture_position,cube_coordinates_current,0).xyz;
+                        
+                        tested_point2 = get_point_on_line_by_vector(cube_coordinates_current); 
+                        distance = length(tested_point - tested_point2);
+                  
+                        if (distance < best_candidate_distance)
+                          {
+                            best_candidate_distance = distance;
+                            
+                            if (i == 0)
+                              best_candidate_color = textureLod(cubemaps[0].texture_color,cube_coordinates_current,0);
+                            else
+                              best_candidate_color = textureLod(cubemaps[1].texture_color,cube_coordinates_current,0);
+                              
                     
-                        if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
-                          break;
-                      }
-                  }
-              
-                // iterate through second cubemap:
-                position1_to_cube_center = cubemaps[1].position - position1;
-                angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
-                side1 = length(position1_to_cube_center);               
-                cube_coordinates1 = normalize(position1 - cubemaps[1].position);
-                cube_coordinates2 = normalize(position2 - cubemaps[1].position);
-                interpolation_step = decide_interpolation_step(cube_coordinates1,cube_coordinates2);
-      
-                for (helper = 0; helper <= 1.0; helper += 0.0025)
-                  {
-                    cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
-                    tested_point = textureLod(cubemaps[1].texture_position,cube_coordinates_current,0).xyz;
-                    tested_point2 = get_point_on_line_by_vector(cube_coordinates_current);
-                    distance = length(tested_point - tested_point2);
-                  
-                    if (distance < best_candidate_distance)
-                      {
-                        best_candidate_distance = distance;
-                        best_candidate_color = textureLod(cubemaps[1].texture_color,cube_coordinates_current,0);
-                      
-                        if (distance <= INTERSECTION_LIMIT)
-                          break;
+                            if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
+                              break;
+                          }
                       }
                   }
                 
