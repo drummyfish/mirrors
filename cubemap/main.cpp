@@ -205,7 +205,7 @@ void render()
     draw_quad();
     profiler->record_value(1,profiler->time_measure_end());
     
-    ErrorWriter::checkGlErrors("rendering loop");
+    ErrorWriter::checkGlErrors("rendering loop");  
     glutSwapBuffers();
     
     profiler->next_frame();
@@ -223,32 +223,6 @@ void recompute_cubemap_side(EnvironmentCubeMap *cube_map, GLuint side)
     draw_scene();
     draw_mirror = true;
     frame_buffer_cube->deactivate();
-  }
-  
-void recompute_cubemap()
-  {
-    set_up_pass1();
-    uniform_projection_matrix.update_mat4(cubemaps[0]->get_projection_matrix());
-    
-    cubemaps[0]->setViewport();
-    cout << "rendering cube map 1..." << endl;
-    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
-    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
-    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
-    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
-    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
-    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cubemaps[0]->unsetViewport();  
-    
-    cubemaps[1]->setViewport();
-    cout << "rendering cube map 2..." << endl;
-    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
-    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
-    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
-    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
-    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
-    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cubemaps[1]->unsetViewport();  
   }
   
 void save_images()
@@ -280,6 +254,34 @@ void save_images()
     cubemaps[1]->get_texture_color()->save_ppms("cubemap_images/cubemaps1");
     cubemaps[1]->get_texture_depth()->raise_to_power(256);  
     cubemaps[1]->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth"); 
+  }
+  
+void recompute_cubemap()
+  {
+    set_up_pass1();
+    uniform_projection_matrix.update_mat4(cubemaps[0]->get_projection_matrix());
+    
+    cubemaps[0]->setViewport();
+    cout << "rendering cube map 1..." << endl;
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
+    recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
+    cubemaps[0]->unsetViewport();  
+    
+    cubemaps[1]->setViewport();
+    cout << "rendering cube map 2..." << endl;
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
+    recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
+    cubemaps[1]->unsetViewport();  
+    
+    save_images();
   }  
 
 void special_callback(int key, int x, int y)
@@ -376,8 +378,8 @@ int main(int argc, char** argv)
     profiler->new_value("pass 2");
     profiler->new_value("mirror fragments");
     
-    CameraHandler::camera_transformation.set_translation(glm::vec3(-26.6799,43.5812,0.842486));
-    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.19,-7.415,0));
+    CameraHandler::camera_transformation.set_translation(glm::vec3(-19.9981,41.0651,31.48));
+    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.11,-6.47166,0));
     CameraHandler::translation_step = 2.0;
     
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
@@ -445,12 +447,13 @@ int main(int argc, char** argv)
     
     ErrorWriter::checkGlErrors("cube map init",true);
     
-    cubemaps[0]->transformation.set_translation(glm::vec3(18,35,-17));
+    cubemaps[0]->transformation.set_translation(glm::vec3(-10,35,-17));
     cubemaps[1]->transformation.set_translation(glm::vec3(-18,35,-22));
     
     transformation_sky.set_scale(glm::vec3(100.0,100.0,100.0));
     transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
     transformation_scene.set_scale(glm::vec3(6,6,6));   
+
     transformation_mirror.set_translation(glm::vec3(0.0,30.0,-30.0));
     transformation_mirror.set_scale(glm::vec3(15.0,15.0,15.0));
     transformation_mirror.set_rotation(glm::vec3(0.0,0.0,0));

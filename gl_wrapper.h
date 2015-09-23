@@ -211,6 +211,49 @@ static string file_text(string filename, bool preprocess=false)
   }
   
 /**
+ * Gets frame buffer pixel. This function is slow and is intended for
+ * debugging purposes.
+ * 
+ * @param x x pixel coordinate (starting from left)
+ * @param y y pixel coordinate (starting from bottom)
+ */
+  
+glm::vec3 get_framebuffer_pixel(unsigned int x, unsigned int y)
+  {
+    glm::vec3 result;
+    float data[3];
+    
+    glReadPixels(x,y,1,1,GL_RGB,GL_FLOAT,data);
+
+    result.x = data[0];
+    result.y = data[1];
+    result.z = data[2];
+    
+    return result;
+  }
+  
+/**
+ * Gets a debug info encoded in one pixel. This function is only
+ * to be used for debugging purposes.
+ * 
+ * @param x pixel coordinate (starting from left)
+ * @param y pixel coordinate (starting from bottom)
+ * @param n value that was used to encode the information
+ * @return value decoded from pixel at [x,y] position using value n
+ */
+  
+glm::vec3 get_pixel_encoded_info(unsigned int x, unsigned int y, double n)
+  { 
+    glm::vec3 result;
+    
+    result = get_framebuffer_pixel(x,y);
+    result = result - glm::vec3(0.5,0.5,0.5);
+    n *= 2;
+    result *= glm::vec3(n,n,n);
+    return result;
+  }
+  
+/**
  * A singleton class representing an OpenGL session. An object of this class has to be
  * created before most other objects can be created.
  */
@@ -1751,7 +1794,7 @@ class EnvironmentCubeMap: public GPUObject
       EnvironmentCubeMap(int size, string uniform_texture_color_name, string uniform_texture_position_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_position_sampler)
         {
           this->size = size;
-          EnvironmentCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 300.0f);          
+          EnvironmentCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 500.0f);          
           
           this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_position = new TextureCubeMap(size,TEXEL_TYPE_COLOR);

@@ -38,6 +38,8 @@ float interpolation_step;
 float angle1, angle2, side1;
 int i;
 
+bool intersection_found;
+
 vec4 best_candidate_color;
 vec3 tested_point, tested_point2;
 vec3 camera_to_position1;
@@ -74,15 +76,17 @@ void main()
               
                 best_candidate_distance = 99999999999.0;
                 best_candidate_color = vec4(0.0,0.0,0.0,1.0);
-       
                 // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
                   
                 normal = textureLod(texture_normal,uv_coords,0).xyz;
                 position1 = textureLod(texture_position,uv_coords,0).xyz;
                 camera_to_position1 = normalize(position1 - camera_position);
                 reflection_vector = reflect(camera_to_position1,normal);
+                
                 position2 = position1 + reflection_vector * 1000;
                 position1_to_position2 = position2 - position1;
+                
+                intersection_found = false;
                 
                 for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate through cubemaps
                   {
@@ -90,20 +94,19 @@ void main()
                     angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
                     side1 = length(position1_to_cube_center);               
                     cube_coordinates1 = normalize(position1 - cubemaps[i].position);
-                    cube_coordinates2 = normalize(position2 - cubemaps[i].position);
-                    interpolation_step = decide_interpolation_step(cube_coordinates1,cube_coordinates2);
-      
+                    cube_coordinates2 = normalize(position2 - cubemaps[i].position);   
+                    interpolation_step = 0.001;
+   
                     for (helper = 0; helper <= 1.0; helper += interpolation_step)
-                      {
-                        cube_coordinates_current = mix(cube_coordinates1,cube_coordinates2,helper);
-                        // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
-                        
+                      {                   
+                        tested_point2 = mix(position1,position2,helper);
+                        cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
+             
                         if (i == 0)   // for some reason cubemaps[i] causes and error - resolve this later
                           tested_point = textureLod(cubemaps[0].texture_position,cube_coordinates_current,0).xyz;
                         else
                           tested_point = textureLod(cubemaps[1].texture_position,cube_coordinates_current,0).xyz;
                         
-                        tested_point2 = get_point_on_line_by_vector(cube_coordinates_current); 
                         distance = length(tested_point - tested_point2);
                   
                         if (distance < best_candidate_distance)
@@ -115,15 +118,19 @@ void main()
                             else
                               best_candidate_color = textureLod(cubemaps[1].texture_color,cube_coordinates_current,0);
                               
-                    
                             if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
-                              break;
+                              {
+                                intersection_found = true;
+                                break;
+                              }
                           }
                       }
+                      
+                    if (intersection_found)
+                      break;
                   }
                 
                 fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
-                //fragment_color = best_candidate_color * 0.75;
               }
             else
               fragment_color = texture(texture_color, uv_coords);
