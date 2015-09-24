@@ -29,17 +29,12 @@ UniformVariable uniform_texture_stencil("texture_stencil");
 UniformVariable uniform_texture_to_display("texture_to_display");
 UniformVariable uniform_view_matrix("view_matrix");
 UniformVariable uniform_sky("sky");
+UniformVariable uniform_rendering_cubemap("rendering_cubemap");
 UniformVariable uniform_marker("marker");
 UniformVariable uniform_model_matrix("model_matrix");
 UniformVariable uniform_projection_matrix("projection_matrix");
 UniformVariable uniform_camera_position("camera_position");
-
-UniformVariable uniform_texture_cube1("texture_cube1");
-UniformVariable uniform_texture_cube2("texture_cube2");
-UniformVariable uniform_texture_cube_position1("texture_cube_position1");
-UniformVariable uniform_texture_cube_position2("texture_cube_position2");
-UniformVariable uniform_cube_position1("cube_position1");
-UniformVariable uniform_cube_position2("cube_position2");
+UniformVariable uniform_cubemap_position("cubemap_position");
 
 Shader *shader_3d;                   // for first pass: renders a 3D scene
 Shader *shader_quad;                 // for second pass: draws textures on quad
@@ -95,8 +90,6 @@ void draw_scene()
   {        
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
-
-    uniform_sky.update_int(1);
     
     texture_sky->bind(1);
     uniform_model_matrix.update_mat4(transformation_sky.get_matrix());
@@ -159,6 +152,7 @@ void set_up_pass1()
     uniform_view_matrix.update_mat4(view_matrix);
     uniform_light_direction.update_float_3(0.0,0.0,-1.0);
     uniform_mirror.update_int(0);
+    uniform_rendering_cubemap.update_int(0);
   }
   
 void set_up_pass2()
@@ -214,7 +208,15 @@ void render()
 void recompute_cubemap_side(EnvironmentCubeMap *cube_map, GLuint side) 
   {
     cout << "rendering side" << endl;
-    frame_buffer_cube->set_textures(cube_map->get_texture_depth(),side,0,0,cube_map->get_texture_color(),side,cube_map->get_texture_position(),side);    
+    
+    frame_buffer_cube->set_textures
+      (
+        cube_map->get_texture_depth(),side,
+        0,0,
+        cube_map->get_texture_color(),side,
+        cube_map->get_texture_distance(),side 
+      );
+      
     frame_buffer_cube->activate();
     // set the camera:
     uniform_view_matrix.update_mat4(cube_map->get_camera_transformation(side).get_matrix());
@@ -243,9 +245,9 @@ void save_images()
   
     cubemaps[0]->get_texture_color()->load_from_gpu();  
     cubemaps[0]->get_texture_depth()->load_from_gpu();
-    cubemaps[0]->get_texture_position()->load_from_gpu();  
+    cubemaps[0]->get_texture_distance()->load_from_gpu();  
     cubemaps[0]->get_texture_color()->save_ppms("cubemap_images/cubemaps[0]");
-    cubemaps[0]->get_texture_position()->save_ppms("cubemap_images/cubemaps0_position");
+    cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/cubemaps0_distance");
     cubemaps[0]->get_texture_depth()->raise_to_power(256);  
     cubemaps[0]->get_texture_depth()->save_ppms("cubemap_images/cubemaps0_depth");
     
@@ -259,8 +261,11 @@ void save_images()
 void recompute_cubemap()
   {
     set_up_pass1();
-    uniform_projection_matrix.update_mat4(cubemaps[0]->get_projection_matrix());
+    uniform_rendering_cubemap.update_int(1);
     
+    uniform_projection_matrix.update_mat4(EnvironmentCubeMap::get_projection_matrix());
+    
+    uniform_cubemap_position.update_vec3(cubemaps[0]->transformation.get_translation());
     cubemaps[0]->setViewport();
     cout << "rendering cube map 1..." << endl;
     recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
@@ -271,6 +276,7 @@ void recompute_cubemap()
     recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
     cubemaps[0]->unsetViewport();  
     
+    uniform_cubemap_position.update_vec3(cubemaps[1]->transformation.get_translation());
     cubemaps[1]->setViewport();
     cout << "rendering cube map 2..." << endl;
     recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
@@ -439,10 +445,10 @@ int main(int argc, char** argv)
     texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
     texture_camera_stencil->update_gpu();
 
-    cubemaps[0] = new EnvironmentCubeMap(512,"cubemaps[0].texture_color","cubemaps[0].texture_position","cubemaps[0].position",4,5);
+    cubemaps[0] = new EnvironmentCubeMap(512,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].position",4,5);
     cubemaps[0]->update_gpu();
     
-    cubemaps[1] = new EnvironmentCubeMap(512,"cubemaps[1].texture_color","cubemaps[1].texture_position","cubemaps[1].position",6,7);
+    cubemaps[1] = new EnvironmentCubeMap(512,"cubemaps[1].texture_color","cubemaps[1].texture_distance","cubemaps[1].position",6,7);
     cubemaps[1]->update_gpu();
     
     ErrorWriter::checkGlErrors("cube map init",true);
@@ -475,6 +481,7 @@ int main(int argc, char** argv)
     shader_quad = &shad2;
     
     uniform_mirror.retrieve_location(shader_3d);
+    uniform_rendering_cubemap.retrieve_location(shader_3d);
     uniform_light_direction.retrieve_location(shader_3d);
     uniform_sky.retrieve_location(shader_3d);
     uniform_texture_2d.retrieve_location(shader_3d);   
@@ -482,6 +489,7 @@ int main(int argc, char** argv)
     uniform_view_matrix.retrieve_location(shader_3d);
     uniform_projection_matrix.retrieve_location(shader_3d);
     uniform_marker.retrieve_location(shader_3d);
+    uniform_cubemap_position.retrieve_location(shader_3d);
     
     cubemaps[0]->retrieve_uniform_locations(shader_quad);
     cubemaps[1]->retrieve_uniform_locations(shader_quad);

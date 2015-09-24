@@ -1764,18 +1764,18 @@ class EnvironmentCubeMap: public GPUObject
     protected:
       unsigned int size;
       TextureCubeMap *texture_color;
-      TextureCubeMap *texture_depth;     // <---- DELETE THIS
-      TextureCubeMap *texture_position;
+      TextureCubeMap *texture_depth;
+      TextureCubeMap *texture_distance;
       static glm::mat4 projection_matrix;    // matrix used for cubemap texture rendering
       GLint initial_viewport[4];
       
       // uniforms associated with the cubemap
       UniformVariable *uniform_texture_color;
-      UniformVariable *uniform_texture_position;
+      UniformVariable *uniform_texture_distance;
       UniformVariable *uniform_position;
       
       unsigned int texture_color_sampler;
-      unsigned int texture_position_sampler;
+      unsigned int texture_distance_sampler;
       
     public:    
       TransformationTRSModel transformation;    // contains the cubemap transformation, to be able to place it in the world, only translation is considered 
@@ -1785,27 +1785,27 @@ class EnvironmentCubeMap: public GPUObject
        * 
        * @param size size of cubemap side in pixels
        * @param uniform_texture_color_name name of the uniform variable (sampler cube) for color
-       * @param uniform_texture_position_name name of the uniform variable (sampler cube) for position
+       * @param uniform_texture_distance_name name of the uniform variable (sampler cube) for distance
        * @param uniform_position_name name of the uniform variable (vec3) for cubemap position
        * @param texture_color_sampler number of texture sampler to use for color texture
-       * @param texture_position_sampler number of texture sampler to use for position texture
+       * @param texture_distance_sampler number of texture sampler to use for position texture
        */
       
-      EnvironmentCubeMap(int size, string uniform_texture_color_name, string uniform_texture_position_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_position_sampler)
+      EnvironmentCubeMap(int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_distance_sampler)
         {
           this->size = size;
           EnvironmentCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 500.0f);          
           
           this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
-          this->texture_position = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
+          this->texture_distance = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
         
           this->uniform_texture_color = new UniformVariable(uniform_texture_color_name);
-          this->uniform_texture_position = new UniformVariable(uniform_texture_position_name);
+          this->uniform_texture_distance = new UniformVariable(uniform_texture_distance_name);
           this->uniform_position = new UniformVariable(uniform_position_name);
           
           this->texture_color_sampler = texture_color_sampler;
-          this->texture_position_sampler = texture_position_sampler;
+          this->texture_distance_sampler = texture_distance_sampler;
         }
         
       /**
@@ -1817,7 +1817,7 @@ class EnvironmentCubeMap: public GPUObject
           bool result = true;
           
           result = result && this->uniform_texture_color->retrieve_location(shader);
-          result = result && this->uniform_texture_position->retrieve_location(shader);
+          result = result && this->uniform_texture_distance->retrieve_location(shader);
           result = result && this->uniform_position->retrieve_location(shader);
           
           return result;
@@ -1830,7 +1830,7 @@ class EnvironmentCubeMap: public GPUObject
       void update_uniforms()
         {
           this->uniform_texture_color->update_int((int) this->texture_color_sampler);
-          this->uniform_texture_position->update_int((int) this->texture_position_sampler);
+          this->uniform_texture_distance->update_int((int) this->texture_distance_sampler);
           this->uniform_position->update_vec3(this->transformation.get_translation());
         }
         
@@ -1841,28 +1841,28 @@ class EnvironmentCubeMap: public GPUObject
       void bind_textures()
         {
           this->texture_color->bind(this->texture_color_sampler);
-          this->texture_position->bind(this->texture_position_sampler);
+          this->texture_distance->bind(this->texture_distance_sampler);
         }
         
       virtual ~EnvironmentCubeMap()
         {
           delete this->texture_color;
-          delete this->texture_position;
+          delete this->texture_distance;
           delete this->texture_depth;
           
           delete this->uniform_texture_color;
-          delete this->uniform_texture_position;
+          delete this->uniform_texture_distance;
           delete this->uniform_position; 
         }
       
       virtual void update_gpu()
         {
           this->get_texture_color()->update_gpu();
-          this->get_texture_position()->update_gpu();
+          this->get_texture_distance()->update_gpu();
           this->get_texture_depth()->update_gpu();
         }
       
-      glm::mat4 get_projection_matrix()
+      static glm::mat4 get_projection_matrix()
         {
           return EnvironmentCubeMap::projection_matrix;
         }
@@ -1877,9 +1877,9 @@ class EnvironmentCubeMap: public GPUObject
           return this->texture_depth;
         }
   
-      TextureCubeMap *get_texture_position()
+      TextureCubeMap *get_texture_distance()
         {
-          return this->texture_position;
+          return this->texture_distance;
         }
   
       /**
@@ -2113,7 +2113,8 @@ class FrameBuffer
         Texture *color0, GLuint color0_target,
         Texture *color1=0, GLuint color1_target=GL_TEXTURE_2D,
         Texture *color2=0, GLuint color2_target=GL_TEXTURE_2D,
-        Texture *color3=0, GLuint color3_target=GL_TEXTURE_2D)
+        Texture *color3=0, GLuint color3_target=GL_TEXTURE_2D,
+        Texture *color4=0, GLuint color4_target=GL_TEXTURE_2D)
         {
           vector<GLenum> draw_buffers;
           
@@ -2141,6 +2142,12 @@ class FrameBuffer
             {
               glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT3,color3_target,color3->get_texture_object(),0);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT3);
+            }
+          
+          if (color4 != 0)
+            {
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT4,color4_target,color4->get_texture_object(),0);
+              draw_buffers.push_back(GL_COLOR_ATTACHMENT4);
             }
           
           if (depth != 0)

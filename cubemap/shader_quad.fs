@@ -10,7 +10,7 @@ in vec2 uv_coords;
 struct environment_cubemap
   {
     samplerCube texture_color;        // contains color
-    samplerCube texture_position;     // contains world position
+    samplerCube texture_distance;     // contains distance to cubemap center
     vec3 position;                            // cubemap world position
   };
 
@@ -41,7 +41,8 @@ int i;
 bool intersection_found;
 
 vec4 best_candidate_color;
-vec3 tested_point, tested_point2;
+vec3 distance_to_center;      // fragment (texel) distance to cubemap center 
+vec3 tested_point2;
 vec3 camera_to_position1;
 
 float distance_to_line(vec3 line_point1, vec3 line_point2, vec3 point)
@@ -103,11 +104,11 @@ void main()
                         cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
              
                         if (i == 0)   // for some reason cubemaps[i] causes and error - resolve this later
-                          tested_point = textureLod(cubemaps[0].texture_position,cube_coordinates_current,0).xyz;
+                          distance_to_center = textureLod(cubemaps[0].texture_distance,cube_coordinates_current,0).xyz;
                         else
-                          tested_point = textureLod(cubemaps[1].texture_position,cube_coordinates_current,0).xyz;
+                          distance_to_center = textureLod(cubemaps[1].texture_distance,cube_coordinates_current,0).xyz;
                         
-                        distance = length(tested_point - tested_point2);
+                        distance = abs(distance_to_center.x - length(cubemaps[i].position - tested_point2));
                   
                         if (distance < best_candidate_distance)
                           {

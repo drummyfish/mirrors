@@ -9,14 +9,19 @@ uniform sampler2D texture_2d;
 uniform bool mirror;                // whether mirror is being rendered
 uniform bool sky;                   // whether sky is being rendered
 uniform bool marker;                // whether marking geometry is being rendered
+uniform bool rendering_cubemap;     // whether cubemap is being rendered
+uniform vec3 cubemap_position;      // if rendering_cubemap = true, contains cubemap world position
 
 layout(location = 0) out vec4 fragment_color;
-layout(location = 1) out vec3 output_position;   // x y z position in space (divided by 64)
-layout(location = 2) out vec3 output_normal;     // x y z normal
-layout(location = 3) out vec3 output_stencil;    // (1,1,1) or (0,0,0) masking the mirror out
+layout(location = 1) out vec3 output_position_distance;   /* x y z position in space if rendering_cubemap = true,
+                                                             otherwise distance to cubemap in red channel */
+layout(location = 2) out vec3 output_normal;              // x y z normal
+layout(location = 3) out vec3 output_stencil;             // (1,1,1) or (0,0,0) masking the mirror out
+
 float diffuse_intensity;
 float lighting_intensity;
 vec3 cube_coordinates;
+float distance_from_cubemap;
   
 void main()
 {
@@ -37,7 +42,16 @@ void main()
       fragment_color *= texture(texture_2d,uv_coords);
     }
 
-  output_position = world_position.xyz;  
+  if (rendering_cubemap)
+    {
+      distance_from_cubemap = distance(world_position.xyz,cubemap_position);
+      output_position_distance = vec3(distance_from_cubemap,0.0,0.0);
+    }
+  else
+    {
+      output_position_distance = world_position.xyz;  
+    }
+  
   output_normal = transformed_normal.xyz;
   output_stencil = mirror ? vec3(1.0,1.0,1.0) : vec3(0.0,0.0,0.0);
 }
