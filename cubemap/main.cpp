@@ -54,7 +54,7 @@ bool draw_mirror = true;
 
 int texture_to_display = 1;
 
-EnvironmentCubeMap *cubemaps[2];
+ReflectionTraceCubeMap *cubemaps[2];
 
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
@@ -91,6 +91,7 @@ void draw_scene()
     glClear(GL_COLOR_BUFFER_BIT);
     glClear(GL_DEPTH_BUFFER_BIT);
     
+    uniform_sky.update_int(1);
     texture_sky->bind(1);
     uniform_model_matrix.update_mat4(transformation_sky.get_matrix());
     geometry_sky->draw_as_triangles();
@@ -205,7 +206,7 @@ void render()
     profiler->next_frame();
   }
   
-void recompute_cubemap_side(EnvironmentCubeMap *cube_map, GLuint side) 
+void recompute_cubemap_side(ReflectionTraceCubeMap *cube_map, GLuint side) 
   {
     cout << "rendering side" << endl;
     
@@ -263,7 +264,7 @@ void recompute_cubemap()
     set_up_pass1();
     uniform_rendering_cubemap.update_int(1);
     
-    uniform_projection_matrix.update_mat4(EnvironmentCubeMap::get_projection_matrix());
+    uniform_projection_matrix.update_mat4(ReflectionTraceCubeMap::get_projection_matrix());
     
     uniform_cubemap_position.update_vec3(cubemaps[0]->transformation.get_translation());
     cubemaps[0]->setViewport();
@@ -445,10 +446,10 @@ int main(int argc, char** argv)
     texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
     texture_camera_stencil->update_gpu();
 
-    cubemaps[0] = new EnvironmentCubeMap(512,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].position",4,5);
+    cubemaps[0] = new ReflectionTraceCubeMap(512,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].position",4,5);
     cubemaps[0]->update_gpu();
     
-    cubemaps[1] = new EnvironmentCubeMap(512,"cubemaps[1].texture_color","cubemaps[1].texture_distance","cubemaps[1].position",6,7);
+    cubemaps[1] = new ReflectionTraceCubeMap(512,"cubemaps[1].texture_color","cubemaps[1].texture_distance","cubemaps[1].position",6,7);
     cubemaps[1]->update_gpu();
     
     ErrorWriter::checkGlErrors("cube map init",true);

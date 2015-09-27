@@ -1759,7 +1759,7 @@ class TextureCubeMap: public Texture
  * Represents a cube map that is used for capturing environment.
  */
   
-class EnvironmentCubeMap: public GPUObject
+class ReflectionTraceCubeMap: public GPUObject
   {
     protected:
       unsigned int size;
@@ -1791,10 +1791,10 @@ class EnvironmentCubeMap: public GPUObject
        * @param texture_distance_sampler number of texture sampler to use for position texture
        */
       
-      EnvironmentCubeMap(int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_distance_sampler)
+      ReflectionTraceCubeMap(int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_distance_sampler)
         {
           this->size = size;
-          EnvironmentCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 500.0f);          
+          ReflectionTraceCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 500.0f);          
           
           this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_distance = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
@@ -1844,7 +1844,7 @@ class EnvironmentCubeMap: public GPUObject
           this->texture_distance->bind(this->texture_distance_sampler);
         }
         
-      virtual ~EnvironmentCubeMap()
+      virtual ~ReflectionTraceCubeMap()
         {
           delete this->texture_color;
           delete this->texture_distance;
@@ -1864,7 +1864,7 @@ class EnvironmentCubeMap: public GPUObject
       
       static glm::mat4 get_projection_matrix()
         {
-          return EnvironmentCubeMap::projection_matrix;
+          return ReflectionTraceCubeMap::projection_matrix;
         }
       
       TextureCubeMap *get_texture_color()
@@ -1953,7 +1953,7 @@ class EnvironmentCubeMap: public GPUObject
         }
   };
 
-glm::mat4 EnvironmentCubeMap::projection_matrix;  
+glm::mat4 ReflectionTraceCubeMap::projection_matrix;  
       
 /**
  * RGBA 2D texture.
