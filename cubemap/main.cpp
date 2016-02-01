@@ -38,6 +38,7 @@ UniformVariable uniform_cubemap_position("cubemap_position");
 
 Shader *shader_3d;                   // for first pass: renders a 3D scene
 Shader *shader_quad;                 // for second pass: draws textures on quad
+Shader *shader_compute;              // for computing the acceleration texture
 
 FrameBuffer *frame_buffer_cube;      // for rendering to cubemap
 FrameBuffer *frame_buffer_camera;    // for "deferred shading" like rendering
@@ -380,6 +381,21 @@ int main(int argc, char** argv)
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
     
+Shader shad0("","",file_text("shader_compute.cs",false));
+shader_compute = &shad0;
+
+Texture2D *texture_test;
+
+texture_test = new Texture2D(512,512,TEXEL_TYPE_COLOR);
+texture_test->set_parameter_int(GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+texture_test->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+texture_test->update_gpu();
+
+texture_test->load_from_gpu();  
+texture_test->get_image_data()->save_ppm("compute_shader_test_texture");
+
+return 0;
+    
     profiler = new Profiler();
     profiler->new_value("pass 1");
     profiler->new_value("pass 2");
@@ -475,8 +491,8 @@ int main(int argc, char** argv)
     texture_mirror_depth->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     texture_mirror_depth->update_gpu();
     
-    Shader shad1(file_text("shader_3d.vs",true),file_text("shader_3d.fs",true));
-    Shader shad2(file_text("shader_quad.vs",true),file_text("shader_quad.fs",true));
+    Shader shad1(file_text("shader_3d.vs",true),file_text("shader_3d.fs",true),"");
+    Shader shad2(file_text("shader_quad.vs",true),file_text("shader_quad.fs",true),"");
     
     shader_3d = &shad1;
     shader_quad = &shad2;

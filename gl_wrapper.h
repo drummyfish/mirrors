@@ -701,6 +701,13 @@ class Shader
           const GLchar* p[1];
           p[0] = shader_text;
 
+          if (shader_object == 0)
+            {
+              ErrorWriter::write_error("Could not create shader object.");
+              ErrorWriter::checkGlErrors("rendering loop");
+              return false;
+            }
+          
           GLint lengths[1];
           lengths[0]= strlen(shader_text);
 
@@ -711,7 +718,7 @@ class Shader
 
           glGetShaderiv(shader_object,GL_COMPILE_STATUS,&success);
 
-          if (!success)
+          if (success == GL_FALSE)
             {
               GLchar log[1024];
               glGetShaderInfoLog(shader_object,sizeof(log),NULL,log);
@@ -756,28 +763,30 @@ class Shader
        *   transform feedback 
        */
       
-      Shader(string vertex_shader_text, string fragment_shader_text, vector<string> *transform_feedback_variables = 0)
+      Shader(string vertex_shader_text, string fragment_shader_text, string compute_shader_text, vector<string> *transform_feedback_variables = 0)
         {
           char log[256];
           
           this->shader_program = glCreateProgram();
           
           if (this->shader_program == 0)
-            {
-              ErrorWriter::write_error("Could not create a shader program.");
-            }
+            ErrorWriter::write_error("Could not create a shader program.");
          
-          if (vertex_shader_text.length() != 0)
-            if (!this->add_shader(vertex_shader_text.c_str(),GL_VERTEX_SHADER))
-              {
-                ErrorWriter::write_error("Could not add a vertex shader program.");
-              }
+          if (compute_shader_text.length() != 0)
+            {
+              if (!this->add_shader(compute_shader_text.c_str(),GL_COMPUTE_SHADER))
+                ErrorWriter::write_error("Could not add a compute shader program. (you need OpenGL 4.3 for compute shaders.)");
+            }
+          else  // can either have compute shader or pipeline shaders
+            {
+              if (vertex_shader_text.length() != 0)
+                if (!this->add_shader(vertex_shader_text.c_str(),GL_VERTEX_SHADER))
+                  ErrorWriter::write_error("Could not add a vertex shader program.");
               
-          if (fragment_shader_text.length() != 0)
-            if (!this->add_shader(fragment_shader_text.c_str(),GL_FRAGMENT_SHADER))
-              {
-                ErrorWriter::write_error("Could not add a fragment shader program.");
-              }
+              if (fragment_shader_text.length() != 0)
+                if (!this->add_shader(fragment_shader_text.c_str(),GL_FRAGMENT_SHADER))
+                  ErrorWriter::write_error("Could not add a fragment shader program.");
+            }
             
           GLint success = 0;
           
@@ -797,7 +806,7 @@ class Shader
           
           glLinkProgram(this->shader_program);
           glGetProgramiv(this->shader_program,GL_LINK_STATUS,&success);
-        
+       
           if (success == 0)
             {
               glGetProgramInfoLog(this->shader_program,sizeof(log),NULL,log);
@@ -810,12 +819,19 @@ class Shader
           glGetProgramiv(shader_program,GL_VALIDATE_STATUS,&success);
           
           if (!success)
-            {
-              ErrorWriter::write_error("The shader program is invalid.");
-            }
+            ErrorWriter::write_error("The shader program is invalid.");
+        }
+        
+      /**
+       * Runs the compute shader, use() must have been called before this.
+       */
+      
+      void run_compute(unsigned int groups_x, unsigned int groups_y, unsigned int groups_z)
+        {
+          glDispatchCompute(groups_x,groups_y,groups_z);
         }
   };
-
+  
 /**
  * Represnts a uniform shader variable.
  */
