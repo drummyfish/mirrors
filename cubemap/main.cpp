@@ -51,6 +51,8 @@ Texture2D *texture_camera_position;
 Texture2D *texture_camera_normal;
 Texture2D *texture_camera_stencil;
 
+Texture2D *acceleration_texture;
+
 bool draw_mirror = true;
 
 int texture_to_display = 1;
@@ -229,6 +231,110 @@ void recompute_cubemap_side(ReflectionTraceCubeMap *cube_map, GLuint side)
     frame_buffer_cube->deactivate();
   }
   
+  /**
+   * Creates an acceleration texture from given cubemap in software.
+   * 
+   * @param cubemap cubemap to create the texture for
+   * @return newly created acceleration texture
+   */
+  
+Texture2D *create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap)
+  {
+    int size = cubemap->get_texture_color()->image_front->get_width();
+    int half_size = size / 2;
+    int offset_x, offset_y;
+    Texture2D *result = new Texture2D(size * 3,size * 2,TEXEL_TYPE_DEPTH);
+    Image2D *image_data;
+    Image2D *result_image_data = result->get_image_data();
+    int texture_direction;
+    
+    for (texture_direction = 0; texture_direction < 6; texture_direction++)
+      {
+        switch (texture_direction)
+          {
+            case 0:
+              image_data = cubemap->get_texture_depth()->image_front;
+              offset_x = 0; offset_y = 0;
+              break;
+              
+            case 1:
+              image_data = cubemap->get_texture_depth()->image_back;
+              offset_x = size; offset_y = 0;
+              break;
+              
+            case 2:
+              image_data = cubemap->get_texture_depth()->image_left;
+              offset_x = 2 * size; offset_y = 0;
+              break;
+              
+            case 3:
+              image_data = cubemap->get_texture_depth()->image_right;
+              offset_x = 0; offset_y = size;
+              break;
+              
+            case 4:
+              image_data = cubemap->get_texture_depth()->image_top;
+              offset_x = size; offset_y = size;
+              break;
+              
+            case 5:
+            default:
+              image_data = cubemap->get_texture_depth()->image_bottom;
+              offset_x = 2 * size; offset_y = size;
+              break;
+          }
+          
+        float r, g, b, a, maximum, minimum;  
+        int i,j,x,y,level,block_size,level_offset;
+        
+        level = 1;
+        level_offset = 0;
+        
+        while (true)  // levels
+          {
+            block_size = size / level;
+            
+            if (block_size < 2)
+              break;
+            
+            for (j = 0; j < level; j++)
+              for (i = 0; i < level; i++)
+                {
+                  maximum = 0;
+                  minimum = 99999999999;
+                  
+                  for (y = 0; y < block_size; y++)
+                    for (x = 0; x < block_size; x++)
+                      {
+                        image_data->get_pixel(i * block_size + x,j * block_size + y,&r,&g,&b,&a);
+                        
+                        if (r > maximum)
+                          maximum = r;
+                        
+                        if (r < minimum)
+                          minimum = r;
+                      }  
+                      
+                   result_image_data->set_pixel(offset_x + i + level_offset,offset_y + j,maximum,0,0,0);
+                   result_image_data->set_pixel(offset_x + i + level_offset,offset_y + j + half_size,minimum,0,0,0);
+                }
+                
+            level_offset += level;
+            level *= 2;
+          }
+        
+      /*  
+        for (j = 0; j < size; j++)
+          for (i = 0; i < size; i++)
+            {
+              image_data->get_pixel(i,j,&r,&g,&b,&a);
+              result_image_data->set_pixel(i + offset_x,j + offset_y,r,0,0,0);
+            } */
+      }
+
+    return result;
+  }
+  
 void save_images()
   {
     cout << "saving images" << endl;
@@ -330,7 +436,10 @@ void special_callback(int key, int x, int y)
         
         case GLUT_KEY_INSERT:
           recompute_cubemap();
-          //save_images();
+          acceleration_texture = create_acceleration_texture_sw(cubemaps[0]);
+      //    acceleration_texture->get_image_data()->raise_to_power(256);
+          acceleration_texture->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
+          save_images();
           break;
           
         case GLUT_KEY_F1:
@@ -380,21 +489,6 @@ int main(int argc, char** argv)
     session->window_size[0] = WINDOW_WIDTH;
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
-    
-Shader shad0("","",file_text("shader_compute.cs",false));
-shader_compute = &shad0;
-
-Texture2D *texture_test;
-
-texture_test = new Texture2D(512,512,TEXEL_TYPE_COLOR);
-texture_test->set_parameter_int(GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-texture_test->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-texture_test->update_gpu();
-
-texture_test->load_from_gpu();  
-texture_test->get_image_data()->save_ppm("compute_shader_test_texture");
-
-return 0;
     
     profiler = new Profiler();
     profiler->new_value("pass 1");
