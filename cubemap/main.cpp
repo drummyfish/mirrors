@@ -4,6 +4,7 @@
 #define ROTATION_STEP 0.1
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
+#define CUBEMAP_RESOLUTION 512
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
@@ -36,6 +37,9 @@ UniformVariable uniform_projection_matrix("projection_matrix");
 UniformVariable uniform_camera_position("camera_position");
 UniformVariable uniform_cubemap_position("cubemap_position");
 
+UniformVariable uniform_textures_acceleration_0("acceleration_textures[0]");
+UniformVariable uniform_textures_acceleration_1("acceleration_textures[1]");
+
 Shader *shader_3d;                   // for first pass: renders a 3D scene
 Shader *shader_quad;                 // for second pass: draws textures on quad
 Shader *shader_compute;              // for computing the acceleration texture
@@ -51,7 +55,7 @@ Texture2D *texture_camera_position;
 Texture2D *texture_camera_normal;
 Texture2D *texture_camera_stencil;
 
-Texture2D *acceleration_texture;
+Texture2D *acceleration_textures[2];
 
 bool draw_mirror = true;
 
@@ -145,7 +149,11 @@ void draw_quad()  // for the second pass
     texture_camera_normal->bind(1);
     texture_camera_position->bind(2);
     texture_camera_stencil->bind(3);
-    geometry_quad->draw_as_triangles();
+    
+    acceleration_textures[0]->bind(8);
+    acceleration_textures[1]->bind(9);
+      
+    geometry_quad->draw_as_triangles(); 
     glEnable(GL_DEPTH_TEST);
   }
  
@@ -170,6 +178,9 @@ void set_up_pass2()
     uniform_texture_normal.update_int(1);
     uniform_texture_position.update_int(2);
     uniform_texture_stencil.update_int(3);
+    uniform_textures_acceleration_0.update_int(8);
+    uniform_textures_acceleration_1.update_int(9);
+    
     uniform_texture_to_display.update_int(texture_to_display);
     uniform_camera_position.update_vec3(CameraHandler::camera_transformation.get_translation());
   }
@@ -200,7 +211,8 @@ void render()
     // 2nd pass:
     profiler->time_measure_begin();
     set_up_pass2();
-    draw_quad();
+    draw_quad();   
+    
     profiler->record_value(1,profiler->time_measure_end());
     
     ErrorWriter::checkGlErrors("rendering loop");  
@@ -238,12 +250,17 @@ void recompute_cubemap_side(ReflectionTraceCubeMap *cube_map, GLuint side)
    * @return newly created acceleration texture
    */
   
-Texture2D *create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap)
+Texture2D *new_acceleration_texture(int cubemap_resolution)
+  {
+    return new Texture2D(cubemap_resolution * 3,cubemap_resolution * 2,TEXEL_TYPE_DEPTH);
+  }
+  
+void create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap, Texture2D *result)
   {
     int size = cubemap->get_texture_color()->image_front->get_width();
     int half_size = size / 2;
     int offset_x, offset_y;
-    Texture2D *result = new Texture2D(size * 3,size * 2,TEXEL_TYPE_DEPTH);
+ //   Texture2D *result = new Texture2D(size * 3,size * 2,TEXEL_TYPE_DEPTH);
     Image2D *image_data;
     Image2D *result_image_data = result->get_image_data();
     int texture_direction;
@@ -314,7 +331,7 @@ Texture2D *create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap)
                         if (r < minimum)
                           minimum = r;
                       }  
-                      
+                
                    result_image_data->set_pixel(offset_x + i + level_offset,offset_y + j,maximum,0,0,0);
                    result_image_data->set_pixel(offset_x + i + level_offset,offset_y + j + half_size,minimum,0,0,0);
                 }
@@ -332,7 +349,9 @@ Texture2D *create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap)
             } */
       }
 
-    return result;
+ //   result->set_parameter_int(GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+ //   result->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+    result->update_gpu();    
   }
   
 void save_images()
@@ -394,8 +413,14 @@ void recompute_cubemap()
     recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
     recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
     cubemaps[1]->unsetViewport();  
-    
-    save_images();
+
+    cubemaps[0]->get_texture_color()->load_from_gpu();  
+    cubemaps[0]->get_texture_depth()->load_from_gpu();
+    cubemaps[0]->get_texture_distance()->load_from_gpu();      
+    cubemaps[1]->get_texture_color()->load_from_gpu();  
+    cubemaps[1]->get_texture_depth()->load_from_gpu();
+   
+  //  save_images();
   }  
 
 void special_callback(int key, int x, int y)
@@ -436,10 +461,21 @@ void special_callback(int key, int x, int y)
         
         case GLUT_KEY_INSERT:
           recompute_cubemap();
-          acceleration_texture = create_acceleration_texture_sw(cubemaps[0]);
-      //    acceleration_texture->get_image_data()->raise_to_power(256);
-          acceleration_texture->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
-          save_images();
+          
+          for (int i = 0; i < 2; i++)
+            {
+              create_acceleration_texture_sw(cubemaps[i],acceleration_textures[i]);
+              acceleration_textures[i]->get_image_data()->raise_to_power(256);
+              acceleration_textures[i]->update_gpu();
+            }
+          
+          cout << acceleration_textures[0]->get_max_value() << endl;
+          cout << acceleration_textures[0]->get_max_value() << endl;
+          
+          acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
+          acceleration_textures[1]->get_image_data()->save_ppm("cubemap_images/acceleration2.ppm");
+              
+            //     save_images();
           break;
           
         case GLUT_KEY_F1:
@@ -556,14 +592,20 @@ int main(int argc, char** argv)
     texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
     texture_camera_stencil->update_gpu();
 
-    cubemaps[0] = new ReflectionTraceCubeMap(512,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].position",4,5);
+    for (int i = 0; i < 2; i++)
+      {
+        acceleration_textures[i] = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR); //new_acceleration_texture(CUBEMAP_RESOLUTION);
+        acceleration_textures[i]->update_gpu();
+      }
+    
+    cubemaps[0] = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].position",4,5);
     cubemaps[0]->update_gpu();
     
-    cubemaps[1] = new ReflectionTraceCubeMap(512,"cubemaps[1].texture_color","cubemaps[1].texture_distance","cubemaps[1].position",6,7);
+    cubemaps[1] = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemaps[1].texture_color","cubemaps[1].texture_distance","cubemaps[1].position",6,7);
     cubemaps[1]->update_gpu();
     
     ErrorWriter::checkGlErrors("cube map init",true);
-    
+      
     cubemaps[0]->transformation.set_translation(glm::vec3(-10,35,-17));
     cubemaps[1]->transformation.set_translation(glm::vec3(-18,35,-22));
     
@@ -610,6 +652,8 @@ int main(int argc, char** argv)
     uniform_texture_stencil.retrieve_location(shader_quad);
     uniform_texture_to_display.retrieve_location(shader_quad);
     uniform_camera_position.retrieve_location(shader_quad);
+    uniform_textures_acceleration_0.retrieve_location(shader_quad);
+    uniform_textures_acceleration_1.retrieve_location(shader_quad);
     
     ErrorWriter::checkGlErrors("after init",true);
     
@@ -631,6 +675,8 @@ int main(int argc, char** argv)
     delete texture_mirror;
     delete cubemaps[0];
     delete cubemaps[1];
+    delete acceleration_textures[0];
+    delete acceleration_textures[1];
     delete texture_scene;
     delete texture_sky;
     delete texture_mirror_depth;

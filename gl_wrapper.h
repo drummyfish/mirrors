@@ -2006,6 +2006,35 @@ class Texture2D: public Texture
           return this->image_data;
         }
         
+      float get_max_value()
+        {
+          int i,j;
+          float r, g, b, a;
+          float max;
+          
+          r = 0;
+          g = 0;
+          b = 0;
+          max = 0;
+          
+          for (j = 0; j < this->get_image_data()->get_height(); j++)
+            for (i = 0; i < this->get_image_data()->get_width(); i++)
+              {
+                this->get_image_data()->get_pixel(i,j,&r,&g,&b,&a);
+                
+                if (r > max)
+                  max = r;
+                
+                if (g > max)
+                  max = g;
+                
+                if (b > max)
+                  max = b;
+              }
+              
+          return max;
+        }
+        
       /**
        * Loads the texture from ppm file format.
        */
@@ -2042,7 +2071,6 @@ class Texture2D: public Texture
         {
           glBindTexture(GL_TEXTURE_2D,this->to);    
           
-          
           if (this->image_data->get_data_type() == TEXEL_TYPE_STENCIL)
             {
               glGetTexImage(GL_TEXTURE_2D,0,GL_RED_INTEGER,this->image_data->get_type(),this->image_data->get_data_pointer());
@@ -2067,23 +2095,7 @@ class Texture2D: public Texture
       
       virtual void bind(unsigned int unit)
         {
-          switch (unit)
-            {
-              case 0: glActiveTexture(GL_TEXTURE0); break;
-              case 1: glActiveTexture(GL_TEXTURE1); break;
-              case 2: glActiveTexture(GL_TEXTURE2); break;
-              case 3: glActiveTexture(GL_TEXTURE3); break;
-              case 4: glActiveTexture(GL_TEXTURE4); break;
-              case 5: glActiveTexture(GL_TEXTURE5); break;
-              case 6: glActiveTexture(GL_TEXTURE6); break;
-              case 7: glActiveTexture(GL_TEXTURE7); break;
-              case 8: glActiveTexture(GL_TEXTURE8); break;
-              case 9: glActiveTexture(GL_TEXTURE9); break;
-              
-              default:
-                break;
-            }
-          
+          glActiveTexture(GL_TEXTURE0 + unit);
           glBindTexture(GL_TEXTURE_2D,this->to);
         }
       
@@ -2264,7 +2276,7 @@ class Geometry3D: public Printable, public GPUObject
         };
       
       void draw_as_triangles()
-        {
+        {     
           glBindVertexArray(this->vao);
           glDrawElements(GL_TRIANGLES,this->triangles.size() * 3,GL_UNSIGNED_INT,0);
           glBindVertexArray(0);

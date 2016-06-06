@@ -23,6 +23,8 @@ uniform sampler2D texture_normal;
 uniform sampler2D texture_position;
 uniform sampler2D texture_stencil;
 
+uniform sampler2D acceleration_textures[NUMBER_OF_CUBEMAPS];
+
 out vec4 fragment_color;
 
 vec3 cube_coordinates1, cube_coordinates2, cube_coordinates_current;
@@ -44,6 +46,16 @@ vec4 best_candidate_color;
 vec3 distance_to_center;      // fragment (texel) distance to cubemap center 
 vec3 tested_point2;
 vec3 camera_to_position1;
+vec2 min_max;
+
+/**
+  Gets a (min,max) value from the acceleration texture.
+  */
+
+vec2 get_acceleration_pixel(int side, int level, int x, int y)
+  {
+    return vec2(0.5,0.7);
+  }
 
 float distance_to_line(vec3 line_point1, vec3 line_point2, vec3 point)
   {
@@ -73,8 +85,7 @@ void main()
         {
           case 1:
             if (texture(texture_stencil, uv_coords) == vec4(1,1,1,0))
-              { // drawing mirror here
-              
+              { // drawing mirror here              
                 best_candidate_distance = 99999999999.0;
                 best_candidate_color = vec4(0.0,0.0,0.0,1.0);
                 // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
@@ -131,7 +142,12 @@ void main()
                       break;
                   }
                 
-                fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
+                fragment_color =
+                (
+                best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
+                )
+                + 0.001 * vec4(texture(acceleration_textures[0],uv_coords).x) + 0.001 * vec4(texture(acceleration_textures[1],uv_coords).x)       
+                ;
               }
             else
               fragment_color = texture(texture_color, uv_coords);
