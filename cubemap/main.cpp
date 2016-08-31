@@ -420,7 +420,7 @@ void recompute_cubemap()
     cubemaps[1]->get_texture_color()->load_from_gpu();  
     cubemaps[1]->get_texture_depth()->load_from_gpu();
    
-  //  save_images();
+    //save_images();
   }  
 
 void special_callback(int key, int x, int y)
@@ -474,8 +474,8 @@ void special_callback(int key, int x, int y)
           
           acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
           acceleration_textures[1]->get_image_data()->save_ppm("cubemap_images/acceleration2.ppm");
-              
-            //     save_images();
+          
+          save_images();
           break;
           
         case GLUT_KEY_F1:
@@ -594,7 +594,7 @@ int main(int argc, char** argv)
 
     for (int i = 0; i < 2; i++)
       {
-        acceleration_textures[i] = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR); //new_acceleration_texture(CUBEMAP_RESOLUTION);
+        acceleration_textures[i] = new Texture2D(CUBEMAP_RESOLUTION * 2,int(CUBEMAP_RESOLUTION * 1.5),TEXEL_TYPE_COLOR); //new_acceleration_texture(CUBEMAP_RESOLUTION);
         acceleration_textures[i]->update_gpu();
       }
     
