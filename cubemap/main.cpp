@@ -472,10 +472,9 @@ void special_callback(int key, int x, int y)
           cout << acceleration_textures[0]->get_max_value() << endl;
           cout << acceleration_textures[0]->get_max_value() << endl;
           
-          acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
-          acceleration_textures[1]->get_image_data()->save_ppm("cubemap_images/acceleration2.ppm");
-          
-          save_images();
+       //   acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
+       //   acceleration_textures[1]->get_image_data()->save_ppm("cubemap_images/acceleration2.ppm");
+       //   save_images();
           break;
           
         case GLUT_KEY_F1:
@@ -531,8 +530,8 @@ int main(int argc, char** argv)
     profiler->new_value("pass 2");
     profiler->new_value("mirror fragments");
     
-    CameraHandler::camera_transformation.set_translation(glm::vec3(-19.9981,41.0651,31.48));
-    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.11,-6.47166,0));
+    CameraHandler::camera_transformation.set_translation(glm::vec3(-78.2378,90.4943,-118.219));
+    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.37875,-8.60999,0));
     CameraHandler::translation_step = 2.0;
     
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/

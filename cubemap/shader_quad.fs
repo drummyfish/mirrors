@@ -11,7 +11,7 @@ struct environment_cubemap
   {
     samplerCube texture_color;        // contains color
     samplerCube texture_distance;     // contains distance to cubemap center
-    vec3 position;                            // cubemap world position
+    vec3 position;                    // cubemap world position
   };
 
 uniform environment_cubemap cubemaps[NUMBER_OF_CUBEMAPS];
@@ -48,15 +48,56 @@ vec3 tested_point2;
 vec3 camera_to_position1;
 vec2 min_max;
 
-/**
-  Gets a (min,max) value from the acceleration texture.
-  */
+// Gets a (min,max) value from the acceleration texture. Level starts with 0 for the highest resolution.
 
-vec2 get_acceleration_pixel(int side, int level, int x, int y)
+vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int level)
   {
-    return vec2(0.5,0.7);
+    float x = fract(coordinates.x); //
+    float y = 1.0 - fract(coordinates.y); //
+    float offset_x, offset_y;   // offset for given side
+    
+    switch (side)
+      {
+        case 0: offset_x = 0.0;       offset_y = 0.0;   break;  // front
+        case 1: offset_x = 1/3.0;     offset_y = 0.0;   break;  // back
+        case 2: offset_x = 2/3.0;     offset_y = 0.0;   break;  // left
+        case 3: offset_x = 0.0;       offset_y = 1/3.0; break;  // right
+        case 4: offset_x = 1/3.0;     offset_y = 1/3.0; break;  // top
+        case 5: offset_x = 2/3.0;     offset_y = 1/3.0; break;  // bottom
+        default: break;
+      }
+     
+    // this could be fetched from a constant array maybe, to save time:
+    
+    float half_to = 1.0/pow(2,level + 1);
+    vec2 relative_level_resolution = vec2(1/3.0 * half_to, 1/2.0 * half_to);
+  
+    vec2 coordinates_start_max = vec2(offset_x + relative_level_resolution.x,offset_y);
+    vec2 coordinates_start_min = vec2(coordinates_start_max.x,coordinates_start_max.y + 0.5);
+ 
+    vec2 relative_coordinates = vec2(x * relative_level_resolution.x,y * relative_level_resolution.y);
+       
+    return vec2
+      (
+        texture(acceleration_textures[texture_index],coordinates_start_min + relative_coordinates).x,
+        texture(acceleration_textures[texture_index],coordinates_start_max + relative_coordinates).x
+      ); 
   }
 
+// from http://www.nvidia.com/object/cube_map_ogl_tutorial.html
+  
+vec3 cubemap_coordinates_to_2D_coordinates(vec2 cubemap_coordinates)
+  {
+    return vec3(1,1,1);
+  }
+  
+// Same as get_acceleration_pixel but coordinates are cubemap coordinates.
+
+vec2 get_acceleration_pixel_by_cubemap_coordinates(int texture_index, vec2 cubemap_coordinates ,int level)
+  {
+    return vec2(1.0,0.5);
+  }
+  
 float distance_to_line(vec3 line_point1, vec3 line_point2, vec3 point)
   {
     /* this is too computationally intense, let's fix using this method by
@@ -146,8 +187,11 @@ void main()
                 (
                 best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
                 )
-                + 0.001 * vec4(texture(acceleration_textures[0],uv_coords).x) + 0.001 * vec4(texture(acceleration_textures[1],uv_coords).x)       
-                ;
+                + 0.001 * vec4(texture(acceleration_textures[0],uv_coords).x) + 0.001 * vec4(texture(acceleration_textures[1],uv_coords).x);
+                
+                // TEMP
+           //     float coooool = get_acceleration_pixel(0,0,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
+           //     fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
               }
             else
               fragment_color = texture(texture_color, uv_coords);
