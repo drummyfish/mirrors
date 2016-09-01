@@ -594,7 +594,7 @@ int main(int argc, char** argv)
 
     for (int i = 0; i < 2; i++)
       {
-        acceleration_textures[i] = new Texture2D(CUBEMAP_RESOLUTION * 2,int(CUBEMAP_RESOLUTION * 1.5),TEXEL_TYPE_COLOR); //new_acceleration_texture(CUBEMAP_RESOLUTION);
+        acceleration_textures[i] = new Texture2D(CUBEMAP_RESOLUTION * 3,CUBEMAP_RESOLUTION * 2,TEXEL_TYPE_COLOR); //new_acceleration_texture(CUBEMAP_RESOLUTION);
         acceleration_textures[i]->update_gpu();
       }
     
