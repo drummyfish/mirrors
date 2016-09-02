@@ -52,9 +52,9 @@ vec2 min_max;
 
 vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int level)
   {
-    float x = fract(coordinates.x); //
-    float y = 1.0 - fract(coordinates.y); //
-    float offset_x, offset_y;   // offset for given side
+    float x = fract(coordinates.x); 
+    float y = 1.0 - fract(coordinates.y); 
+    float offset_x, offset_y;                  // offset for given side
     
     switch (side)
       {
@@ -76,12 +76,18 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
     vec2 coordinates_start_min = vec2(coordinates_start_max.x,coordinates_start_max.y + 0.5);
  
     vec2 relative_coordinates = vec2(x * relative_level_resolution.x,y * relative_level_resolution.y);
-       
+    
+    vec2 texture_size = textureSize(acceleration_textures[texture_index],0);
+    
+    ivec2 coordinates_min = ivec2((coordinates_start_min + relative_coordinates) * texture_size);
+    ivec2 coordinates_max = ivec2((coordinates_start_max + relative_coordinates) * texture_size);
+    
+    
     return vec2
       (
-        texture(acceleration_textures[texture_index],coordinates_start_min + relative_coordinates).x,
-        texture(acceleration_textures[texture_index],coordinates_start_max + relative_coordinates).x
-      ); 
+        texelFetch(acceleration_textures[texture_index],coordinates_min,0).x,
+        texelFetch(acceleration_textures[texture_index],coordinates_max,0).x
+      );
   }
 
 // from http://www.nvidia.com/object/cube_map_ogl_tutorial.html
@@ -190,8 +196,8 @@ void main()
                 + 0.001 * vec4(texture(acceleration_textures[0],uv_coords).x) + 0.001 * vec4(texture(acceleration_textures[1],uv_coords).x);
                 
                 // TEMP
-           //     float coooool = get_acceleration_pixel(0,0,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
-           //     fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
+                float coooool = get_acceleration_pixel(0,0,position1.xy / 10.0,4).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
+                fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
               }
             else
               fragment_color = texture(texture_color, uv_coords);
