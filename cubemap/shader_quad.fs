@@ -1,7 +1,8 @@
 #version 330
 #include general.s
-#define INTERSECTION_LIMIT 2 // what distance means intersection
+#define INTERSECTION_LIMIT 2   // what distance means intersection
 #define NUMBER_OF_CUBEMAPS 2
+#define ACCELERATION_LEVELS 9
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
@@ -48,13 +49,15 @@ vec3 tested_point2;
 vec3 camera_to_position1;
 vec2 min_max;
 
-// Gets a (min,max) value from the acceleration texture. Level starts with 0 for the highest resolution.
+// Gets a (min,max) value from the acceleration texture. Level starts with 0 for the 1x1 resolution, every next level is 4 time bigger.
 
 vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int level)
   {
     float x = fract(coordinates.x); 
     float y = 1.0 - fract(coordinates.y); 
     float offset_x, offset_y;                  // offset for given side
+    
+    level = ACCELERATION_LEVELS - level - 1;
     
     switch (side)
       {
@@ -73,7 +76,7 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
     vec2 relative_level_resolution = vec2(1/3.0 * half_to, 1/2.0 * half_to);
   
     vec2 coordinates_start_max = vec2(offset_x + relative_level_resolution.x,offset_y);
-    vec2 coordinates_start_min = vec2(coordinates_start_max.x,coordinates_start_max.y + 0.5);
+    vec2 coordinates_start_min = vec2(coordinates_start_max.x,coordinates_start_max.y + 0.25);
  
     vec2 relative_coordinates = vec2(x * relative_level_resolution.x,y * relative_level_resolution.y);
     
@@ -90,11 +93,57 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
       );
   }
 
-// from http://www.nvidia.com/object/cube_map_ogl_tutorial.html
+// from http://www.nvidia.com/object/cube_map_ogl_tutorial.html, returns vec3 (x,y,side)
   
-vec3 cubemap_coordinates_to_2D_coordinates(vec2 cubemap_coordinates)
+vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
   {
-    return vec3(1,1,1);
+    vec3 result = vec3(0,0,0);
+    vec3 abs_coordinates= vec3(abs(cubemap_coordinates.x),abs(cubemap_coordinates.y),abs(cubemap_coordinates.z));
+  
+    if (abs_coordinates.x > abs_coordinates.y)
+      {
+        if (abs_coordinates.x > abs_coordinates.z)
+          {
+            // major axis = x
+            
+            if (cubemap_coordinates.x > 0)
+              result.z = 3;
+            else
+              result.z = 2;
+          }
+        else
+          {
+            // major axis = z
+            
+            if (cubemap_coordinates.z > 0)
+              result.z = 1;
+            else
+              result.z = 0;
+          }
+      }
+    else
+      {
+        if (abs_coordinates.y > abs_coordinates.z)
+          {
+            // major axis = y
+            
+            if (cubemap_coordinates.y > 0)
+              result.z = 4;
+            else
+              result.z = 5;
+          }
+        else
+          {
+            // major axis = z
+          
+            if (cubemap_coordinates.z > 0)
+              result.z = 1;
+            else
+              result.z = 0;
+          }
+      }
+  
+    return result;
   }
   
 // Same as get_acceleration_pixel but coordinates are cubemap coordinates.
@@ -196,7 +245,7 @@ void main()
                 + 0.001 * vec4(texture(acceleration_textures[0],uv_coords).x) + 0.001 * vec4(texture(acceleration_textures[1],uv_coords).x);
                 
                 // TEMP
-                float coooool = get_acceleration_pixel(0,0,position1.xy / 10.0,4).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
+                float coooool = get_acceleration_pixel(0,1,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
                 fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
               }
             else
