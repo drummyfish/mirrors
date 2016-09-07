@@ -100,47 +100,30 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
     vec3 result = vec3(0,0,0);
     vec3 abs_coordinates= vec3(abs(cubemap_coordinates.x),abs(cubemap_coordinates.y),abs(cubemap_coordinates.z));
   
-    if (abs_coordinates.x > abs_coordinates.y)
+    cubemap_coordinates = normalize(cubemap_coordinates);
+  
+    float maximum_axis_value = max(max(abs_coordinates.x,abs_coordinates.y),abs_coordinates.z);
+  
+    if (maximum_axis_value == abs_coordinates.x)
       {
-        if (abs_coordinates.x > abs_coordinates.z)
-          {
-            // major axis = x
-            
-            if (cubemap_coordinates.x > 0)
-              result.z = 3;
-            else
-              result.z = 2;
-          }
+        if (cubemap_coordinates.x > 0)
+          result.z = 3;
         else
-          {
-            // major axis = z
-            
-            if (cubemap_coordinates.z > 0)
-              result.z = 1;
-            else
-              result.z = 0;
-          }
+          result.z = 2;
       }
-    else
+    else if (maximum_axis_value == abs_coordinates.y)
       {
-        if (abs_coordinates.y > abs_coordinates.z)
-          {
-            // major axis = y
-            
-            if (cubemap_coordinates.y > 0)
-              result.z = 4;
-            else
-              result.z = 5;
-          }
+        if (cubemap_coordinates.y > 0)
+          result.z = 4;
         else
-          {
-            // major axis = z
-          
-            if (cubemap_coordinates.z > 0)
-              result.z = 1;
-            else
-              result.z = 0;
-          }
+          result.z = 5;
+      }
+    else if (maximum_axis_value == abs_coordinates.z)
+      {
+        if (cubemap_coordinates.z > 0)
+          result.z = 0;
+        else
+          result.z = 1;
       }
   
     return result;
@@ -245,7 +228,10 @@ void main()
                 + 0.001 * vec4(texture(acceleration_textures[0],uv_coords).x) + 0.001 * vec4(texture(acceleration_textures[1],uv_coords).x);
                 
                 // TEMP
-                float coooool = get_acceleration_pixel(0,1,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
+                //float coooool = get_acceleration_pixel(0,1,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
+                
+                vec3 pppppp = cubemaps[0].position - position1;
+                float coooool = cubemap_coordinates_to_2D_coordinates(position1).z / 5.0;
                 fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
               }
             else
