@@ -85,7 +85,6 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
     ivec2 coordinates_min = ivec2((coordinates_start_min + relative_coordinates) * texture_size);
     ivec2 coordinates_max = ivec2((coordinates_start_max + relative_coordinates) * texture_size);
     
-    
     return vec2
       (
         texelFetch(acceleration_textures[texture_index],coordinates_min,0).x,
@@ -93,6 +92,11 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
       );
   }
 
+vec2 cubemap_side_coordinates(float right, float up, float forward)
+  {
+    return vec2(0.5 + 0.5 * right / forward, 0.5 + 0.5 * up / forward);
+  }
+  
 // from http://www.nvidia.com/object/cube_map_ogl_tutorial.html, returns vec3 (x,y,side)
   
 vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
@@ -121,9 +125,15 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
     else if (maximum_axis_value == abs_coordinates.z)
       {
         if (cubemap_coordinates.z > 0)
-          result.z = 0;
+          {
+            result.xy = cubemap_side_coordinates(cubemap_coordinates.x,cubemap_coordinates.y,-1 * cubemap_coordinates.z);
+            result.z = 0;
+          }
         else
-          result.z = 1;
+          {
+            result.xy = cubemap_side_coordinates(cubemap_coordinates.x,cubemap_coordinates.y,cubemap_coordinates.z);
+            result.z = 1;
+          }
       }
   
     return result;
@@ -131,7 +141,7 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
   
 // Same as get_acceleration_pixel but coordinates are cubemap coordinates.
 
-vec2 get_acceleration_pixel_by_cubemap_coordinates(int texture_index, vec2 cubemap_coordinates ,int level)
+vec2 get_acceleration_pixel_by_cubemap_coordinates(int texture_index, vec2 cubemap_coordinates, int level)
   {
     return vec2(1.0,0.5);
   }
@@ -230,8 +240,9 @@ void main()
                 // TEMP
                 //float coooool = get_acceleration_pixel(0,1,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
                 
-                vec3 pppppp = cubemaps[0].position - position1;
-                float coooool = cubemap_coordinates_to_2D_coordinates(position1).z / 5.0;
+                vec3 coordd = cubemap_coordinates_to_2D_coordinates(position1);
+                float coooool = get_acceleration_pixel(0,int(coordd.z),coordd.xy,4).x;
+                
                 fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
               }
             else
