@@ -612,8 +612,8 @@ int main(int argc, char** argv)
     transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
     transformation_scene.set_scale(glm::vec3(6,6,6));   
 
-    transformation_mirror.set_translation(glm::vec3(0,0,0)); // TEMP
-    //transformation_mirror.set_translation(glm::vec3(0.0,30.0,-30.0));
+    //transformation_mirror.set_translation(glm::vec3(0,0,0)); // TEMP
+    transformation_mirror.set_translation(glm::vec3(0.0,30.0,-30.0));
     transformation_mirror.set_scale(glm::vec3(15.0,15.0,15.0));
     transformation_mirror.set_rotation(glm::vec3(0.0,0.0,0));
     

@@ -64,9 +64,9 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
         case 0: offset_x = 0.0;       offset_y = 0.0;   break;  // front
         case 1: offset_x = 1/3.0;     offset_y = 0.0;   break;  // back
         case 2: offset_x = 2/3.0;     offset_y = 0.0;   break;  // left
-        case 3: offset_x = 0.0;       offset_y = 1/3.0; break;  // right
-        case 4: offset_x = 1/3.0;     offset_y = 1/3.0; break;  // top
-        case 5: offset_x = 2/3.0;     offset_y = 1/3.0; break;  // bottom
+        case 3: offset_x = 0.0;       offset_y = 1/2.0; break;  // right
+        case 4: offset_x = 1/3.0;     offset_y = 1/2.0; break;  // top
+        case 5: offset_x = 2/3.0;     offset_y = 1/2.0; break;  // bottom
         default: break;
       }
      
@@ -82,8 +82,8 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
     
     vec2 texture_size = textureSize(acceleration_textures[texture_index],0);
     
-    ivec2 coordinates_min = ivec2((coordinates_start_min + relative_coordinates) * texture_size);
-    ivec2 coordinates_max = ivec2((coordinates_start_max + relative_coordinates) * texture_size);
+    ivec2 coordinates_min = ivec2((coordinates_start_min + relative_coordinates) * texture_size - vec2(1,0));  // vec2(1,0) is a pixel offset to correct pixel sampling
+    ivec2 coordinates_max = ivec2((coordinates_start_max + relative_coordinates) * texture_size - vec2(1,0));
     
     return vec2
       (
@@ -111,28 +111,40 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
     if (maximum_axis_value == abs_coordinates.x)
       {
         if (cubemap_coordinates.x > 0)
-          result.z = 3;
+          {
+            result.xy = cubemap_side_coordinates(-1 * cubemap_coordinates.z,cubemap_coordinates.y,cubemap_coordinates.x);
+            result.z = 3;
+          }
         else
-          result.z = 2;
+          {
+            result.xy = cubemap_side_coordinates(cubemap_coordinates.z,cubemap_coordinates.y,-1 * cubemap_coordinates.x);
+            result.z = 2;
+          }
       }
     else if (maximum_axis_value == abs_coordinates.y)
       {
         if (cubemap_coordinates.y > 0)
-          result.z = 4;
+          {
+            result.xy = cubemap_side_coordinates(cubemap_coordinates.x,-1 * cubemap_coordinates.z,cubemap_coordinates.y);
+            result.z = 4;
+          }
         else
-          result.z = 5;
+          {
+            result.xy = cubemap_side_coordinates(-1 * cubemap_coordinates.x,-1 * cubemap_coordinates.z,cubemap_coordinates.y);
+            result.z = 5;
+          }
       }
     else if (maximum_axis_value == abs_coordinates.z)
       {
         if (cubemap_coordinates.z > 0)
           {
-            result.xy = cubemap_side_coordinates(cubemap_coordinates.x,cubemap_coordinates.y,-1 * cubemap_coordinates.z);
-            result.z = 0;
+            result.xy = cubemap_side_coordinates(-1 * cubemap_coordinates.x,-1 * cubemap_coordinates.y,-1 * cubemap_coordinates.z);
+            result.z = 1;
           }
         else
           {
-            result.xy = cubemap_side_coordinates(cubemap_coordinates.x,cubemap_coordinates.y,cubemap_coordinates.z);
-            result.z = 1;
+            result.xy = cubemap_side_coordinates(cubemap_coordinates.x,-1 * cubemap_coordinates.y,cubemap_coordinates.z);
+            result.z = 0;
           }
       }
   
@@ -240,9 +252,8 @@ void main()
                 // TEMP
                 //float coooool = get_acceleration_pixel(0,1,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
                 
-                vec3 coordd = cubemap_coordinates_to_2D_coordinates(position1);
-                float coooool = get_acceleration_pixel(0,int(coordd.z),coordd.xy,4).x;
-                
+                vec3 coordd = cubemap_coordinates_to_2D_coordinates(position1 - vec3(0,30,-30));
+                float coooool = get_acceleration_pixel(0,int(round(coordd.z)),coordd.xy,1).x;
                 fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
               }
             else
