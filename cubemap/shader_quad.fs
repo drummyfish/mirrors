@@ -49,6 +49,19 @@ vec3 tested_point2;
 vec3 camera_to_position1;
 vec2 min_max;
 
+float get_plane_line_intersection_parametric(vec3 line_point1, vec3 line_point2, vec3 plane_point1, vec3 plane_point2, vec3 plane_point3)
+  {
+    // a, b, c:
+    vec3 plane_normal = normalize(cross(plane_point2 - plane_point1,plane_point3 - plane_point1));    
+    
+    vec3 line_direction_vector = line_point2 - line_point1;
+    // d:
+    float d = plane_normal.x * plane_point1.x + plane_normal.y * plane_point1.y + plane_normal.z * plane_point1.z;
+    float t = (d - line_point1.x * plane_normal.x - line_point1.y * plane_normal.y - line_point1.z * plane_normal.z) / (line_direction_vector.x * plane_normal.x + line_direction_vector.y * plane_normal.y + line_direction_vector.z * plane_normal.z);
+
+    return t;
+  }
+
 // Gets a (min,max) value from the acceleration texture. Level starts with 0 for the 1x1 resolution, every next level is 4 time bigger.
 
 vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int level)
@@ -91,7 +104,7 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
         texelFetch(acceleration_textures[texture_index],coordinates_max,0).x
       );
   }
-
+  
 vec2 cubemap_side_coordinates(float right, float up, float forward)
   {
     return vec2(0.5 + 0.5 * right / forward, 0.5 + 0.5 * up / forward);
@@ -179,7 +192,7 @@ vec3 get_point_on_line_by_vector(vec3 vector)
     float side2 = side1 * angle2 / angle3;
     return position1 + normalize(position1_to_position2) * side2;
   }
-  
+ 
 void main()
   {
     switch (texture_to_display)
@@ -211,7 +224,7 @@ void main()
                     interpolation_step = 0.001;
    
                     for (helper = 0; helper <= 1.0; helper += interpolation_step)
-                      {                   
+                      {
                         tested_point2 = mix(position1,position2,helper);
                         cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
              
@@ -253,7 +266,9 @@ void main()
                 //float coooool = get_acceleration_pixel(0,1,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
                 
                 vec3 coordd = cubemap_coordinates_to_2D_coordinates(position1 - vec3(0,30,-30));
-                float coooool = get_acceleration_pixel(0,int(round(coordd.z)),coordd.xy,1).x;
+                float coooool = get_acceleration_pixel(0,int(round(coordd.z)),coordd.xy,4
+                ).x;
+                
                 fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
               }
             else
