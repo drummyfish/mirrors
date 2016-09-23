@@ -62,6 +62,62 @@ float get_plane_line_intersection_parametric(vec3 line_point1, vec3 line_point2,
     return t;
   }
 
+float correct_intersection(vec2 correct_values_interval, float t)
+  {
+    if (t > correct_values_interval.y)
+      return -999999;
+    else if (t < correct_values_interval.x)
+      return 999999;
+    
+    return t;
+  }
+  
+vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec3 line_point2, int current_side, int current_x, int current_y, int level)
+  {
+    vec3 vector_start, vector_right, vector_up, forward_vector;
+    
+    vec2 correct_t_values;           // interval of t values for valid intersections
+    
+    switch (current_side)
+      {
+        case 0: vector_start = vec3(0.5,-0.5,-0.5); vector_right = vec3(-1,0,0); vector_up = vec3(0,1,0); forward_vector = vec3(0,0,-1); break;  // front
+        case 1: vector_start = vec3(-0.5,-0.5,0.5); vector_right = vec3(1,0,0); vector_up = vec3(0,1,0); forward_vector = vec3(0,0,1); break;    // back
+        case 2: vector_start = vec3(-0.5,-0.5,-0.5); vector_right = vec3(0,0,1); vector_up = vec3(0,1,0); forward_vector = vec3(-1,0,0); break;  // left
+        case 3: vector_start = vec3(0.5,-0.5,0.5); vector_right = vec3(0,0,-1); vector_up = vec3(0,1,0); forward_vector = vec3(1,0,0); break;    // right
+        case 4: vector_start = vec3(-0.5,0.5,0.5); vector_right = vec3(1,0,0); vector_up = vec3(0,0,-1); forward_vector = vec3(0,1,0); break;    // top
+        case 5: vector_start = vec3(-0.5,-0.5,-0.5); vector_right = vec3(1,0,0); vector_up = vec3(0,0,1); forward_vector = vec3(0,-1,0); break;  // bottom
+        default: break;
+      }
+   
+    // compute interval of correct t valus:
+   
+    float helper_t = get_plane_line_intersection_parametric(line_point1,line_point2,cubemap_center,cubemap_center + vector_right,cubemap_center + vector_up);   // intersection with critical plane
+
+    if (dot(line_point2 - line_point1,forward_vector) > 0)
+      correct_t_values = vec2(helper_t,999999);      // greater t gets us further away from the critical plane
+    else
+      correct_t_values = vec2(-999999,helper_t);
+    
+    vec3 start = cubemap_center + vector_start;
+  
+    float level_step =  1 / pow(2,level);
+    
+    vec3 point1 = vector_start + vector_right * (level_step * current_x) + vector_up * (level_step * current_y);
+    vec3 point2 = vector_start + vector_right * (level_step * (current_x + 1)) + vector_up * (level_step * current_y);
+    vec3 point3 = vector_start + vector_right * (level_step * current_x) + vector_up * (level_step * (current_y + 1));
+    vec3 point4 = vector_start + vector_right * (level_step * (current_x + 1)) + vector_up * (level_step * (current_y + 1));
+     
+    float t1 = correct_intersection(correct_t_values,get_plane_line_intersection_parametric(line_point1,line_point2,cubemap_center,point1,point2));
+    float t2 = correct_intersection(correct_t_values,get_plane_line_intersection_parametric(line_point1,line_point2,cubemap_center,point3,point4));
+    float t3 = correct_intersection(correct_t_values,get_plane_line_intersection_parametric(line_point1,line_point2,cubemap_center,point1,point3));
+    float t4 = correct_intersection(correct_t_values,get_plane_line_intersection_parametric(line_point1,line_point2,cubemap_center,point2,point4));
+
+    float prev_t = max(min(t1,t2),min(t3,t4));
+    float next_t = min(max(t1,t2),max(t3,t4));
+    
+    return vec2(next_t,prev_t);
+  }
+  
 // Gets a (min,max) value from the acceleration texture. Level starts with 0 for the 1x1 resolution, every next level is 4 time bigger.
 
 vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int level)
@@ -259,8 +315,9 @@ void main()
                 fragment_color =
                 (
                 best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
-                )
-                + 0.001 * vec4(texture(acceleration_textures[0],uv_coords).x) + 0.001 * vec4(texture(acceleration_textures[1],uv_coords).x);
+                );
+           
+           /*+ 0.001 * vec4(texture(acceleration_textures[0],uv_coords).x) + 0.001 * vec4(texture(acceleration_textures[1],uv_coords).x);
                 
                 // TEMP
                 //float coooool = get_acceleration_pixel(0,1,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
@@ -268,8 +325,9 @@ void main()
                 vec3 coordd = cubemap_coordinates_to_2D_coordinates(position1 - vec3(0,30,-30));
                 float coooool = get_acceleration_pixel(0,int(round(coordd.z)),coordd.xy,4
                 ).x;
-                
+                coooool = coordd.y;
                 fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
+                */
               }
             else
               fragment_color = texture(texture_color, uv_coords);
