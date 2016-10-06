@@ -3,6 +3,8 @@
 #define INTERSECTION_LIMIT 2   // what distance means intersection
 #define NUMBER_OF_CUBEMAPS 2
 #define ACCELERATION_LEVELS 9
+#define USE_ACCELERATION_LEVELS 3 // how many levels in acceleration texture to use
+#define INFINITY_T 999999         // infinite value for t (line parameter) 
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
@@ -39,15 +41,16 @@ float distance;
 float best_candidate_distance;
 float interpolation_step;
 float angle1, angle2, side1;
-int i;
+int i, j;
 
 bool intersection_found;
 
 vec4 best_candidate_color;
-vec3 distance_to_center;      // fragment (texel) distance to cubemap center 
 vec3 tested_point2;
 vec3 camera_to_position1;
 vec2 min_max;
+
+float next_acceleration_bounds[USE_ACCELERATION_LEVELS];   // contains a value of t of the next acceleration boundary for each acceleration level used
 
 float get_plane_line_intersection_parametric(vec3 line_point1, vec3 line_point2, vec3 plane_point1, vec3 plane_point2, vec3 plane_point3)
   {
@@ -65,11 +68,23 @@ float get_plane_line_intersection_parametric(vec3 line_point1, vec3 line_point2,
 float correct_intersection(vec2 correct_values_interval, float t)
   {
     if (t > correct_values_interval.y)
-      return -999999;
+      return -1 * INFINITY_T;
     else if (t < correct_values_interval.x)
-      return 999999;
+      return INFINITY_T;
     
     return t;
+  }
+
+float get_distance_to_center(int cubemap_index, vec3 cubemap_coordinates)
+  {
+    float distance_to_center;
+  
+    if (i == 0)   // for some reason cubemaps[i] causes and error - resolve this later
+      distance_to_center = textureLod(cubemaps[0].texture_distance,cube_coordinates_current,0).x;
+    else
+      distance_to_center = textureLod(cubemaps[1].texture_distance,cube_coordinates_current,0).x;
+
+    return distance_to_center; 
   }
   
 vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec3 line_point2, int current_side, int current_x, int current_y, int level)
@@ -93,10 +108,12 @@ vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec
    
     float helper_t = get_plane_line_intersection_parametric(line_point1,line_point2,cubemap_center,cubemap_center + vector_right,cubemap_center + vector_up);   // intersection with critical plane
 
-    if (dot(line_point2 - line_point1,forward_vector) > 0)
-      correct_t_values = vec2(helper_t,999999);      // greater t gets us further away from the critical plane
+    if (isinf(helper_t))  // parallel
+      correct_t_values = vec2(-1 * INFINITY_T,INFINITY_T);
+    else if (dot(line_point2 - line_point1,forward_vector) > 0)
+      correct_t_values = vec2(helper_t,INFINITY_T);      // greater t gets us further away from the critical plane
     else
-      correct_t_values = vec2(-999999,helper_t);
+      correct_t_values = vec2(-1 * INFINITY_T,helper_t);
     
     vec3 start = cubemap_center + vector_start;
   
@@ -220,13 +237,6 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
     return result;
   }
   
-// Same as get_acceleration_pixel but coordinates are cubemap coordinates.
-
-vec2 get_acceleration_pixel_by_cubemap_coordinates(int texture_index, vec2 cubemap_coordinates, int level)
-  {
-    return vec2(1.0,0.5);
-  }
-  
 float distance_to_line(vec3 line_point1, vec3 line_point2, vec3 point)
   {
     /* this is too computationally intense, let's fix using this method by
@@ -248,7 +258,7 @@ vec3 get_point_on_line_by_vector(vec3 vector)
     float side2 = side1 * angle2 / angle3;
     return position1 + normalize(position1_to_position2) * side2;
   }
- 
+  
 void main()
   {
     switch (texture_to_display)
@@ -269,7 +279,10 @@ void main()
                 position1_to_position2 = position2 - position1;
                 
                 intersection_found = false;
-                
+                  
+vec4 debug_color = vec4(0,0,0,0);
+int debug_counter = 0;
+
                 for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate through cubemaps
                   {
                     position1_to_cube_center = cubemaps[i].position - position1;
@@ -279,18 +292,80 @@ void main()
                     cube_coordinates2 = normalize(position2 - cubemaps[i].position);   
                     interpolation_step = 0.001;
    
-                    for (helper = 0; helper <= 1.0; helper += interpolation_step)
+                    for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
+                      next_acceleration_bounds[j] = -1;
+   
+                    for (helper = 0; helper <= 1.0; helper += interpolation_step)    // trace the ray
                       {
                         tested_point2 = mix(position1,position2,helper);
                         cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
              
-                        if (i == 0)   // for some reason cubemaps[i] causes and error - resolve this later
-                          distance_to_center = textureLod(cubemaps[0].texture_distance,cube_coordinates_current,0).xyz;
-                        else
-                          distance_to_center = textureLod(cubemaps[1].texture_distance,cube_coordinates_current,0).xyz;
-                        
-                        distance = abs(distance_to_center.x - length(cubemaps[i].position - tested_point2));
-                  
+                        // ==== ACCELERATION CODE HERE:
+debug_counter += 1;
+
+                        for (j = 1; j < USE_ACCELERATION_LEVELS; j++)
+                          { 
+                            if (helper >= next_acceleration_bounds[j])
+                              {
+                                vec3 tested_point2_helper = mix(position1,position2,helper + 0.05);
+                                vec3 cube_coordinates_current_helper = normalize(tested_point2_helper - cubemaps[i].position);
+                              
+                                vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
+                                ivec2 int_coordinates;
+                                
+                                float level_step = 1 / pow(2,j);
+                                
+                                int_coordinates = ivec2(int(helper_coords.x / level_step),int(helper_coords.y / level_step));
+                                
+                                vec2 helper_bounds = get_next_prev_acceleration_bound(
+                                  cubemaps[i].position,
+                                  position1,
+                                  position2,
+                                  int(helper_coords.z),
+                                  int_coordinates.x,
+                                  int_coordinates.y,
+                                  j
+                                  );
+
+                                // check if intersection can happen:
+                                
+                                vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j);
+                         
+if (helper_bounds.x < helper)                         
+  debug_color = vec4(helper - helper_bounds.x,0,0,0);
+                         
+//if (helper_bounds.x < helper)
+//  debug_color = vec4(0,1,0,0);
+                                
+                                vec3 cubemap_coordinates_next = mix(position1,position2,helper_bounds.x);
+                                vec3 cubemap_coordinates_previous = mix(position1,position2,helper_bounds.y);
+                                
+                                float depth_next = get_distance_to_center(i,cubemap_coordinates_next);
+                                float depth_previous = get_distance_to_center(i,cubemap_coordinates_previous);
+                            
+                                if
+                                  (
+                                  
+                // THIS NEVER HAPPENS - WTF?
+                                  
+                                    (min_max.x < depth_next && depth_next < min_max.y) ||
+                                    (min_max.x < depth_previous && depth_previous < min_max.y) ||
+                                    (depth_next > min_max.y && depth_previous < min_max.x) ||
+                                    (depth_next < min_max.x && depth_previous > min_max.y)  
+                                  )
+                                  {
+                                    helper = helper_bounds.x + interpolation_step;  // jump to next bound
+                                    break;
+                                  }
+                                else
+                                  next_acceleration_bounds[j] = helper_bounds.x;
+                              }
+                          }
+                          
+                        // ==== END OF ACCELERATION CODE
+               
+                        distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
+               
                         if (distance < best_candidate_distance)
                           {
                             best_candidate_distance = distance;
@@ -316,18 +391,12 @@ void main()
                 (
                 best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
                 );
-           
-           /*+ 0.001 * vec4(texture(acceleration_textures[0],uv_coords).x) + 0.001 * vec4(texture(acceleration_textures[1],uv_coords).x);
                 
-                // TEMP
-                //float coooool = get_acceleration_pixel(0,1,position1.xy / 10.0,3).x; //    texture(acceleration_textures[0],position1.xy / 20.0).x;
-                
-                vec3 coordd = cubemap_coordinates_to_2D_coordinates(position1 - vec3(0,30,-30));
-                float coooool = get_acceleration_pixel(0,int(round(coordd.z)),coordd.xy,4
-                ).x;
-                coooool = coordd.y;
-                fragment_color = 0.01 * fragment_color + vec4(coooool,coooool,coooool,0); //vec4(get_acceleration_pixel(0,0,uv_coords.x,uv_coords.y,0),0,0);
-                */
+
+//float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
+//debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
+fragment_color = 0.001 * fragment_color + debug_color;
+
               }
             else
               fragment_color = texture(texture_color, uv_coords);
