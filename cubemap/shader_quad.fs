@@ -305,7 +305,7 @@ debug_counter += 1;
 
 if (debug_counter > 100000)
   {
-    debug_color = vec4(255,255,0,0);
+ //   debug_color = vec4(255,255,0,0);
     break;
   }
 
@@ -345,19 +345,24 @@ if (debug_counter > 100000)
                                 
                                 float depth_next = get_distance_to_center(i,cubemap_coordinates_next);
                                 float depth_previous = get_distance_to_center(i,cubemap_coordinates_previous);
-                            
+//min_max = vec2(0,0);                          
                                 if
                                   (
-                                  true
+                
                 // THIS NEVER HAPPENS - WTF?
-                                  
-                         //           (min_max.x < depth_next && depth_next < min_max.y) ||
-                         //           (min_max.x < depth_previous && depth_previous < min_max.y) ||
-                         //           (depth_next > min_max.y && depth_previous < min_max.x) ||
-                         //           (depth_next < min_max.x && depth_previous > min_max.y)  
+
+                                      (min_max.y < depth_next && min_max.y < depth_previous) ||
+                                      (min_max.x > depth_previous && min_max.x > depth_previous)
+
+                          
+                          //          (min_max.x < depth_next && depth_next < min_max.y) ||
+                          //          (min_max.x < depth_previous && depth_previous < min_max.y) ||
+                          //          (depth_next > min_max.y && depth_previous < min_max.x) ||
+                          //          (depth_next < min_max.x && depth_previous > min_max.y)
                                   )
                                   {
                                     helper = helper_bounds.x + interpolation_step;  // jump to next bound
+debug_color = vec4(255,255,0,0);
                                     break;
                                   }
                                 else
@@ -396,14 +401,14 @@ if (debug_counter > 100000)
                 );
                 
 
-float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
-debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
+//float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
+//debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
 
 //vec3 hhhhhh = cubemap_coordinates_to_2D_coordinates(-1 * position1_to_cube_center);
 
 //debug_color = vec4(hhhhhh.x,hhhhhh.y,0,0);
 
-fragment_color = 0.001 * fragment_color + debug_color;
+//fragment_color = 0.001 * fragment_color + debug_color;
 
               }
             else

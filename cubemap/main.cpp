@@ -2,8 +2,8 @@
 
 #define CAMERA_STEP 0.1
 #define ROTATION_STEP 0.1
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 480
 #define CUBEMAP_RESOLUTION 512
 
 TransformationTRSModel transformation_scene;
@@ -419,7 +419,7 @@ void recompute_cubemap()
     cubemaps[0]->get_texture_distance()->load_from_gpu();      
     cubemaps[1]->get_texture_color()->load_from_gpu();  
     cubemaps[1]->get_texture_depth()->load_from_gpu();
-   
+    
     //save_images();
   }  
 
@@ -465,12 +465,11 @@ void special_callback(int key, int x, int y)
           for (int i = 0; i < 2; i++)
             {
               create_acceleration_texture_sw(cubemaps[i],acceleration_textures[i]);
-              acceleration_textures[i]->get_image_data()->raise_to_power(256);
+           //   acceleration_textures[i]->get_image_data()->raise_to_power(256);
               acceleration_textures[i]->update_gpu();
             }
           
-          cout << acceleration_textures[0]->get_max_value() << endl;
-          cout << acceleration_textures[0]->get_max_value() << endl;
+          cout << "acceleration max: " << acceleration_textures[0]->get_max_value() << endl;
           
        //   acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
        //   acceleration_textures[1]->get_image_data()->save_ppm("cubemap_images/acceleration2.ppm");
@@ -605,7 +604,7 @@ int main(int argc, char** argv)
     
     ErrorWriter::checkGlErrors("cube map init",true);
       
-    cubemaps[0]->transformation.set_translation(glm::vec3(-10,35,-17));
+    cubemaps[0]->transformation.set_translation(glm::vec3(0.0,30.0,-30.0));
     cubemaps[1]->transformation.set_translation(glm::vec3(-18,35,-22));
     
     transformation_sky.set_scale(glm::vec3(100.0,100.0,100.0));
