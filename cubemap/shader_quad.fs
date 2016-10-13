@@ -348,11 +348,8 @@ if (debug_counter > 100000)
 //min_max = vec2(0,0);                          
                                 if
                                   (
-                
-                // THIS NEVER HAPPENS - WTF?
-
-                                      (min_max.y < depth_next && min_max.y < depth_previous) ||
-                                      (min_max.x > depth_previous && min_max.x > depth_previous)
+                                      (min_max.y < depth_next && min_max.y < depth_previous)  ||       // <--- this always happens
+                                      (min_max.x > depth_next && min_max.x > depth_previous)           // <--- this never happens
 
                           
                           //          (min_max.x < depth_next && depth_next < min_max.y) ||
