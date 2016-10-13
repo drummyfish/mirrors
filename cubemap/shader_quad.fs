@@ -119,10 +119,10 @@ vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec
   
     float level_step =  1 / pow(2,level);
     
-    vec3 point1 = vector_start + vector_right * (level_step * current_x) + vector_up * (level_step * current_y);
-    vec3 point2 = vector_start + vector_right * (level_step * (current_x + 1)) + vector_up * (level_step * current_y);
-    vec3 point3 = vector_start + vector_right * (level_step * current_x) + vector_up * (level_step * (current_y + 1));
-    vec3 point4 = vector_start + vector_right * (level_step * (current_x + 1)) + vector_up * (level_step * (current_y + 1));
+    vec3 point1 = cubemap_center + vector_start + vector_right * (level_step * current_x) + vector_up * (level_step * current_y);
+    vec3 point2 = cubemap_center + vector_start + vector_right * (level_step * (current_x + 1)) + vector_up * (level_step * current_y);
+    vec3 point3 = cubemap_center + vector_start + vector_right * (level_step * current_x) + vector_up * (level_step * (current_y + 1));
+    vec3 point4 = cubemap_center + vector_start + vector_right * (level_step * (current_x + 1)) + vector_up * (level_step * (current_y + 1));
      
     float t1 = correct_intersection(correct_t_values,get_plane_line_intersection_parametric(line_point1,line_point2,cubemap_center,point1,point2));
     float t2 = correct_intersection(correct_t_values,get_plane_line_intersection_parametric(line_point1,line_point2,cubemap_center,point3,point4));
@@ -303,12 +303,18 @@ int debug_counter = 0;
                         // ==== ACCELERATION CODE HERE:
 debug_counter += 1;
 
-                        for (j = 1; j < USE_ACCELERATION_LEVELS; j++)
+if (debug_counter > 100000)
+  {
+    debug_color = vec4(255,255,0,0);
+    break;
+  }
+
+                        for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                           { 
-                            if (helper >= next_acceleration_bounds[j])
+                            if (helper > next_acceleration_bounds[j])
                               {
-                                vec3 tested_point2_helper = mix(position1,position2,helper + 0.05);
-                                vec3 cube_coordinates_current_helper = normalize(tested_point2_helper - cubemaps[i].position);
+   //                             vec3 tested_point2_helper = mix(position1,position2,helper + 0.05);
+   //                             vec3 cube_coordinates_current_helper = normalize(tested_point2_helper - cubemaps[i].position);
                               
                                 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
                                 ivec2 int_coordinates;
@@ -331,9 +337,6 @@ debug_counter += 1;
                                 
                                 vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j);
                          
-if (helper_bounds.x < helper)                         
-  debug_color = vec4(helper - helper_bounds.x,0,0,0);
-                         
 //if (helper_bounds.x < helper)
 //  debug_color = vec4(0,1,0,0);
                                 
@@ -345,13 +348,13 @@ if (helper_bounds.x < helper)
                             
                                 if
                                   (
-                                  
+                                  true
                 // THIS NEVER HAPPENS - WTF?
                                   
-                                    (min_max.x < depth_next && depth_next < min_max.y) ||
-                                    (min_max.x < depth_previous && depth_previous < min_max.y) ||
-                                    (depth_next > min_max.y && depth_previous < min_max.x) ||
-                                    (depth_next < min_max.x && depth_previous > min_max.y)  
+                         //           (min_max.x < depth_next && depth_next < min_max.y) ||
+                         //           (min_max.x < depth_previous && depth_previous < min_max.y) ||
+                         //           (depth_next > min_max.y && depth_previous < min_max.x) ||
+                         //           (depth_next < min_max.x && depth_previous > min_max.y)  
                                   )
                                   {
                                     helper = helper_bounds.x + interpolation_step;  // jump to next bound
@@ -393,8 +396,13 @@ if (helper_bounds.x < helper)
                 );
                 
 
-//float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
-//debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
+float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
+debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
+
+//vec3 hhhhhh = cubemap_coordinates_to_2D_coordinates(-1 * position1_to_cube_center);
+
+//debug_color = vec4(hhhhhh.x,hhhhhh.y,0,0);
+
 fragment_color = 0.001 * fragment_color + debug_color;
 
               }
