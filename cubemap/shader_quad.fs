@@ -14,6 +14,10 @@ struct environment_cubemap
   {
     samplerCube texture_color;        // contains color
     samplerCube texture_distance;     // contains distance to cubemap center
+    
+    // ^ samplerCube may need to be changed to samplerCubeShadow, see https://www.opengl.org/wiki/Sampler_(GLSL)
+    // depth values are now not normalized values!
+    
     vec3 position;                    // cubemap world position
   };
 
@@ -310,7 +314,7 @@ if (debug_counter > 100000)
   }
 
                         for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
-                          { 
+                          {
                             if (helper > next_acceleration_bounds[j])
                               {
    //                             vec3 tested_point2_helper = mix(position1,position2,helper + 0.05);
@@ -404,6 +408,22 @@ debug_color = vec4(255,255,0,0);
 //vec3 hhhhhh = cubemap_coordinates_to_2D_coordinates(-1 * position1_to_cube_center);
 
 //debug_color = vec4(hhhhhh.x,hhhhhh.y,0,0);
+
+
+/*
+float ddddd = get_distance_to_center(0,position1 - cubemaps[0].position);
+ddddd = (ddddd - 0.01) / (1000 - 0.01);
+//ddddd = pow(ddddd,512);
+debug_color = vec4(ddddd,ddddd,ddddd,0);
+*/
+
+/*
+vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
+float ddddd = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,2).x;
+//ddddd = pow(ddddd,512);
+ddddd = ddddd / 1000;
+debug_color = vec4(ddddd,ddddd,ddddd,0);
+*/
 
 //fragment_color = 0.001 * fragment_color + debug_color;
 

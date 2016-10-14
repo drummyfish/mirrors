@@ -5,6 +5,8 @@
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
 #define CUBEMAP_RESOLUTION 512
+#define NEAR 0.01f
+#define FAR 1000.0f
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
@@ -18,7 +20,7 @@ Geometry3D *geometry_mirror;
 Geometry3D *geometry_box;             // box marking the cube map positions
 
 glm::mat4 view_matrix = glm::mat4(1.0f);
-glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 1000.0f);
+glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, NEAR, FAR);
 
 UniformVariable uniform_mirror("mirror");
 UniformVariable uniform_light_direction("light_direction");
@@ -324,6 +326,8 @@ void create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap, Texture2D *
                     for (x = 0; x < block_size; x++)
                       {
                         image_data->get_pixel(i * block_size + x,j * block_size + y,&r,&g,&b,&a);
+                        
+r = (2 * NEAR) / (FAR + NEAR - r * (FAR - NEAR)) * (FAR - NEAR);     // linearizes depth                       
                         
                         if (r > maximum)
                           maximum = r;
