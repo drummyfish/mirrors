@@ -80,9 +80,9 @@ float get_distance_to_center(int cubemap_index, vec3 cubemap_coordinates)
     float distance_to_center;
   
     if (i == 0)   // for some reason cubemaps[i] causes and error - resolve this later
-      distance_to_center = textureLod(cubemaps[0].texture_distance,cube_coordinates_current,0).x;
+      distance_to_center = textureLod(cubemaps[0].texture_distance,cubemap_coordinates,0).x;
     else
-      distance_to_center = textureLod(cubemaps[1].texture_distance,cube_coordinates_current,0).x;
+      distance_to_center = textureLod(cubemaps[1].texture_distance,cubemap_coordinates,0).x;
 
     return distance_to_center; 
   }
@@ -363,7 +363,7 @@ debug_color = vec4(255,255,0,0);
                                     break;
                                   }
                                 else
-                                  next_acceleration_bounds[j] = helper_bounds.x;
+                                  next_acceleration_bounds[j] = helper_bounds.x + interpolation_step;
                               }
                           }
                           
