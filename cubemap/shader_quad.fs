@@ -48,6 +48,7 @@ float angle1, angle2, side1;
 int i, j;
 
 bool intersection_found;
+bool skipped;
 
 vec4 best_candidate_color;
 vec3 tested_point2;
@@ -305,6 +306,8 @@ int debug_counter = 0;
                         cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
              
                         // ==== ACCELERATION CODE HERE:
+                        
+                        skipped = false;
 debug_counter += 1;
 
 if (debug_counter > 100000)
@@ -336,7 +339,7 @@ if (debug_counter > 100000)
                                   int_coordinates.y,
                                   j
                                   );
-
+                                  
                                 // check if intersection can happen:
                                 
                                 vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j);
@@ -351,9 +354,9 @@ if (debug_counter > 100000)
                                 float depth_previous = get_distance_to_center(i,cubemap_coordinates_previous);
 //min_max = vec2(0,0);                          
                                 if
-                                  (
-                                      (min_max.y < depth_next && min_max.y < depth_previous)  ||       // <--- this always happens
-                                      (min_max.x > depth_next && min_max.x > depth_previous)           // <--- this never happens
+                                  ( 
+                                    (min_max.y < depth_next && min_max.y < depth_previous)  ||       // <--- this always happens
+                                    (min_max.x > depth_next && min_max.x > depth_previous)           // <--- this never happens
 
                           
                           //          (min_max.x < depth_next && depth_next < min_max.y) ||
@@ -362,7 +365,8 @@ if (debug_counter > 100000)
                           //          (depth_next < min_max.x && depth_previous > min_max.y)
                                   )
                                   {
-                                    helper = helper_bounds.x + interpolation_step;  // jump to next bound
+                                    helper = helper_bounds.x;  // jump to next bound
+                                    skipped = true;
 debug_color = vec4(255,255,0,0);
                                     break;
                                   }
@@ -370,6 +374,9 @@ debug_color = vec4(255,255,0,0);
                                   next_acceleration_bounds[j] = helper_bounds.x + interpolation_step;
                               }
                           }
+                          
+                        if (skipped)
+                          continue;
                           
                         // ==== END OF ACCELERATION CODE
                
@@ -401,31 +408,27 @@ debug_color = vec4(255,255,0,0);
                 best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
                 );
                 
-
 //float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
 //debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
-
 //vec3 hhhhhh = cubemap_coordinates_to_2D_coordinates(-1 * position1_to_cube_center);
-
 //debug_color = vec4(hhhhhh.x,hhhhhh.y,0,0);
 
-
-/*
 float ddddd = get_distance_to_center(0,position1 - cubemaps[0].position);
-ddddd = (ddddd - 0.01) / (1000 - 0.01);
+ddddd = ddddd / 1000.0;
 //ddddd = pow(ddddd,512);
 debug_color = vec4(ddddd,ddddd,ddddd,0);
-*/
 
 /*
 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
-float ddddd = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,2).x;
-//ddddd = pow(ddddd,512);
+float ddddd = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,3).y;
 ddddd = ddddd / 1000;
 debug_color = vec4(ddddd,ddddd,ddddd,0);
 */
 
-//fragment_color = 0.001 * fragment_color + debug_color;
+//float deb_int = debug_counter / 10000.0;
+//debug_color = vec4(deb_int,deb_int,deb_int,0);
+
+fragment_color = 0.001 * fragment_color + debug_color;
 
               }
             else
