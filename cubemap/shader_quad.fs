@@ -13,18 +13,14 @@ in vec2 uv_coords;
 struct environment_cubemap
   {
     samplerCube texture_color;        // contains color
-    samplerCube texture_distance;     // contains distance to cubemap center
-    
-    // ^ samplerCube may need to be changed to samplerCubeShadow, see https://www.opengl.org/wiki/Sampler_(GLSL)
-    // depth values are now not normalized values!
-    
+    samplerCube texture_distance;     // contains distance to cubemap center, this is NOT a depth texture
     vec3 position;                    // cubemap world position
   };
 
 uniform environment_cubemap cubemaps[NUMBER_OF_CUBEMAPS];
 
 uniform vec3 camera_position;
-uniform int texture_to_display;      // which texture to display (1 = color, 2 = normal etc.)
+uniform int texture_to_display;       // which texture to display (1 = color, 2 = normal etc.)
 uniform sampler2D texture_color;
 uniform sampler2D texture_normal;
 uniform sampler2D texture_position;
@@ -408,15 +404,15 @@ debug_color = vec4(255,255,0,0);
                 best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
                 );
                 
-//float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
-//debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
+float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
+debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
 //vec3 hhhhhh = cubemap_coordinates_to_2D_coordinates(-1 * position1_to_cube_center);
 //debug_color = vec4(hhhhhh.x,hhhhhh.y,0,0);
 
-float ddddd = get_distance_to_center(0,position1 - cubemaps[0].position);
-ddddd = ddddd / 1000.0;
+//float ddddd = get_distance_to_center(0,position1 - cubemaps[0].position);
+//ddddd = ddddd / 1000.0;
 //ddddd = pow(ddddd,512);
-debug_color = vec4(ddddd,ddddd,ddddd,0);
+//debug_color = vec4(ddddd,ddddd,ddddd,0);
 
 /*
 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);

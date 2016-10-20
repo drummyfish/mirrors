@@ -272,33 +272,33 @@ void create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap, Texture2D *
         switch (texture_direction)
           {
             case 0:
-              image_data = cubemap->get_texture_depth()->image_front;
+              image_data = cubemap->get_texture_distance()->image_front;
               offset_x = 0; offset_y = 0;
               break;
               
             case 1:
-              image_data = cubemap->get_texture_depth()->image_back;
+              image_data = cubemap->get_texture_distance()->image_back;
               offset_x = size; offset_y = 0;
               break;
               
             case 2:
-              image_data = cubemap->get_texture_depth()->image_left;
+              image_data = cubemap->get_texture_distance()->image_left;
               offset_x = 2 * size; offset_y = 0;
               break;
               
             case 3:
-              image_data = cubemap->get_texture_depth()->image_right;
+              image_data = cubemap->get_texture_distance()->image_right;
               offset_x = 0; offset_y = size;
               break;
               
             case 4:
-              image_data = cubemap->get_texture_depth()->image_top;
+              image_data = cubemap->get_texture_distance()->image_top;
               offset_x = size; offset_y = size;
               break;
               
             case 5:
             default:
-              image_data = cubemap->get_texture_depth()->image_bottom;
+              image_data = cubemap->get_texture_distance()->image_bottom;
               offset_x = 2 * size; offset_y = size;
               break;
           }
@@ -327,7 +327,7 @@ void create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap, Texture2D *
                       {
                         image_data->get_pixel(i * block_size + x,j * block_size + y,&r,&g,&b,&a);
                         
-r = (2 * NEAR) / (FAR + NEAR - r * (FAR - NEAR)) * (FAR - NEAR);     // linearizes depth                       
+//r = (2 * NEAR) / (FAR + NEAR - r * (FAR - NEAR)) * (FAR - NEAR);     // linearizes depth                       
                         
                         if (r > maximum)
                           maximum = r;
