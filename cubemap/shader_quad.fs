@@ -80,6 +80,7 @@ float get_distance_to_center(int cubemap_index, vec3 cubemap_coordinates)
   {
     float distance_to_center;
   
+    // note: the reason is explained here - https://www.opengl.org/discussion_boards/showthread.php/171328-Issues-with-sampler-arrays-and-unrolling
     if (i == 0)   // for some reason cubemaps[i] causes and error - resolve this later
       distance_to_center = textureLod(cubemaps[0].texture_distance,cubemap_coordinates,0).x;
     else
@@ -172,11 +173,23 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
     ivec2 coordinates_min = ivec2((coordinates_start_min + relative_coordinates) * texture_size - vec2(1,0));  // vec2(1,0) is a pixel offset to correct pixel sampling
     ivec2 coordinates_max = ivec2((coordinates_start_max + relative_coordinates) * texture_size - vec2(1,0));
     
-    return vec2
-      (
-        texelFetch(acceleration_textures[texture_index],coordinates_min,0).x,
-        texelFetch(acceleration_textures[texture_index],coordinates_max,0).x
-      );
+    vec2 result;
+    
+    // can't index the sampler array with non-constants for the same reason as in get_distance_to_center
+    if (texture_index == 0)    
+      result = vec2
+        (
+          texelFetch(acceleration_textures[0],coordinates_min,0).x,
+          texelFetch(acceleration_textures[0],coordinates_max,0).x
+        );
+    else
+      result = vec2
+        (
+          texelFetch(acceleration_textures[1],coordinates_min,0).x,
+          texelFetch(acceleration_textures[1],coordinates_max,0).x
+        );
+      
+    return result;
   }
   
 vec2 cubemap_side_coordinates(float right, float up, float forward)
@@ -339,7 +352,7 @@ if (debug_counter > 100000)
                                 // check if intersection can happen:
                                 
                                 vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j);
-                         
+                        
 //if (helper_bounds.x < helper)
 //  debug_color = vec4(0,1,0,0);
                                 
@@ -350,11 +363,10 @@ if (debug_counter > 100000)
                                 float depth_previous = get_distance_to_center(i,cubemap_coordinates_previous);
 //min_max = vec2(0,0);                          
                                 if
-                                  ( 
+                                  (
                                     (min_max.y < depth_next && min_max.y < depth_previous)  ||       // <--- this always happens
                                     (min_max.x > depth_next && min_max.x > depth_previous)           // <--- this never happens
 
-                          
                           //          (min_max.x < depth_next && depth_next < min_max.y) ||
                           //          (min_max.x < depth_previous && depth_previous < min_max.y) ||
                           //          (depth_next > min_max.y && depth_previous < min_max.x) ||
@@ -404,8 +416,8 @@ debug_color = vec4(255,255,0,0);
                 best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
                 );
                 
-float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
-debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
+//float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
+//debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
 //vec3 hhhhhh = cubemap_coordinates_to_2D_coordinates(-1 * position1_to_cube_center);
 //debug_color = vec4(hhhhhh.x,hhhhhh.y,0,0);
 
@@ -414,17 +426,17 @@ debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
 //ddddd = pow(ddddd,512);
 //debug_color = vec4(ddddd,ddddd,ddddd,0);
 
-/*
-vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
-float ddddd = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,3).y;
-ddddd = ddddd / 1000;
-debug_color = vec4(ddddd,ddddd,ddddd,0);
-*/
+//vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
+//float ddddd = get_acceleration_pixel(1,int(helper_coords.z),helper_coords.xy,3).x;
+//ivec2 heeelpcoord = ivec2(int(transformed_position.x * 640),int(transformed_position.y * 640));
+//float ddddd = texelFetch(acceleration_textures[1],heeelpcoord,0).x;
+//ddddd = ddddd / 1000;
+//debug_color = vec4(ddddd,ddddd,ddddd,0);
 
 //float deb_int = debug_counter / 10000.0;
 //debug_color = vec4(deb_int,deb_int,deb_int,0);
 
-fragment_color = 0.001 * fragment_color + debug_color;
+//fragment_color = 0.001 * fragment_color + debug_color;
 
               }
             else

@@ -267,6 +267,8 @@ void create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap, Texture2D *
     Image2D *result_image_data = result->get_image_data();
     int texture_direction;
     
+    cout << "creating acceleration texture on CPU" << endl;
+    
     for (texture_direction = 0; texture_direction < 6; texture_direction++)
       {
         switch (texture_direction)
@@ -423,6 +425,7 @@ void recompute_cubemap()
     cubemaps[0]->get_texture_distance()->load_from_gpu();      
     cubemaps[1]->get_texture_color()->load_from_gpu();  
     cubemaps[1]->get_texture_depth()->load_from_gpu();
+    cubemaps[1]->get_texture_distance()->load_from_gpu();   
     
     //save_images();
   }  
@@ -470,11 +473,13 @@ void special_callback(int key, int x, int y)
             {
               create_acceleration_texture_sw(cubemaps[i],acceleration_textures[i]);
            //   acceleration_textures[i]->get_image_data()->raise_to_power(256);
+              cout << "updating acceleration texture " << i << endl;
               acceleration_textures[i]->update_gpu();
             }
           
           cout << "acceleration max: " << acceleration_textures[0]->get_max_value() << endl;
-          
+          cout << "acceleration 2 max: " << acceleration_textures[1]->get_max_value() << endl;
+
        //   acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
        //   acceleration_textures[1]->get_image_data()->save_ppm("cubemap_images/acceleration2.ppm");
        //   save_images();
