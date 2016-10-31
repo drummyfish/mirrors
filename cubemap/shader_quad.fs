@@ -137,7 +137,7 @@ vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec
     return vec2(next_t,prev_t);
   }
   
-// Gets a (min,max) value from the acceleration texture. Level starts with 0 for the 1x1 resolution, every next level is 4 time bigger.
+// Gets a (min,max) value from the acceleration texture. Level starts with 0 for the 1x1 resolution, every next level is 4 times bigger.
 
 vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int level)
   {
@@ -251,28 +251,6 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
     return result;
   }
   
-float distance_to_line(vec3 line_point1, vec3 line_point2, vec3 point)
-  {
-    /* this is too computationally intense, let's fix using this method by
-       using "distance" texture instead of world-position texture and simply
-       computing distance of two points in 3D */
-    return length(cross(point - line_point1,point - line_point2)) / length(line_point2 - line_point1);
-  }
-
-float decide_interpolation_step(vec3 coordinates1, vec3 coordinates2)
-  {
-    float angle = dot(coordinates1,coordinates2);
-    return 1.0 / (-255 * angle + 256);
-  }
-  
-vec3 get_point_on_line_by_vector(vec3 vector)
-  {
-    float angle2 = acos(dot(normalize(vector),cube_coordinates1));
-    float angle3 = 3.1415926535 - angle2 - angle1;
-    float side2 = side1 * angle2 / angle3;
-    return position1 + normalize(position1_to_position2) * side2;
-  }
-  
 void main()
   {
     switch (texture_to_display)
@@ -294,10 +272,11 @@ void main()
                 
                 intersection_found = false;
                   
-vec4 debug_color = vec4(0,0,0,0);
+vec4 debug_color = vec4(0,0,0,1);
 int debug_counter = 0;
+int skip_counter = 0;
 
-                for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate through cubemaps
+                for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
                   {
                     position1_to_cube_center = cubemaps[i].position - position1;
                     angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
@@ -309,29 +288,32 @@ int debug_counter = 0;
                     for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                       next_acceleration_bounds[j] = -1;
    
-                    for (helper = 0; helper <= 1.0; helper += interpolation_step)    // trace the ray
+                    helper = 0.0;
+                    
+                    while (helper <= 1.0)
+                    //for (helper = 0; helper <= 1.0; helper += interpolation_step)    // trace the ray
                       {
+                        helper += interpolation_step;
+                      
                         tested_point2 = mix(position1,position2,helper);
                         cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
              
                         // ==== ACCELERATION CODE HERE:
                         
                         skipped = false;
-debug_counter += 1;
 
-if (debug_counter > 100000)
-  {
- //   debug_color = vec4(255,255,0,0);
-    break;
-  }
+                        debug_counter += 1;
 
+                        if (debug_counter > 100000)
+                          {
+                            //   debug_color = vec4(255,255,0,0);
+                            break;
+                          }
+                          
                         for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                           {
                             if (helper > next_acceleration_bounds[j])
                               {
-   //                             vec3 tested_point2_helper = mix(position1,position2,helper + 0.05);
-   //                             vec3 cube_coordinates_current_helper = normalize(tested_point2_helper - cubemaps[i].position);
-                              
                                 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
                                 ivec2 int_coordinates;
                                 
@@ -352,37 +334,31 @@ if (debug_counter > 100000)
                                 // check if intersection can happen:
                                 
                                 vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j);
-                        
-//if (helper_bounds.x < helper)
-//  debug_color = vec4(0,1,0,0);
                                 
                                 vec3 cubemap_coordinates_next = mix(position1,position2,helper_bounds.x);
                                 vec3 cubemap_coordinates_previous = mix(position1,position2,helper_bounds.y);
                                 
                                 float depth_next = get_distance_to_center(i,cubemap_coordinates_next);
                                 float depth_previous = get_distance_to_center(i,cubemap_coordinates_previous);
-//min_max = vec2(0,0);                          
+
                                 if
                                   (
-                                    (min_max.y < depth_next && min_max.y < depth_previous)  ||       // <--- this always happens
-                                    (min_max.x > depth_next && min_max.x > depth_previous)           // <--- this never happens
-
-                          //          (min_max.x < depth_next && depth_next < min_max.y) ||
-                          //          (min_max.x < depth_previous && depth_previous < min_max.y) ||
-                          //          (depth_next > min_max.y && depth_previous < min_max.x) ||
-                          //          (depth_next < min_max.x && depth_previous > min_max.y)
+                                    (min_max.y < depth_next && min_max.y < depth_previous)  ||
+                                    (min_max.x > depth_next && min_max.x > depth_previous)    
                                   )
                                   {
+debug_color = vec4(0,255,0,0);
+skip_counter += 1;
                                     helper = helper_bounds.x;  // jump to next bound
+                                              
                                     skipped = true;
-debug_color = vec4(255,255,0,0);
                                     break;
                                   }
                                 else
                                   next_acceleration_bounds[j] = helper_bounds.x + interpolation_step;
                               }
                           }
-                          
+                           
                         if (skipped)
                           continue;
                           
@@ -412,12 +388,15 @@ debug_color = vec4(255,255,0,0);
                   }
                 
                 fragment_color =
-                (
-                best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
-                );
+                  (
+                    best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
+                  );
                 
 //float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
+
+//float debug_intensity = debug_counter / (1.0 / interpolation_step);
 //debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
+
 //vec3 hhhhhh = cubemap_coordinates_to_2D_coordinates(-1 * position1_to_cube_center);
 //debug_color = vec4(hhhhhh.x,hhhhhh.y,0,0);
 
@@ -428,7 +407,7 @@ debug_color = vec4(255,255,0,0);
 
 //vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
 //float ddddd = get_acceleration_pixel(1,int(helper_coords.z),helper_coords.xy,3).x;
-//ivec2 heeelpcoord = ivec2(int(transformed_position.x * 640),int(transformed_position.y * 640));
+//vec2 heeelpcoord = ivec2(int(transformed_position.x * 640),int(transformed_position.y * 640));
 //float ddddd = texelFetch(acceleration_textures[1],heeelpcoord,0).x;
 //ddddd = ddddd / 1000;
 //debug_color = vec4(ddddd,ddddd,ddddd,0);
