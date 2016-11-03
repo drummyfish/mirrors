@@ -21,6 +21,7 @@ uniform environment_cubemap cubemaps[NUMBER_OF_CUBEMAPS];
 
 uniform vec3 camera_position;
 uniform int texture_to_display;       // which texture to display (1 = color, 2 = normal etc.)
+uniform int acceleration_on;
 uniform sampler2D texture_color;
 uniform sampler2D texture_normal;
 uniform sampler2D texture_position;
@@ -285,11 +286,33 @@ void main()
                 
                 intersection_found = false;
                   
-                vec4 debug_color = vec4(0,0,0,1);
-                int debug_counter = 0;
+                int iteration_counter = 0;
                 int skip_counter = 0;
-
-                for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
+              
+                if (texture_to_display == 5)   // debugging code, displays some information in the mirror pixel
+                  {
+                    vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
+                    float helper_intensity = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,2).x / 1000.0;
+                    float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
+                   
+                    // uncomment one of following
+                    
+                    // --- acceleration texture ---
+                    fragment_color = vec4(helper_intensity,helper_intensity,helper_intensity,0);
+                    
+                    // --- acceleration on ---
+                    //fragment_color = vec4(float(acceleration_on),float(acceleration_on),float(acceleration_on),0);
+                    
+                    // --- cubemap coordinates ---
+                    //fragment_color = vec4(helper_coords.x,helper_coords.y,helper_coords.z,0);    
+                    
+                    // --- distance to center ---
+                    //fragment_color = vec4(helper_distance,helper_distance,helper_distance,0);
+                    
+                    break;
+                  }
+              
+                for (i = 0; i < 1/*NUMBER_OF_CUBEMAPS*/; i++)  // iterate the cubemaps
                   {
                     position1_to_cube_center = cubemaps[i].position - position1;
                     cube_coordinates1 = normalize(position1 - cubemaps[i].position);
@@ -312,15 +335,18 @@ void main()
                         
                         skipped = false;
 
-                        debug_counter += 1;
+                        iteration_counter += 1;
 
-                        if (debug_counter > 100000)      // prevent the forever loop in case of bugs
+                        if (iteration_counter > 100000)      // prevent the forever loop in case of bugs
                           {
                             break;
                           }
                           
                         for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                           {
+                            if (acceleration_on < 1)
+                              break;
+                          
                             if (t > next_acceleration_bounds[j])
                               {
                                 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
@@ -356,7 +382,6 @@ void main()
                                     (min_max.x > depth_next && min_max.x > depth_previous)    
                                   )
                                   {
-                                    debug_color = vec4(0,255,0,0);
                                     skip_counter += 1;
 
                                     t = helper_bounds.x;  // jump to the next bound
@@ -399,23 +424,13 @@ void main()
                 
                 fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
                 
-                if (texture_to_display == 5)   // debugging code, displays some information in the mirror pixel
+                if (texture_to_display == 6)   // debugging code 2, displays some information computed after tracing
                   {
-                    vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
-                    float helper_intensity = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j).x / 1000.0;
-                    float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
+                    float iterations_float = iteration_counter / 10000.0;
                     
-                    // acceleration texture
-                    //fragment_color = vec4(helper_intensity,helper_intensity,helper_intensity,0);
-                    
-                    // cubemap coordinates:
-                    //fragment_color = vec4(helper_coords.x,helper_coords.y,helper_coords.z,0);    
-                    
-                    // distance to center
-                    fragment_color = vec4(helper_distance,helper_distance,helper_distance,0);
-                    
-                    break;
+                    fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
                   }
+                
               }
             else
               fragment_color = texture(texture_color, uv_coords);

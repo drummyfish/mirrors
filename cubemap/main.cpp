@@ -30,6 +30,7 @@ UniformVariable uniform_texture_normal("texture_normal");
 UniformVariable uniform_texture_position("texture_position");
 UniformVariable uniform_texture_stencil("texture_stencil");
 UniformVariable uniform_texture_to_display("texture_to_display");
+UniformVariable uniform_acceleration_on("acceleration_on");
 UniformVariable uniform_view_matrix("view_matrix");
 UniformVariable uniform_sky("sky");
 UniformVariable uniform_rendering_cubemap("rendering_cubemap");
@@ -62,6 +63,8 @@ Texture2D *acceleration_textures[2];
 bool draw_mirror = true;
 
 int texture_to_display = 1;
+int acceleration_on = 1;
+bool wait_for_key_release = false;
 
 ReflectionTraceCubeMap *cubemaps[2];
 
@@ -184,12 +187,14 @@ void set_up_pass2()
     uniform_textures_acceleration_1.update_int(9);
     
     uniform_texture_to_display.update_int(texture_to_display);
+    uniform_acceleration_on.update_int(acceleration_on);
     uniform_camera_position.update_vec3(CameraHandler::camera_transformation.get_translation());
   }
  
 void render()
   {        
     info_countdown--;
+    wait_for_key_release = false;
     
     if (info_countdown < 0)
       {
@@ -328,9 +333,7 @@ void create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap, Texture2D *
                     for (x = 0; x < block_size; x++)
                       {
                         image_data->get_pixel(i * block_size + x,j * block_size + y,&r,&g,&b,&a);
-                        
-//r = (2 * NEAR) / (FAR + NEAR - r * (FAR - NEAR)) * (FAR - NEAR);     // linearizes depth                       
-                        
+                                               
                         if (r > maximum)
                           maximum = r;
                         
@@ -345,14 +348,6 @@ void create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap, Texture2D *
             level_offset += level;
             level *= 2;
           }
-        
-      /*  
-        for (j = 0; j < size; j++)
-          for (i = 0; i < size; i++)
-            {
-              image_data->get_pixel(i,j,&r,&g,&b,&a);
-              result_image_data->set_pixel(i + offset_x,j + offset_y,r,0,0,0);
-            } */
       }
 
  //   result->set_parameter_int(GL_TEXTURE_MIN_FILTER,GL_NEAREST);
@@ -507,6 +502,19 @@ void special_callback(int key, int x, int y)
 
         case GLUT_KEY_F6:
           texture_to_display = 5;
+          break;
+
+        case GLUT_KEY_F7:
+          texture_to_display = 6;
+          break;
+          
+        case GLUT_KEY_F8:
+          if (!wait_for_key_release)
+            {
+              acceleration_on = !acceleration_on;
+              cout << "acceleration: " << acceleration_on << endl;
+              wait_for_key_release = true;
+            }
           break;
           
         case GLUT_KEY_F11:
@@ -669,6 +677,7 @@ int main(int argc, char** argv)
     uniform_texture_position.retrieve_location(shader_quad);
     uniform_texture_stencil.retrieve_location(shader_quad);
     uniform_texture_to_display.retrieve_location(shader_quad);
+    uniform_acceleration_on.retrieve_location(shader_quad);
     uniform_camera_position.retrieve_location(shader_quad);
     uniform_textures_acceleration_0.retrieve_location(shader_quad);
     uniform_textures_acceleration_1.retrieve_location(shader_quad);
