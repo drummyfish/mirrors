@@ -504,6 +504,10 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_F5:
           texture_to_display = 0;
           break;
+
+        case GLUT_KEY_F6:
+          texture_to_display = 5;
+          break;
           
         case GLUT_KEY_F11:
           cubemaps[0]->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
@@ -641,6 +645,12 @@ int main(int argc, char** argv)
     shader_3d = &shad1;
     shader_quad = &shad2;
     
+    if (!shader_3d->loaded_succesfully() || !shader_quad->loaded_succesfully())
+      {
+        cerr << "Shader error, halting." << endl;
+        return 1;
+      }
+    
     uniform_mirror.retrieve_location(shader_3d);
     uniform_rendering_cubemap.retrieve_location(shader_3d);
     uniform_light_direction.retrieve_location(shader_3d);
@@ -674,6 +684,8 @@ int main(int argc, char** argv)
       texture_camera_stencil,GL_TEXTURE_2D);
     
     ErrorWriter::checkGlErrors("frame buffer init",true);
+    
+    special_callback(GLUT_KEY_INSERT,0,0);   // compute the cubemaps
     
     session->start();
     

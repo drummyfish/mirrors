@@ -172,7 +172,7 @@ int main(int argc, char** argv)
     
     cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;
     
-    Shader shader(file_text("shader.vs"),file_text("shader.fs"));
+    Shader shader(file_text("shader.vs"),file_text("shader.fs"),"");
     
     light_direction_location = shader.get_uniform_location("light_direction");
     mirror_location = shader.get_uniform_location("mirror");

@@ -689,6 +689,7 @@ class Shader
   {
     protected:
       GLuint shader_program;
+      bool is_ok;
       
       /**
        * Helper function.
@@ -764,8 +765,10 @@ class Shader
        */
       
       Shader(string vertex_shader_text, string fragment_shader_text, string compute_shader_text, vector<string> *transform_feedback_variables = 0)
-        {
+        {    
           char log[256];
+         
+          this->is_ok = true;
           
           this->shader_program = glCreateProgram();
           
@@ -776,16 +779,24 @@ class Shader
             {
               if (!this->add_shader(compute_shader_text.c_str(),GL_COMPUTE_SHADER))
                 ErrorWriter::write_error("Could not add a compute shader program. (you need OpenGL 4.3 for compute shaders.)");
+            
+              this->is_ok = false;
             }
           else  // can either have compute shader or pipeline shaders
             {
               if (vertex_shader_text.length() != 0)
                 if (!this->add_shader(vertex_shader_text.c_str(),GL_VERTEX_SHADER))
-                  ErrorWriter::write_error("Could not add a vertex shader program.");
-              
+                  {
+                    ErrorWriter::write_error("Could not add a vertex shader program.");
+                    this->is_ok = false;
+                  }
+                    
               if (fragment_shader_text.length() != 0)
                 if (!this->add_shader(fragment_shader_text.c_str(),GL_FRAGMENT_SHADER))
-                  ErrorWriter::write_error("Could not add a fragment shader program.");
+                  {
+                    ErrorWriter::write_error("Could not add a fragment shader program.");
+                    this->is_ok = false;
+                  }
             }
             
           GLint success = 0;
@@ -812,6 +823,7 @@ class Shader
               glGetProgramInfoLog(this->shader_program,sizeof(log),NULL,log);
               cerr << log << endl;
               ErrorWriter::write_error("Could not link the shader program.");
+              this->is_ok = false;
             }
             
           glValidateProgram(this->shader_program);
@@ -819,7 +831,15 @@ class Shader
           glGetProgramiv(shader_program,GL_VALIDATE_STATUS,&success);
           
           if (!success)
-            ErrorWriter::write_error("The shader program is invalid.");
+            {
+              ErrorWriter::write_error("The shader program is invalid.");
+              this->is_ok = false;
+            }
+        }
+        
+      bool loaded_succesfully()
+        {
+          return this->is_ok;
         }
         
       /**

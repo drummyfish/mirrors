@@ -36,11 +36,10 @@ vec3 normal;
 vec3 position1, position2;
 vec3 reflection_vector;
 
-float helper;
+float t;
 float distance;
 float best_candidate_distance;
 float interpolation_step;
-float angle1, angle2, side1;
 int i, j;
 
 bool intersection_found;
@@ -255,9 +254,23 @@ void main()
   {
     switch (texture_to_display)
         {
-          case 1:
+          case 2:
+            fragment_color = texture(texture_normal, uv_coords);
+            break;
+          
+          case 3:
+            fragment_color = texture(texture_position, uv_coords);
+            break;
+          
+          case 4:
+            fragment_color = texture(texture_stencil, uv_coords);
+            break;
+        
+          default:
             if (texture(texture_stencil, uv_coords) == vec4(1,1,1,0))
-              { // drawing mirror here              
+              { 
+                // drawing mirror here              
+                
                 best_candidate_distance = 99999999999.0;
                 best_candidate_color = vec4(0.0,0.0,0.0,1.0);
                 // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
@@ -266,21 +279,19 @@ void main()
                 position1 = textureLod(texture_position,uv_coords,0).xyz;
                 camera_to_position1 = normalize(position1 - camera_position);
                 reflection_vector = reflect(camera_to_position1,normal);
-                
+     
                 position2 = position1 + reflection_vector * 1000;
                 position1_to_position2 = position2 - position1;
                 
                 intersection_found = false;
                   
-vec4 debug_color = vec4(0,0,0,1);
-int debug_counter = 0;
-int skip_counter = 0;
+                vec4 debug_color = vec4(0,0,0,1);
+                int debug_counter = 0;
+                int skip_counter = 0;
 
                 for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
                   {
                     position1_to_cube_center = cubemaps[i].position - position1;
-                    angle1 = acos(dot(normalize(position1_to_cube_center),normalize(position1_to_position2)));
-                    side1 = length(position1_to_cube_center);               
                     cube_coordinates1 = normalize(position1 - cubemaps[i].position);
                     cube_coordinates2 = normalize(position2 - cubemaps[i].position);   
                     interpolation_step = 0.001;
@@ -288,14 +299,13 @@ int skip_counter = 0;
                     for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                       next_acceleration_bounds[j] = -1;
    
-                    helper = 0.0;
+                    t = 0.0;
                     
-                    while (helper <= 1.0)
-                    //for (helper = 0; helper <= 1.0; helper += interpolation_step)    // trace the ray
+                    while (t <= 1.0) // trace the ray
                       {
-                        helper += interpolation_step;
+                        t += interpolation_step;
                       
-                        tested_point2 = mix(position1,position2,helper);
+                        tested_point2 = mix(position1,position2,t);
                         cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
              
                         // ==== ACCELERATION CODE HERE:
@@ -304,15 +314,14 @@ int skip_counter = 0;
 
                         debug_counter += 1;
 
-                        if (debug_counter > 100000)
+                        if (debug_counter > 100000)      // prevent the forever loop in case of bugs
                           {
-                            //   debug_color = vec4(255,255,0,0);
                             break;
                           }
                           
                         for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                           {
-                            if (helper > next_acceleration_bounds[j])
+                            if (t > next_acceleration_bounds[j])
                               {
                                 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
                                 ivec2 int_coordinates;
@@ -347,9 +356,10 @@ int skip_counter = 0;
                                     (min_max.x > depth_next && min_max.x > depth_previous)    
                                   )
                                   {
-debug_color = vec4(0,255,0,0);
-skip_counter += 1;
-                                    helper = helper_bounds.x;  // jump to next bound
+                                    debug_color = vec4(0,255,0,0);
+                                    skip_counter += 1;
+
+                                    t = helper_bounds.x;  // jump to the next bound
                                               
                                     skipped = true;
                                     break;
@@ -387,56 +397,29 @@ skip_counter += 1;
                       break;
                   }
                 
-                fragment_color =
-                  (
-                    best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1)
-                  );
+                fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
                 
-//float debug_intensity = debug_counter / (1.0 / interpolation_step * NUMBER_OF_CUBEMAPS);
-
-//float debug_intensity = debug_counter / (1.0 / interpolation_step);
-//debug_color = vec4(debug_intensity,debug_intensity,debug_intensity,0);
-
-//vec3 hhhhhh = cubemap_coordinates_to_2D_coordinates(-1 * position1_to_cube_center);
-//debug_color = vec4(hhhhhh.x,hhhhhh.y,0,0);
-
-//float ddddd = get_distance_to_center(0,position1 - cubemaps[0].position);
-//ddddd = ddddd / 1000.0;
-//ddddd = pow(ddddd,512);
-//debug_color = vec4(ddddd,ddddd,ddddd,0);
-
-//vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
-//float ddddd = get_acceleration_pixel(1,int(helper_coords.z),helper_coords.xy,3).x;
-//vec2 heeelpcoord = ivec2(int(transformed_position.x * 640),int(transformed_position.y * 640));
-//float ddddd = texelFetch(acceleration_textures[1],heeelpcoord,0).x;
-//ddddd = ddddd / 1000;
-//debug_color = vec4(ddddd,ddddd,ddddd,0);
-
-//float deb_int = debug_counter / 10000.0;
-//debug_color = vec4(deb_int,deb_int,deb_int,0);
-
-//fragment_color = 0.001 * fragment_color + debug_color;
-
+                if (texture_to_display == 5)   // debugging code, displays some information in the mirror pixel
+                  {
+                    vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
+                    float helper_intensity = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j).x / 1000.0;
+                    float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
+                    
+                    // acceleration texture
+                    //fragment_color = vec4(helper_intensity,helper_intensity,helper_intensity,0);
+                    
+                    // cubemap coordinates:
+                    //fragment_color = vec4(helper_coords.x,helper_coords.y,helper_coords.z,0);    
+                    
+                    // distance to center
+                    fragment_color = vec4(helper_distance,helper_distance,helper_distance,0);
+                    
+                    break;
+                  }
               }
             else
               fragment_color = texture(texture_color, uv_coords);
           
             break;  
-        
-          case 2:
-            fragment_color = texture(texture_normal, uv_coords);
-            break;
-          
-          case 3:
-            fragment_color = texture(texture_position, uv_coords);
-            break;
-          
-          case 4:
-            fragment_color = texture(texture_stencil, uv_coords);
-            break;
-        
-          default:
-            fragment_color = texture(texture_color, uv_coords);
-            break;
         }
   }
