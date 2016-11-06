@@ -46,7 +46,9 @@
 #include <string>
 #include <fstream>
 #include <streambuf>
+#include <cstdint>
 #include <glm/gtc/type_ptr.hpp>
+#include <stdint.h>
 
 using namespace std;
 
@@ -153,7 +155,23 @@ void print_mat4(glm::mat4 matrix)
           cout << endl;
       }
   }
-        
+
+void print_memory_bytes(void *address, int length)
+  {
+    unsigned char *char_address = (unsigned char *) address;
+    unsigned char helper;
+    
+    cout << "address " << address << ":" << endl;
+    
+    for (int i = 0; i < length; i++)
+      {
+        helper = char_address[i];
+        cout << ((int) helper) << " ";
+      }
+      
+    cout << endl;
+  }
+  
 /**
  * Writes out vec3 data type.
  */
@@ -740,6 +758,11 @@ class Shader
       void use()
         {
           glUseProgram(this->shader_program);
+        }
+        
+      GLuint get_shader_program_number()
+        {
+          return this->shader_program;
         }
         
       /**
@@ -2465,8 +2488,8 @@ Geometry3D make_box_sharp(float width, float height, float depth)
     result.add_vertex(-half_width,half_height,half_depth,0.501,0.334,0.0,0.0,0.0,1.0);   // 2
     result.add_vertex(half_width,half_height,half_depth,0.999,0.334,0.0,0.0,0.0,1.0);    // 3
 
-    result.add_triangle(1,0,2);
-    result.add_triangle(1,2,3); 
+    result.add_triangle(1,2,0);
+    result.add_triangle(1,3,2); 
     
     // left vertices:
     result.add_vertex(-half_width,-half_height,-half_depth,0.001,0.665,0.0,-1.0,0.0,0.0); // 4 
@@ -2474,8 +2497,8 @@ Geometry3D make_box_sharp(float width, float height, float depth)
     result.add_vertex(-half_width,half_height,-half_depth,0.001,0.334,0.0,-1.0,0.0,0.0);  // 6
     result.add_vertex(-half_width,half_height,half_depth,0.499,0.334,0.0,-1.0,0.0,0.0);   // 7
     
-    result.add_triangle(5,4,6);
-    result.add_triangle(5,6,7);
+    result.add_triangle(5,6,4);
+    result.add_triangle(5,7,6);
     
     // right vertices:
     result.add_vertex(half_width,-half_height,-half_depth,0.499,0.999,0.0,1.0,0.0,0.0);   // 8
@@ -2501,8 +2524,8 @@ Geometry3D make_box_sharp(float width, float height, float depth)
     result.add_vertex(half_width,half_height,-half_depth,0.999,0.001,0.0,0.0,1.0,0.0);    // 18
     result.add_vertex(half_width,half_height,half_depth,0.999,0.332,0.0,0.0,1.0,0.0);     // 19
     
-    result.add_triangle(17,16,18);
-    result.add_triangle(17,18,19);
+    result.add_triangle(17,18,16);
+    result.add_triangle(17,19,18);
     
     // bottom vertices:
     result.add_vertex(-half_width,-half_height,-half_depth,0.501,0.999,0.0,0.0,-1.0,0.0); // 20
@@ -3017,6 +3040,114 @@ class Profiler: public Printable
           for (i = 0; i < this->cumulative_values.size(); i++)
             cout << "    " << this->value_names[i] << ": " << this->get_average_value(i) << endl;
         };
+  };
+  
+/**
+ * Allows the shaders to write debugging info into a log, using SSBOs. Only one log per program is now supported.
+ */ 
+  
+#define SHADER_LOG_LINE_LENGTH 128
+#define SHADER_LOG_MAX_LINES 512
+#define SHADER_LOG_DATA_OFFSET sizeof(int32_t) * 3
+#define SHADER_LOG_DATA_SIZE SHADER_LOG_LINE_LENGTH * SHADER_LOG_MAX_LINES * sizeof(int32_t)
+#define SHADER_LOG_TOTAL_SIZE SHADER_LOG_DATA_OFFSET + SHADER_LOG_DATA_SIZE
+
+class ShaderLog: public GPUObject, public Printable
+  {
+    protected:
+      GLuint ssbo;
+      GLuint binding_point;
+      
+      int32_t number_of_lines;
+      int32_t max_lines;
+      int32_t line_length;
+      int32_t data[SHADER_LOG_DATA_SIZE];
+      
+    public:
+      ShaderLog()
+        {
+          if (!GLSession::is_initialised())
+            ErrorWriter::write_error("ShaderLog object created before GLSession was initialised.");
+
+          glGenBuffers(1,&(this->ssbo));
+          
+          this->number_of_lines = 0;
+          this->max_lines = SHADER_LOG_MAX_LINES;
+          this->line_length = SHADER_LOG_LINE_LENGTH;
+          this->binding_point = 0;
+          
+          glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
+          glBufferData(GL_SHADER_STORAGE_BUFFER,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines),GL_DYNAMIC_COPY);
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
+          glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+        };
+        
+      void clear()
+        {
+          this->number_of_lines = 0;
+        }
+
+      int get_number_of_lines()
+        {
+          return this->number_of_lines;
+        }
+        
+      void connect_to_shader(Shader *shader, string shader_variable_name)
+        {
+          GLuint block_index = 0;
+          block_index = glGetProgramResourceIndex(shader->get_shader_program_number(),GL_SHADER_STORAGE_BLOCK,shader_variable_name.c_str());
+
+          if (block_index == GL_INVALID_INDEX)
+            ErrorWriter::write_error("Shader log could not be connected to the shader.");
+          
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,block_index,this->binding_point);
+          glShaderStorageBlockBinding(shader->get_shader_program_number(),block_index,this->binding_point);
+        }
+        
+      virtual void update_gpu()
+        {
+          glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
+          GLvoid* mapped_ssbo = glMapBuffer(GL_SHADER_STORAGE_BUFFER,GL_WRITE_ONLY);
+
+          if (mapped_ssbo == NULL)
+            ErrorWriter::write_error("Could not map shader log into client's memory space for writing.");
+          else
+            memcpy(mapped_ssbo,&(this->number_of_lines),SHADER_LOG_TOTAL_SIZE);
+          
+          glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+        }
+      
+      virtual void load_from_gpu()
+        {
+          glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
+          GLvoid* mapped_ssbo = glMapBuffer(GL_SHADER_STORAGE_BUFFER,GL_READ_ONLY);
+
+          if (mapped_ssbo == NULL)
+            ErrorWriter::write_error("Could not map shader log into client's memory space for reading.");
+          else
+            memcpy(&(this->number_of_lines),mapped_ssbo,SHADER_LOG_TOTAL_SIZE);
+         
+          glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+        }
+        
+      virtual void print()
+        {
+          int32_t helper_buffer[SHADER_LOG_LINE_LENGTH + 1];
+          cout << "------------ shader log ------------" << endl;
+          
+          for (int i = 0; i < this->number_of_lines; i++)
+            {
+              memcpy(helper_buffer,this->data,SHADER_LOG_LINE_LENGTH * sizeof(int32_t));
+              helper_buffer[SHADER_LOG_LINE_LENGTH] = 0;
+              cout << helper_buffer << endl;
+            }
+            
+          cout << "------------ end of log ------------" << endl;
+        };
+        
+      virtual ~ShaderLog()
+        {
+        }
   };
   
 bool CameraHandler::clicked = false;
