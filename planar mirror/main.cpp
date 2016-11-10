@@ -1,3 +1,13 @@
+/*
+  Simple application showing rendering of a planar mirror.
+
+  A simple quad mirror and a cup model are created and displayed, camera can
+  be controlled with WSAD and mouse, mirror can be controlled with arrow and
+  additional keys.
+
+  Miloslav Číž, 2016
+*/
+
 #include "../gl_wrapper.h"
 
 #define CAMERA_STEP 0.1
@@ -9,15 +19,14 @@ TransformationTRSModel transformation_cup;
 TransformationTRSModel transformation_mirror;
 TransformationTRSCamera transformation_camera;
 
-GLint color_location;
-GLint light_direction_location;
-GLint sampler_location;
-GLint view_matrix_location;
-GLint mirror_location;
-GLint model_matrix_location;
-GLint projection_matrix_location;
-TransformFeedbackBuffer *tfb;
-Texture2D *tex;
+UniformVariable *uniform_light_direction;
+UniformVariable *uniform_sampler;
+UniformVariable *uniform_view_matrix;
+UniformVariable *uniform_mirror;              // whether mirror is being drawn
+UniformVariable *uniform_model_matrix;
+UniformVariable *uniform_projection_matrix;
+
+Texture2D *tex;  // cup texture
 
 Geometry3D *geometry_cup;
 Geometry3D *geometry_mirror;
@@ -25,7 +34,7 @@ Texture2D *texture;
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
 
-bool clicked = false;     // whether mouse was clicked
+bool clicked = false;                        // whether mouse was clicked
 int initial_mouse_coords[2];
 glm::vec3 initial_camera_rotation;
 
@@ -39,15 +48,15 @@ void render()
     
     texture->bind(0);
     
-    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE,glm::value_ptr(CameraHandler::camera_transformation.get_matrix()));
+    uniform_view_matrix->update_mat4(CameraHandler::camera_transformation.get_matrix());
     
     // draw the cup:
     
     glStencilFunc(GL_ALWAYS,1,0xFF);           // always pass the stencil test
-    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,glm::value_ptr(transformation_cup.get_matrix()));
+    uniform_model_matrix->update_mat4(transformation_cup.get_matrix());
     geometry_cup->draw_as_triangles();
 
-    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE, glm::value_ptr(transformation_mirror.get_matrix()));
+    uniform_model_matrix->update_mat4(transformation_mirror.get_matrix());
    
     glDepthMask(GL_FALSE);                     // disable writing to dept buffer so we can later draw over the mirror
     glStencilFunc(GL_ALWAYS,1,0xFF);           // for each mirror fragment write 1 to stencil buffer
@@ -56,9 +65,9 @@ void render()
     glClear(GL_STENCIL_BUFFER_BIT);            // clear the stencil buffer to zeros
     
     // draw the mirror:
-    glUniform1ui(mirror_location,1);
+    uniform_mirror->update_uint(1);
     geometry_mirror->draw_as_triangles();
-    glUniform1ui(mirror_location,0);
+    uniform_mirror->update_uint(0);
     
     // second pass:
     
@@ -67,11 +76,9 @@ void render()
     b = transformation_mirror.get_matrix() * glm::vec4(geometry_mirror->vertices[1].position,1.0);
     c = transformation_mirror.get_matrix() * glm::vec4(geometry_mirror->vertices[2].position,1.0);
 
-    glUniformMatrix4fv(model_matrix_location,1,GL_TRUE,    // cup transformation + reflection transformation
-      glm::value_ptr(
-        make_reflection_matrix(glm::vec3(a),glm::vec3(b),glm::vec3(c)) *
-        transformation_cup.get_matrix()
-        ));    
+    uniform_model_matrix->update_mat4(
+      make_reflection_matrix(glm::vec3(a),glm::vec3(b),glm::vec3(c)) *  // cup transformation + reflection transformation
+      transformation_cup.get_matrix());  
     
     glDepthMask(GL_TRUE);                      // re-enable dept buffer writing
 
@@ -141,7 +148,7 @@ int main(int argc, char** argv)
     
     CameraHandler::camera_transformation.set_translation(glm::vec3(5.5,2.0,8.0));
     CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.05,0.1,0.0));
-    
+ 
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
     
     Geometry3D g = load_obj("cup.obj");
@@ -154,7 +161,7 @@ int main(int argc, char** argv)
     geometry_mirror = &g2;
     geometry_mirror->update_gpu();
     transformation_mirror.set_translation(glm::vec3(0.0,0.0,-20.0));
-    transformation_mirror.set_rotation(glm::vec3(3.1415 / 2.0,0.0,0));
+    transformation_mirror.set_rotation(glm::vec3(3.1415,0.0,0));
     
     texture = new Texture2D(8,8,TEXEL_TYPE_COLOR);
     texture->load_ppm("texture.ppm");
@@ -174,28 +181,43 @@ int main(int argc, char** argv)
     
     Shader shader(file_text("shader.vs"),file_text("shader.fs"),"");
     
-    light_direction_location = shader.get_uniform_location("light_direction");
-    mirror_location = shader.get_uniform_location("mirror");
-    sampler_location = shader.get_uniform_location("tex");
-    glUniform1i(sampler_location,0);
-    model_matrix_location = shader.get_uniform_location("model_matrix");
-    view_matrix_location = shader.get_uniform_location("view_matrix");
-    projection_matrix_location = shader.get_uniform_location("projection_matrix");
+    uniform_light_direction = new UniformVariable("light_direction");
+    uniform_sampler = new UniformVariable("tex");
+    uniform_view_matrix = new UniformVariable("view_matrix");
+    uniform_mirror = new UniformVariable("mirror");
+    uniform_model_matrix = new UniformVariable("model_matrix");
+    uniform_projection_matrix = new UniformVariable("projection_matrix");
+    
+    uniform_light_direction->retrieve_location(&shader);
+    uniform_sampler->retrieve_location(&shader);
+    uniform_view_matrix->retrieve_location(&shader);
+    uniform_mirror->retrieve_location(&shader);
+    uniform_model_matrix->retrieve_location(&shader);
+    uniform_projection_matrix->retrieve_location(&shader);
+    
     glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 100.0f);
     glm::mat4 view_matrix = glm::mat4(1.0f);
     
     shader.use();
     
-    glUniformMatrix4fv(projection_matrix_location,1,GL_TRUE, glm::value_ptr(projection_matrix));
-    glUniformMatrix4fv(view_matrix_location,1,GL_TRUE, glm::value_ptr(view_matrix));
-    glUniform3f(light_direction_location,0.0,0.0,-1.0);
-    glUniform1ui(mirror_location,0);
+    uniform_projection_matrix->update_mat4(projection_matrix);
+    uniform_view_matrix->update_mat4(view_matrix);
+    uniform_light_direction->update_float_3(0.0,0.0,-1.0);
+    uniform_mirror->update_uint(0);
     
     session->start();
     
     delete texture;
     delete texture_mirror;
     delete texture_mirror_depth;
+    delete uniform_light_direction;
+    delete uniform_sampler;
+    delete uniform_view_matrix;
+    delete uniform_mirror;
+    delete uniform_model_matrix;
+    delete uniform_projection_matrix;
+
     GLSession::clear();
+    
     return 0;
   }

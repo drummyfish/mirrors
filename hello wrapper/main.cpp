@@ -1,5 +1,5 @@
 /*
-  Simple application showing the basics og gl_wrapper.
+  Simple application showing the basics of gl_wrapper.
 
   A simple model is created and displayed with texture, camera can
   be controlled with WSAD and mouse.
