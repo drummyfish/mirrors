@@ -6,23 +6,7 @@
 /**
  * @file gl_wrapper_h
  * 
- * This file provides classes and functions for basic
- * work with OpenGL. This file is distributed under
- * WTFPL license:
- * 
- * DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
- *                   Version 2, December 2004 
- *
- * Copyright (C) 2004 Sam Hocevar <sam@hocevar.net> 
- *
- * Everyone is permitted to copy and distribute verbatim or modified 
- * copies of this license document, and changing it is allowed as long 
- * as the name is changed. 
- *
- *           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
- *  TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION 
- *
- * 0. You just DO WHAT THE FUCK YOU WANT TO.
+ * Simple OpenGL helper header-only library.
  * 
  * @author Miloslav Číž
  */
@@ -3044,7 +3028,9 @@ class Profiler: public Printable
   
 /**
  * Allows the shaders to write debugging info into a log, using SSBOs. Only one log per program is now supported.
- */ 
+ *
+ * WATCH OUT: THIS IS NOT WORKING YET!!!
+ */
   
 #define SHADER_LOG_LINE_LENGTH 128
 #define SHADER_LOG_MAX_LINES 512
