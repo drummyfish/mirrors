@@ -10,8 +10,6 @@
 
 #include "../gl_wrapper.h"
 
-#define CAMERA_STEP 0.1
-#define ROTATION_STEP 0.1
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
@@ -33,10 +31,6 @@ Geometry3D *geometry_mirror;
 Texture2D *texture;
 Texture2D *texture_mirror;
 Texture2D *texture_mirror_depth;
-
-bool clicked = false;                        // whether mouse was clicked
-int initial_mouse_coords[2];
-glm::vec3 initial_camera_rotation;
 
 void render()
   {

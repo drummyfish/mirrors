@@ -884,6 +884,11 @@ class UniformVariable
           location_retrieved = false;
         }
         
+      int get_location()
+        {
+          return this->location;
+        }
+        
       /**
        * Retrieves the location from given shader.
        */
@@ -2315,6 +2320,20 @@ class Geometry3D: public Printable, public GPUObject
           glDrawElements(GL_LINE_STRIP,this->triangles.size() * 3,GL_UNSIGNED_INT,0);
           glBindVertexArray(0);
         };
+        
+      /**
+       * Flips the vertex order in all triangles.
+       */
+        
+      void flip_triangles()
+        {
+          for (unsigned int i = 0; i < this->triangles.size(); i += 3)
+            {
+              int helper = this->triangles[i];
+              this->triangles[i] = this->triangles[i + 1];
+              this->triangles[i + 1] = helper;
+            }
+        }
         
       /**
        * Sends the geometry data to GPU.

@@ -23,9 +23,6 @@ UniformVariable *uniform_projection_matrix;
 Geometry3D *geometry_model;
 Texture2D *texture;
 
-bool clicked = false;               // whether mouse was clicked
-int initial_mouse_coords[2];
-
 void render()    // render callback
   {
     glClear(GL_COLOR_BUFFER_BIT);
