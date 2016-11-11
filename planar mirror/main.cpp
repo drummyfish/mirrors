@@ -151,7 +151,7 @@ int main(int argc, char** argv)
  
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
     
-    Geometry3D g = load_obj("cup.obj");
+    Geometry3D g = load_obj("../resources/cup.obj");
     geometry_cup = &g;
     geometry_cup->update_gpu();
     transformation_cup.set_translation(glm::vec3(0.0,0.0,-10.0));
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
     transformation_mirror.set_rotation(glm::vec3(3.1415,0.0,0));
     
     texture = new Texture2D(8,8,TEXEL_TYPE_COLOR);
-    texture->load_ppm("texture.ppm");
+    texture->load_ppm("../resources/texture.ppm");
     texture->update_gpu();
     
     texture_mirror = new Texture2D(512,512,TEXEL_TYPE_COLOR);

@@ -66,7 +66,7 @@ int main(int argc, char** argv)
     transformation_model.set_scale(glm::vec3(3.0,1.0,2.0));
     
     texture = new Texture2D(8,8,TEXEL_TYPE_COLOR);
-    texture->load_ppm("texture.ppm");
+    texture->load_ppm("../resources/texture.ppm");
     texture->update_gpu();                          // uploads the texture to GPU
  
     cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;

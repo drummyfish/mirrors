@@ -19,6 +19,8 @@ Geometry3D *geometry_quad;            // quad for the second render pass
 Geometry3D *geometry_mirror;
 Geometry3D *geometry_box;             // box marking the cube map positions
 
+ShaderLog *shader_log;
+
 glm::mat4 view_matrix = glm::mat4(1.0f);
 glm::mat4 projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, NEAR, FAR);
 
@@ -218,12 +220,19 @@ void render()
     // 2nd pass:
     profiler->time_measure_begin();
     set_up_pass2();
-    draw_quad();   
+    draw_quad();
+    
+    shader_log->load_from_gpu();
+    cout << "lines: " << shader_log->get_number_of_lines() << endl;
+    //shader_log->print();
     
     profiler->record_value(1,profiler->time_measure_end());
     
     ErrorWriter::checkGlErrors("rendering loop");  
     glutSwapBuffers();
+  
+//    cout << "debug vector:" << endl;
+//    print_vec3(get_pixel_encoded_info(315,217,1000));
     
     profiler->next_frame();
   }
@@ -545,6 +554,8 @@ int main(int argc, char** argv)
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
     
+    shader_log = new ShaderLog();
+
     profiler = new Profiler();
     profiler->new_value("pass 1");
     profiler->new_value("pass 2");
@@ -570,7 +581,7 @@ int main(int argc, char** argv)
     geometry_box = &g2;
     geometry_box->update_gpu();
     
-    Geometry3D g3 = load_obj("scene.obj");
+    Geometry3D g3 = load_obj("../resources/scene.obj");
     geometry_scene = &g3;
     geometry_scene->update_gpu();
     
@@ -589,11 +600,12 @@ int main(int argc, char** argv)
     geometry_quad->update_gpu();
     
     texture_sky = new Texture2D(16,16,TEXEL_TYPE_COLOR);
-    texture_sky->load_ppm("sky.ppm");
+    texture_sky->load_ppm("../resources/sky.ppm");
     texture_sky->update_gpu();
     
     texture_scene = new Texture2D(16,16,TEXEL_TYPE_COLOR);
-    texture_scene->load_ppm("scene.ppm");
+    
+    texture_scene->load_ppm("../resources/scene.ppm");
     texture_scene->update_gpu();
 
     texture_camera_color = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);
@@ -631,7 +643,7 @@ int main(int argc, char** argv)
     transformation_sky.set_scale(glm::vec3(100.0,100.0,100.0));
     transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
     transformation_scene.set_scale(glm::vec3(6,6,6));   
-
+    
     //transformation_mirror.set_translation(glm::vec3(0,0,0)); // TEMP
     transformation_mirror.set_translation(glm::vec3(0.0,30.0,-30.0));
     transformation_mirror.set_scale(glm::vec3(15.0,15.0,15.0));
@@ -695,9 +707,15 @@ int main(int argc, char** argv)
     ErrorWriter::checkGlErrors("frame buffer init",true);
     
     special_callback(GLUT_KEY_INSERT,0,0);   // compute the cubemaps
+   
+    shader_log->connect_to_shader(shader_quad,"shader_log_data");
+    shader_log->update_gpu();
+    
+    ErrorWriter::checkGlErrors("shader log connection",true);
     
     session->start();
     
+    delete shader_log;
     delete frame_buffer_cube;
     delete texture_camera_color;
     delete frame_buffer_camera;
