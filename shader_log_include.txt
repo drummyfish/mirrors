@@ -1,0 +1,65 @@
+layout (std430, binding=0) buffer shader_log_data
+  {
+    uint number_of_lines;
+    uint max_lines;
+    uint line_length;
+    uint data[];
+  } shader_log;
+
+uint shader_log_line_position = 0;
+uint shader_log_allocated_line = 0;
+
+void __shader_log_write_data(uint data_to_write)
+  {
+    uint i;
+    uint data_offset;
+  
+    uint line_length = shader_log.line_length;
+  
+    if (shader_log_line_position == 0)
+      {
+        shader_log_allocated_line = atomicAdd(shader_log.number_of_lines,1);
+      
+        if (shader_log_allocated_line >= shader_log.max_lines)
+          return;
+        
+        data_offset = shader_log_allocated_line * line_length;
+        
+        for (i = 0; i < line_length; i++)
+          shader_log.data[data_offset + i] = 0;
+      }
+      
+    if (shader_log_line_position >= shader_log.line_length)
+      return;
+      
+    data_offset = shader_log_allocated_line * line_length;
+    shader_log.data[data_offset + shader_log_line_position] = data_to_write;
+    shader_log_line_position++;
+  }
+  
+void shader_log_write_uint(uint data_to_write)
+  {
+    __shader_log_write_data(1);               // 1 = uint
+    __shader_log_write_data(data_to_write);
+  }
+  
+void shader_log_write_int(int data_to_write)
+  {
+    __shader_log_write_data(2);               // 2 = int
+    __shader_log_write_data(data_to_write);
+  }
+  
+void shader_log_write_float(float data_to_write)
+  {
+    __shader_log_write_data(3);               // 3 = float
+    __shader_log_write_data(floatBitsToUint(data_to_write));
+  }
+  
+void shader_log_write_char(uint ascii_value)
+  {
+    __shader_log_write_data(4);               // 4 = char
+    __shader_log_write_data(ascii_value);
+  }
+
+// sets the line to 0 for error messages
+#line 0 

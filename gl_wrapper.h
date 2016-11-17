@@ -3068,6 +3068,8 @@ class ShaderLog: public GPUObject, public Printable
       uint32_t line_length;
       uint32_t data[SHADER_LOG_DATA_SIZE];
       
+      unsigned int print_limit;
+      
     public:
       void set_number_of_lines(unsigned int lines)
         {
@@ -3089,6 +3091,8 @@ class ShaderLog: public GPUObject, public Printable
           this->line_length = SHADER_LOG_LINE_LENGTH;
           this->binding_point = 0;
 
+          this->print_limit = -1;
+          
           glGenBuffers(1,&(this->ssbo));
           glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
           glBufferData(GL_SHADER_STORAGE_BUFFER,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines),GL_STATIC_DRAW);
@@ -3108,6 +3112,11 @@ class ShaderLog: public GPUObject, public Printable
         {
           glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,this->ssbo);
           glFinish();
+        }
+        
+      void set_print_limit(unsigned int print_limit)
+        {
+          this->print_limit = print_limit;
         }
         
       virtual void update_gpu()
@@ -3130,11 +3139,13 @@ class ShaderLog: public GPUObject, public Printable
           
           for (uint i = 0; i < this->number_of_lines; i++)
             {
-if (i > 4)
-  break;
+              if (i >= this->max_lines || (this->print_limit >= 0 and i >= this->print_limit))
+                break;
 
               uint line_position = 0;
               uint32_t *line_data = this->data + i * SHADER_LOG_LINE_LENGTH; 
+              
+              cout << "line " << i << ": ";
               
               while (line_position < this->line_length)
                 {
@@ -3152,7 +3163,7 @@ if (i > 4)
                   
                       switch (data_type_number)
                         {
-                          case 0:    // uint
+                          case 1:    // uint
                             if (line_position < this->line_length)
                               {    
                                 uint data = (uint) *(line_data + line_position);
@@ -3162,7 +3173,7 @@ if (i > 4)
                             line_position += 1;
                             break;
                         
-                          case 1:    // int
+                          case 2:    // int
                             if (line_position < this->line_length)
                               {    
                                 int data = (int) *(line_data + line_position);
@@ -3172,7 +3183,7 @@ if (i > 4)
                             line_position += 1;
                             break;
                         
-                          case 2:    // float
+                          case 3:    // float
                             if (line_position < this->line_length)
                               {    
                                 float data = glm::uintBitsToFloat( *(line_data + line_position));
@@ -3182,8 +3193,18 @@ if (i > 4)
                             line_position += 1;
                             break;
                             
+                          case 4:    // char
+                            if (line_position < this->line_length)
+                              {    
+                                char data = (char) *(line_data + line_position);
+                                cout << data;
+                              }
+                        
+                            line_position += 1;
+                            break;
+                            
                           default:
-                            line_position++;
+                            line_position = this->line_length + 1; // end
                             break;
                         }
                     }
