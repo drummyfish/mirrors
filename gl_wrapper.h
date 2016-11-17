@@ -3051,10 +3051,10 @@ class Profiler: public Printable
  * WATCH OUT: THIS IS NOT WORKING YET!!!
  */
   
-#define SHADER_LOG_LINE_LENGTH 128
+#define SHADER_LOG_LINE_LENGTH 32
 #define SHADER_LOG_MAX_LINES 512
-#define SHADER_LOG_DATA_OFFSET sizeof(int32_t) * 3
-#define SHADER_LOG_DATA_SIZE SHADER_LOG_LINE_LENGTH * SHADER_LOG_MAX_LINES * sizeof(int32_t)
+#define SHADER_LOG_DATA_OFFSET sizeof(uint32_t) * 3
+#define SHADER_LOG_DATA_SIZE SHADER_LOG_LINE_LENGTH * SHADER_LOG_MAX_LINES * sizeof(uint32_t)
 #define SHADER_LOG_TOTAL_SIZE SHADER_LOG_DATA_OFFSET + SHADER_LOG_DATA_SIZE
 
 class ShaderLog: public GPUObject, public Printable
@@ -3063,28 +3063,35 @@ class ShaderLog: public GPUObject, public Printable
       GLuint ssbo;
       GLuint binding_point;
       
-      int32_t number_of_lines;
-      int32_t max_lines;
-      int32_t line_length;
-      int32_t data[SHADER_LOG_DATA_SIZE];
+      uint32_t number_of_lines;
+      uint32_t max_lines;
+      uint32_t line_length;
+      uint32_t data[SHADER_LOG_DATA_SIZE];
       
     public:
+      void set_number_of_lines(unsigned int lines)
+        {
+          this->number_of_lines = lines;
+        }
+        
+      unsigned int get_number_of_lines(unsigned int lines)
+        {
+          return this->number_of_lines;
+        }
+        
       ShaderLog()
         {
           if (!GLSession::is_initialised())
             ErrorWriter::write_error("ShaderLog object created before GLSession was initialised.");
-
-          glGenBuffers(1,&(this->ssbo));
           
           this->number_of_lines = 0;
           this->max_lines = SHADER_LOG_MAX_LINES;
           this->line_length = SHADER_LOG_LINE_LENGTH;
           this->binding_point = 0;
-          
+
+          glGenBuffers(1,&(this->ssbo));
           glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
-          glBufferData(GL_SHADER_STORAGE_BUFFER,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines),GL_DYNAMIC_COPY);
-          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
-          glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+          glBufferData(GL_SHADER_STORAGE_BUFFER,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines),GL_STATIC_DRAW);
         };
         
       void clear()
@@ -3097,54 +3104,94 @@ class ShaderLog: public GPUObject, public Printable
           return this->number_of_lines;
         }
         
-      void connect_to_shader(Shader *shader, string shader_variable_name)
+      void bind()
         {
-          GLuint block_index = 0;
-          block_index = glGetProgramResourceIndex(shader->get_shader_program_number(),GL_SHADER_STORAGE_BLOCK,shader_variable_name.c_str());
-
-          if (block_index == GL_INVALID_INDEX)
-            ErrorWriter::write_error("Shader log could not be connected to the shader.");
-          
-          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,block_index,this->binding_point);
-          glShaderStorageBlockBinding(shader->get_shader_program_number(),block_index,this->binding_point);
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,this->ssbo);
+          glFinish();
         }
         
       virtual void update_gpu()
         {
-          glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
-          GLvoid* mapped_ssbo = glMapBuffer(GL_SHADER_STORAGE_BUFFER,GL_WRITE_ONLY);
-
-          if (mapped_ssbo == NULL)
-            ErrorWriter::write_error("Could not map shader log into client's memory space for writing.");
-          else
-            memcpy(mapped_ssbo,&(this->number_of_lines),SHADER_LOG_TOTAL_SIZE);
-          
-          glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,this->ssbo);
+          glBufferData(GL_SHADER_STORAGE_BUFFER,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines),GL_STATIC_DRAW);
         }
       
       virtual void load_from_gpu()
         {
-          glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
-          GLvoid* mapped_ssbo = glMapBuffer(GL_SHADER_STORAGE_BUFFER,GL_READ_ONLY);
-
-          if (mapped_ssbo == NULL)
-            ErrorWriter::write_error("Could not map shader log into client's memory space for reading.");
-          else
-            memcpy(&(this->number_of_lines),mapped_ssbo,SHADER_LOG_TOTAL_SIZE);
-         
-          glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines));
         }
         
       virtual void print()
         {
-          int32_t helper_buffer[SHADER_LOG_LINE_LENGTH + 1];
+          bool raw_values = false;   // for debuggin set this to true
+          
           cout << "------------ shader log ------------" << endl;
           
-          for (int i = 0; i < this->number_of_lines; i++)
+          
+          for (uint i = 0; i < this->number_of_lines; i++)
             {
-              memcpy(helper_buffer,this->data,SHADER_LOG_LINE_LENGTH * sizeof(int32_t));
-              helper_buffer[SHADER_LOG_LINE_LENGTH] = 0;
-              cout << helper_buffer << endl;
+if (i > 4)
+  break;
+
+              uint line_position = 0;
+              uint32_t *line_data = this->data + i * SHADER_LOG_LINE_LENGTH; 
+              
+              while (line_position < this->line_length)
+                {
+                  if (raw_values)
+                    {
+                      cout << ((uint) *(line_data + line_position));
+                      line_position++;
+                    }
+                  else
+                    { 
+                      // interpret data types here
+                    
+                      uint data_type_number = (uint) *(line_data + line_position);
+                      line_position++;  
+                  
+                      switch (data_type_number)
+                        {
+                          case 0:    // uint
+                            if (line_position < this->line_length)
+                              {    
+                                uint data = (uint) *(line_data + line_position);
+                                cout << data;
+                              }
+                        
+                            line_position += 1;
+                            break;
+                        
+                          case 1:    // int
+                            if (line_position < this->line_length)
+                              {    
+                                int data = (int) *(line_data + line_position);
+                                cout << data;
+                              }
+                        
+                            line_position += 1;
+                            break;
+                        
+                          case 2:    // float
+                            if (line_position < this->line_length)
+                              {    
+                                float data = glm::uintBitsToFloat( *(line_data + line_position));
+                                cout << data;
+                              }
+                        
+                            line_position += 1;
+                            break;
+                            
+                          default:
+                            line_position++;
+                            break;
+                        }
+                    }
+                    
+                  cout << " ";
+                }
+
+              cout << endl;
             }
             
           cout << "------------ end of log ------------" << endl;
@@ -3152,6 +3199,11 @@ class ShaderLog: public GPUObject, public Printable
         
       virtual ~ShaderLog()
         {
+        }
+        
+      GLuint get_ssbo()
+        {
+          return this->ssbo;
         }
   };
   
