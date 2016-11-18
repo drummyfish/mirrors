@@ -61,5 +61,27 @@ void shader_log_write_char(uint ascii_value)
     __shader_log_write_data(ascii_value);
   }
 
+void shader_log_write_vec3(vec3 data_to_write)
+  {
+    shader_log_write_char(40);   // '('
+    shader_log_write_float(data_to_write.x);
+    shader_log_write_float(data_to_write.y);
+    shader_log_write_float(data_to_write.z);
+    shader_log_write_char(41);   // ')'
+  }
+
+void shader_log_write_vec2(vec2 data_to_write)
+  {
+    shader_log_write_char(40);   // '('
+    shader_log_write_float(data_to_write.x);
+    shader_log_write_float(data_to_write.y);
+    shader_log_write_char(41);   // ')'
+  }
+  
+vec3 blender(vec3 what)   // converts to blender coordinates
+  {
+    return vec3(what.x,-1 * what.z,what.y);
+  }
+ 
 // sets the line to 0 for error messages
 #line 0 

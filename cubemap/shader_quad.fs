@@ -253,6 +253,14 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
   
 void main()
   {
+  
+ivec2 log_coord = ivec2(330,260);
+bool do_log =
+  gl_FragCoord.x < (log_coord.x + 1) &&
+  gl_FragCoord.x > log_coord.x &&
+  gl_FragCoord.y > log_coord.y &&
+  gl_FragCoord.y < (log_coord.y + 1);
+
     switch (texture_to_display)
         {
           case 2:
@@ -331,6 +339,9 @@ void main()
                       next_acceleration_bounds[j] = -1;
    
                     t = 0.0;
+
+if (do_log)
+  shader_log_write_char(67);
                     
                     while (t <= 1.0) // trace the ray
                       {
@@ -350,13 +361,19 @@ void main()
                             break;
                           }
                           
-                        for (j = 1; j < 2 /*USE_ACCELERATION_LEVELS*/; j++)
+                        for (j = 1; j < USE_ACCELERATION_LEVELS; j++)
                           {
                             if (acceleration_on < 1)
                               break;
                           
                             if (t > next_acceleration_bounds[j])
                               {
+if (do_log)
+{
+shader_log_write_char(76);
+shader_log_write_uint(j); 
+shader_log_write_vec3(blender(tested_point2));
+}
                                 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
                                 ivec2 int_coordinates;
                
@@ -383,15 +400,27 @@ void main()
                                 vec3 cubemap_coordinates_next = mix(position1,position2,helper_bounds.x);
                                 vec3 cubemap_coordinates_previous = mix(position1,position2,helper_bounds.y);
                                 
-                                float depth_next = get_distance_to_center(i,cubemap_coordinates_next);
-                                float depth_previous = get_distance_to_center(i,cubemap_coordinates_previous);
+                                float depth_next = length(cubemap_coordinates_next - cubemaps[i].position);
+                                float depth_previous = length(cubemap_coordinates_previous - cubemaps[i].position);
+                                
+                             //   float depth_next = get_distance_to_center(i,cubemap_coordinates_next);
+                             //   float depth_previous = get_distance_to_center(i,cubemap_coordinates_previous);
 
+if (do_log)
+{
+shader_log_write_float(depth_previous);
+shader_log_write_float(depth_next);
+shader_log_write_vec2(min_max);
+}
+                                
                                 if
                                   (
                                     (min_max.y < depth_next && min_max.y < depth_previous)  ||
                                     (min_max.x > depth_next && min_max.x > depth_previous)    
                                   )
                                   {
+if (do_log)
+shader_log_write_char(83);
                                     skip_counter += 1;
 
                                     t += helper_bounds.x;  // jump to the next bound
@@ -442,7 +471,7 @@ void main()
                     // uncomennt one of the following
                     
                     // --- iteartions ---
-                    //fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
+                    fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
                     
                     // --- skips ---
                     //fragment_color = vec4(skips_float,skips_float,skips_float,0);
@@ -451,18 +480,19 @@ void main()
                     //fragment_color = vec4(iterations_float,skips_float,0,0);
                     
                     // --- assert ---
-                    if (assertion) fragment_color = vec4(1,0,0,0); else fragment_color = vec4(0,1,0,0);
+                    //if (assertion) fragment_color = vec4(1,0,0,0); else fragment_color = vec4(0,1,0,0);
 
                     // ---  encoded debug vector ---
                     //fragment_color = vec4(map_minus_n_n_0_1(debug_vector,1000.0),0);
                   }
-                
               }
             else
               fragment_color = texture(texture_color, uv_coords);
           
-            shader_log_write_uint(1);
-          
             break;  
         }
+        
+if (do_log)
+  fragment_color = vec4(0,1,1,0);
+        
   }
