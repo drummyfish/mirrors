@@ -1,5 +1,5 @@
-#version 330
-#include general.s
+#version 430
+#include ../shader_log_include.txt
 #define INTERSECTION_LIMIT 2   // what distance means intersection
 #define NUMBER_OF_CUBEMAPS 2
 #define ACCELERATION_LEVELS 9
@@ -288,18 +288,26 @@ void main()
                   
                 int iteration_counter = 0;
                 int skip_counter = 0;
-              
+                bool assertion = true;
+                vec3 debug_vector = vec3(0,0,0);
+
                 if (texture_to_display == 5)   // debugging code, displays some information in the mirror pixel
                   {
                     vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
-                    float helper_intensity = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,2).x / 1000.0;
+                    vec2 helper_min_max = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,1) / 1000.0;
                     float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
                    
                     // uncomment one of following
                     
-                    // --- acceleration texture ---
-                    fragment_color = vec4(helper_intensity,helper_intensity,helper_intensity,0);
+                    // --- acceleration texture min ---
+                    //fragment_color = vec4(helper_min_max.x,helper_min_max.x,helper_min_max.x,0);
                     
+                    // --- acceleration texture max ---
+                    //fragment_color = vec4(helper_min_max.y,helper_min_max.y,helper_min_max.y,0);
+                    
+                    // --- acceleration texture max - min ---
+                    fragment_color = vec4(helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,0);
+                   
                     // --- acceleration on ---
                     //fragment_color = vec4(float(acceleration_on),float(acceleration_on),float(acceleration_on),0);
                     
@@ -312,8 +320,8 @@ void main()
                     break;
                   }
               
-                for (i = 0; i < 1/*NUMBER_OF_CUBEMAPS*/; i++)  // iterate the cubemaps
-                  {
+                for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
+                  {   
                     position1_to_cube_center = cubemaps[i].position - position1;
                     cube_coordinates1 = normalize(position1 - cubemaps[i].position);
                     cube_coordinates2 = normalize(position2 - cubemaps[i].position);   
@@ -342,7 +350,7 @@ void main()
                             break;
                           }
                           
-                        for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
+                        for (j = 1; j < 2 /*USE_ACCELERATION_LEVELS*/; j++)
                           {
                             if (acceleration_on < 1)
                               break;
@@ -351,7 +359,7 @@ void main()
                               {
                                 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
                                 ivec2 int_coordinates;
-                                
+               
                                 float level_step = 1 / pow(2,j);
                                 
                                 int_coordinates = ivec2(int(helper_coords.x / level_step),int(helper_coords.y / level_step));
@@ -366,10 +374,12 @@ void main()
                                   j
                                   );
                                   
+                   //             if (helper_bounds.x > t || helper_bounds.y < t)
+                   //               assertion = false;
+                                  
                                 // check if intersection can happen:
                                 
                                 vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j);
-                                
                                 vec3 cubemap_coordinates_next = mix(position1,position2,helper_bounds.x);
                                 vec3 cubemap_coordinates_previous = mix(position1,position2,helper_bounds.y);
                                 
@@ -384,7 +394,7 @@ void main()
                                   {
                                     skip_counter += 1;
 
-                                    t = helper_bounds.x;  // jump to the next bound
+                                    t += helper_bounds.x;  // jump to the next bound
                                               
                                     skipped = true;
                                     break;
@@ -427,13 +437,31 @@ void main()
                 if (texture_to_display == 6)   // debugging code 2, displays some information computed after tracing
                   {
                     float iterations_float = iteration_counter / 10000.0;
+                    float skips_float = skip_counter / 4.0;
                     
-                    fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
+                    // uncomennt one of the following
+                    
+                    // --- iteartions ---
+                    //fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
+                    
+                    // --- skips ---
+                    //fragment_color = vec4(skips_float,skips_float,skips_float,0);
+                    
+                    // --- skips and iterations ---
+                    //fragment_color = vec4(iterations_float,skips_float,0,0);
+                    
+                    // --- assert ---
+                    if (assertion) fragment_color = vec4(1,0,0,0); else fragment_color = vec4(0,1,0,0);
+
+                    // ---  encoded debug vector ---
+                    //fragment_color = vec4(map_minus_n_n_0_1(debug_vector,1000.0),0);
                   }
                 
               }
             else
               fragment_color = texture(texture_color, uv_coords);
+          
+            shader_log_write_uint(1);
           
             break;  
         }

@@ -218,21 +218,19 @@ void render()
     profiler->record_value(0,profiler->time_measure_end());
    
     // 2nd pass:
+    shader_log->bind();
+    
     profiler->time_measure_begin();
     set_up_pass2();
     draw_quad();
     
     shader_log->load_from_gpu();
-    cout << "lines: " << shader_log->get_number_of_lines() << endl;
-    //shader_log->print();
+    shader_log->print();
     
     profiler->record_value(1,profiler->time_measure_end());
     
     ErrorWriter::checkGlErrors("rendering loop");  
     glutSwapBuffers();
-  
-//    cout << "debug vector:" << endl;
-//    print_vec3(get_pixel_encoded_info(315,217,1000));
     
     profiler->next_frame();
   }
@@ -554,8 +552,6 @@ int main(int argc, char** argv)
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
     
-    shader_log = new ShaderLog();
-
     profiler = new Profiler();
     profiler->new_value("pass 1");
     profiler->new_value("pass 2");
@@ -708,10 +704,11 @@ int main(int argc, char** argv)
     
     special_callback(GLUT_KEY_INSERT,0,0);   // compute the cubemaps
    
-    shader_log->connect_to_shader(shader_quad,"shader_log_data");
+    shader_log = new ShaderLog();
+    shader_log->set_print_limit(20);
     shader_log->update_gpu();
     
-    ErrorWriter::checkGlErrors("shader log connection",true);
+    ErrorWriter::checkGlErrors("shader log init",true);
     
     session->start();
     
