@@ -3049,7 +3049,7 @@ class Profiler: public Printable
  * Allows the shaders to write debugging info into a log, using SSBOs. Only one log per program is now supported.
  */
   
-#define SHADER_LOG_LINE_LENGTH 128
+#define SHADER_LOG_LINE_LENGTH 512
 #define SHADER_LOG_MAX_LINES 512
 #define SHADER_LOG_DATA_OFFSET sizeof(uint32_t) * 3
 #define SHADER_LOG_DATA_SIZE SHADER_LOG_LINE_LENGTH * SHADER_LOG_MAX_LINES * sizeof(uint32_t)
@@ -3195,9 +3195,18 @@ class ShaderLog: public GPUObject, public Printable
                             if (line_position < this->line_length)
                               {    
                                 char data = (char) *(line_data + line_position);
-                                cout << data;
+                                
+                                if (data == 10)
+                                  cout << endl;
+                                else
+                                  cout << data;
                               }
                         
+                            line_position += 1;
+                            break;
+                            
+                          case 5:    // newline
+                            cout << endl;
                             line_position += 1;
                             break;
                             

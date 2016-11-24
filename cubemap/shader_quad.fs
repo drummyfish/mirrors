@@ -253,14 +253,14 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
   
 void main()
   {
-  
-ivec2 log_coord = ivec2(330,260);
+/*
+ivec2 log_coord = ivec2(283,265);
 bool do_log =
   gl_FragCoord.x < (log_coord.x + 1) &&
   gl_FragCoord.x > log_coord.x &&
   gl_FragCoord.y > log_coord.y &&
   gl_FragCoord.y < (log_coord.y + 1);
-
+*/
     switch (texture_to_display)
         {
           case 2:
@@ -292,8 +292,7 @@ bool do_log =
                 position2 = position1 + reflection_vector * 1000;
                 position1_to_position2 = position2 - position1;
                 
-                intersection_found = false;
-                  
+                intersection_found = false;                    
                 int iteration_counter = 0;
                 int skip_counter = 0;
                 bool assertion = true;
@@ -334,14 +333,17 @@ bool do_log =
                     cube_coordinates1 = normalize(position1 - cubemaps[i].position);
                     cube_coordinates2 = normalize(position2 - cubemaps[i].position);   
                     interpolation_step = 0.001;
-   
+              
                     for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                       next_acceleration_bounds[j] = -1;
    
                     t = 0.0;
-
+/*
 if (do_log)
-  shader_log_write_char(67);
+{
+shader_log_write_char(CHAR_C);
+shader_log_write_newline();
+}*/
                     
                     while (t <= 1.0) // trace the ray
                       {
@@ -368,18 +370,20 @@ if (do_log)
                           
                             if (t > next_acceleration_bounds[j])
                               {
-if (do_log)
-{
-shader_log_write_char(76);
-shader_log_write_uint(j); 
-shader_log_write_vec3(blender(tested_point2));
-}
                                 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
                                 ivec2 int_coordinates;
                
                                 float level_step = 1 / pow(2,j);
                                 
                                 int_coordinates = ivec2(int(helper_coords.x / level_step),int(helper_coords.y / level_step));
+/*
+if (do_log)
+{
+shader_log_write_char(CHAR_L);
+shader_log_write_uint(j); 
+shader_log_write_ivec2(int_coordinates);
+shader_log_write_vec3(blender(tested_point2));
+}*/
                                 
                                 vec2 helper_bounds = get_next_prev_acceleration_bound(
                                   cubemaps[i].position,
@@ -391,39 +395,36 @@ shader_log_write_vec3(blender(tested_point2));
                                   j
                                   );
                                   
-                   //             if (helper_bounds.x > t || helper_bounds.y < t)
-                   //               assertion = false;
-                                  
                                 // check if intersection can happen:
                                 
-                                vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j);
-                                vec3 cubemap_coordinates_next = mix(position1,position2,helper_bounds.x);
-                                vec3 cubemap_coordinates_previous = mix(position1,position2,helper_bounds.y);
+                                vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j) + (-1 * INTERSECTION_LIMIT,INTERSECTION_LIMIT);
+                                vec3 position_next = mix(position1,position2,helper_bounds.x);
+                                vec3 position_previous = mix(position1,position2,helper_bounds.y);
                                 
-                                float depth_next = length(cubemap_coordinates_next - cubemaps[i].position);
-                                float depth_previous = length(cubemap_coordinates_previous - cubemaps[i].position);
-                                
-                             //   float depth_next = get_distance_to_center(i,cubemap_coordinates_next);
-                             //   float depth_previous = get_distance_to_center(i,cubemap_coordinates_previous);
-
+                                float distance_next = length(position_next - cubemaps[i].position);
+                                float distance_previous = length(position_previous - cubemaps[i].position);
+/*
 if (do_log)
 {
-shader_log_write_float(depth_previous);
-shader_log_write_float(depth_next);
+shader_log_write_vec3(blender(position_next));
+shader_log_write_vec3(blender(position_previous));
+shader_log_write_float(distance_previous);
+shader_log_write_float(distance_next);
 shader_log_write_vec2(min_max);
-}
+shader_log_write_newline();
+} */
                                 
                                 if
                                   (
-                                    (min_max.y < depth_next && min_max.y < depth_previous)  ||
-                                    (min_max.x > depth_next && min_max.x > depth_previous)    
+                                    (min_max.y < distance_next && min_max.y < distance_previous)  ||
+                                    (min_max.x > distance_next && min_max.x > distance_previous)    
                                   )
                                   {
-if (do_log)
-shader_log_write_char(83);
+/*if (do_log)
+shader_log_write_char(CHAR_S);*/
                                     skip_counter += 1;
 
-                                    t += helper_bounds.x;  // jump to the next bound
+                                    t = helper_bounds.x;  // jump to the next bound
                                               
                                     skipped = true;
                                     break;
@@ -491,8 +492,8 @@ shader_log_write_char(83);
           
             break;  
         }
-        
+        /*
 if (do_log)
   fragment_color = vec4(0,1,1,0);
-        
+        */
   }
