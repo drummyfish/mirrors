@@ -1109,6 +1109,17 @@ class Image2D: public Printable
           this->set_size(width,height);
         }
 
+      /**
+       * Copy constructor.
+       */
+        
+      Image2D(Image2D *image)
+        {
+          this->data_type = image->get_data_type();
+          this->set_size(image->get_width(),image->get_height());
+          memcpy(this->get_data_pointer(),image->get_data_pointer(),this->get_data_size());
+        }
+        
       virtual ~Image2D()
         {
         }
@@ -1342,6 +1353,25 @@ class Image2D: public Printable
               }
         }
         
+      void multiply(double coefficient)
+        {
+          float r,g,b,a;
+          unsigned int i,j;
+          
+          for (j = 0; j < this->height; j++)
+            for (i = 0; i < this->width; i++)
+              {
+                this->get_pixel(i,j,&r,&g,&b,&a);
+               
+                r *= coefficient;
+                g *= coefficient;
+                b *= coefficient;
+                a *= coefficient;
+                
+                this->set_pixel(i,j,r,g,b,a);
+              }
+        }
+        
       /**
        * Sets pixels at given position to given value. The method behaves depending on the
        * texel type of the image, for TEXEL_TYPE_COLOR all arguments(r, g, b, a) are set
@@ -1524,6 +1554,28 @@ class Image2D: public Printable
                 break;
             }
         }
+        
+      unsigned int get_data_size()
+        {
+          switch (this->data_type)
+            {
+              case TEXEL_TYPE_COLOR:
+                return sizeof(this->data);
+                break;
+
+              case TEXEL_TYPE_DEPTH:
+                return sizeof(this->data_float);
+                break;
+                
+              case TEXEL_TYPE_STENCIL:
+                return sizeof(this->data_int);
+                break;
+                
+              default:
+                return 0;
+                break;
+            }
+        }
       
       virtual void print()
         {
@@ -1665,6 +1717,16 @@ class TextureCubeMap: public Texture
           this->image_right->raise_to_power(power);
           this->image_top->raise_to_power(power);
           this->image_bottom->raise_to_power(power);
+        }
+ 
+      void multiply(double coefficient)
+        {
+          this->image_front->multiply(coefficient);
+          this->image_back->multiply(coefficient);
+          this->image_left->multiply(coefficient);
+          this->image_right->multiply(coefficient);
+          this->image_top->multiply(coefficient);
+          this->image_bottom->multiply(coefficient);
         }
  
       virtual ~TextureCubeMap()
@@ -1844,7 +1906,7 @@ class ReflectionTraceCubeMap: public GPUObject
       TextureCubeMap *texture_color;
       TextureCubeMap *texture_depth;
       TextureCubeMap *texture_distance;
-      static glm::mat4 projection_matrix;    // matrix used for cubemap texture rendering
+      static glm::mat4 projection_matrix;       // matrix used for cubemap texture rendering
       GLint initial_viewport[4];
       
       // uniforms associated with the cubemap

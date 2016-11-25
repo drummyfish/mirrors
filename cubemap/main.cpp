@@ -368,7 +368,7 @@ void save_images()
   {
     cout << "saving images" << endl;
     
-    texture_camera_color->load_from_gpu();
+/*    texture_camera_color->load_from_gpu();
     texture_camera_color->get_image_data()->save_ppm("camera/color.ppm",false);
     texture_camera_depth->load_from_gpu();
     texture_camera_depth->get_image_data()->raise_to_power(256); 
@@ -379,20 +379,29 @@ void save_images()
     texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm",false);
     texture_camera_stencil->load_from_gpu();
     texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
-  
-    cubemaps[0]->get_texture_color()->load_from_gpu();  
-    cubemaps[0]->get_texture_depth()->load_from_gpu();
-    cubemaps[0]->get_texture_distance()->load_from_gpu();  
-    cubemaps[0]->get_texture_color()->save_ppms("cubemap_images/cubemaps[0]");
-    cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/cubemaps0_distance");
-    cubemaps[0]->get_texture_depth()->raise_to_power(256);  
-    cubemaps[0]->get_texture_depth()->save_ppms("cubemap_images/cubemaps0_depth");
+*/  
+
+//cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
+//    cubemaps[0]->get_texture_color()->load_from_gpu();
+//    cubemaps[0]->get_texture_depth()->load_from_gpu();
+//    cubemaps[0]->get_texture_color()->save_ppms("cubemap_images/cubemaps[0]");
+//cubemaps[0]->get_texture_distance()->raise_to_power(0.8);
+
+cubemaps[0]->get_texture_distance()->load_from_gpu(); 
+double coeff = 0.01;
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/cubemaps0_distance");
+cubemaps[0]->get_texture_distance()->multiply(1.0 / coeff);
+
+//cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
+//    cubemaps[0]->get_texture_depth()->raise_to_power(256);  
+//    cubemaps[0]->get_texture_depth()->save_ppms("cubemap_images/cubemaps0_depth");
     
-    cubemaps[1]->get_texture_color()->load_from_gpu();  
-    cubemaps[1]->get_texture_depth()->load_from_gpu();
-    cubemaps[1]->get_texture_color()->save_ppms("cubemap_images/cubemaps1");
-    cubemaps[1]->get_texture_depth()->raise_to_power(256);  
-    cubemaps[1]->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth"); 
+//    cubemaps[1]->get_texture_color()->load_from_gpu();  
+//    cubemaps[1]->get_texture_depth()->load_from_gpu();
+//    cubemaps[1]->get_texture_color()->save_ppms("cubemap_images/cubemaps1");
+//    cubemaps[1]->get_texture_depth()->raise_to_power(256);  
+//    cubemaps[1]->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth"); 
   }
   
 void recompute_cubemap()
@@ -431,7 +440,7 @@ void recompute_cubemap()
     cubemaps[1]->get_texture_depth()->load_from_gpu();
     cubemaps[1]->get_texture_distance()->load_from_gpu();   
     
-    //save_images();
+    save_images();
   }  
 
 void special_callback(int key, int x, int y)
