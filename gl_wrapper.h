@@ -1562,10 +1562,29 @@ class Image2D: public Printable
 class Texture: public Printable, public GPUObject
   {
     protected:
-      GLuint to;             // texture object id
+      GLuint to;                     // texture object id
+      unsigned int mipmap_level;     // which level of mipmap is being operated on on CPU
 
+      /**
+       * Return texture size based on currently set this->mipmap_level value.
+       */
+      
+      unsigned int get_current_mipmap_size(unsigned int base_size)
+        {
+          return glm::max((unsigned int) 1,base_size / int(pow(2,this->mipmap_level)));
+        }
+      
     public:
       virtual void bind(unsigned int unit) = 0;  
+
+      /**
+       * Sets mipmap level that will be operated on on CPU (i.e.
+       * functions such as load_from_gpu() will be affected). This
+       * function has to set the this->mipmap_level value and
+       * resize the internal images.
+       */
+        
+      virtual void set_mipmap_level(unsigned int level) = 0;
       
       GLuint get_texture_object()
         {
@@ -1603,6 +1622,7 @@ class TextureCubeMap: public Texture
           this->size = size;
           this->texel_type = texel_type;
           glGenTextures(1,&(this->to));
+          this->mipmap_level = 0;
           
           glBindTexture(GL_TEXTURE_CUBE_MAP,this->to);
           glTexParameteri (GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -1618,6 +1638,18 @@ class TextureCubeMap: public Texture
           this->image_right = new Image2D(size,size,texel_type);
           this->image_top = new Image2D(size,size,texel_type);
           this->image_bottom = new Image2D(size,size,texel_type);
+        }
+ 
+      virtual void set_mipmap_level(unsigned int level)
+        {
+          this->mipmap_level = level;
+          unsigned int mipmap_size = this->get_current_mipmap_size(this->size);    
+          this->image_front->set_size(mipmap_size,mipmap_size);
+          this->image_back->set_size(mipmap_size,mipmap_size);
+          this->image_left->set_size(mipmap_size,mipmap_size);
+          this->image_right->set_size(mipmap_size,mipmap_size);
+          this->image_top->set_size(mipmap_size,mipmap_size);
+          this->image_bottom->set_size(mipmap_size,mipmap_size);
         }
  
       /**
@@ -1672,8 +1704,8 @@ class TextureCubeMap: public Texture
                 targets[i],
                 0,
                 images[i]->get_internal_format(),
-                this->size,
-                this->size,
+                this->image_front->get_width(),
+                this->image_front->get_height(),
                 0,
                 images[i]->get_format(),
                 images[i]->get_type(),
@@ -1709,16 +1741,14 @@ class TextureCubeMap: public Texture
           
           for (i = 0; i < 6; i++)
             {
-              images[i]->set_size(this->size,this->size);
-              
               switch (this->texel_type)
                 {
                   case TEXEL_TYPE_COLOR:
-                    glGetTexImage(targets[i],0,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
+                    glGetTexImage(targets[i],this->mipmap_level,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
                     break;
                     
                   case TEXEL_TYPE_DEPTH:
-                    glGetTexImage(targets[i],0,GL_DEPTH_COMPONENT,GL_FLOAT,images[i]->get_data_pointer());
+                    glGetTexImage(targets[i],this->mipmap_level,GL_DEPTH_COMPONENT,GL_FLOAT,images[i]->get_data_pointer());
                     break;
                     
                   default:
@@ -2011,6 +2041,8 @@ class Texture2D: public Texture
   {
     protected:
       Image2D *image_data;
+      unsigned int base_width;
+      unsigned int base_height;
       
     public:
       /**
@@ -2026,6 +2058,16 @@ class Texture2D: public Texture
         {
           this->image_data = new Image2D(width,height,texel_type);
           glGenTextures(1,&(this->to));
+          
+          this->mipmap_level = 0;
+          this->base_width = width;
+          this->base_height = height;
+        }
+      
+      virtual void set_mipmap_level(unsigned int level)
+        {
+          this->mipmap_level = level;
+          this->image_data->set_size(this->get_current_mipmap_size(base_width),this->get_current_mipmap_size(base_height));
         }
       
       virtual ~Texture2D()
@@ -2104,12 +2146,9 @@ class Texture2D: public Texture
           glBindTexture(GL_TEXTURE_2D,this->to);    
           
           if (this->image_data->get_data_type() == TEXEL_TYPE_STENCIL)
-            {
-              glGetTexImage(GL_TEXTURE_2D,0,GL_RED_INTEGER,this->image_data->get_type(),this->image_data->get_data_pointer());
-            }
+            glGetTexImage(GL_TEXTURE_2D,this->mipmap_level,GL_RED_INTEGER,this->image_data->get_type(),this->image_data->get_data_pointer());
           else
-          
-          glGetTexImage(GL_TEXTURE_2D,0,this->image_data->get_format(),this->image_data->get_type(),this->image_data->get_data_pointer());
+            glGetTexImage(GL_TEXTURE_2D,this->mipmap_level,this->image_data->get_format(),this->image_data->get_type(),this->image_data->get_data_pointer());
           
           glBindTexture(GL_TEXTURE_2D,0);
         }
