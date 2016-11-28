@@ -364,6 +364,59 @@ void create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap, Texture2D *
     result->update_gpu();    
   }
   
+void create_acceleration_sw(TextureCubeMap *distance_texture)
+  {
+    unsigned int level = 1;
+    unsigned int side;
+    
+    cout << "computing acceleration:" << endl;
+    
+    while (true)
+      {
+        Image2D previous_level_image(distance_texture->image_front);
+        
+        distance_texture->set_mipmap_level(level);
+
+        cout << "  MIP level " << level << ", size: " << distance_texture->image_front->get_width() << endl;
+        
+        for (int j = 0; j < distance_texture->image_front->get_width(); j++)
+          for (int i = 0; i < distance_texture->image_front->get_height(); i++)
+            {
+              int x = 2 * i;
+              int y = 2 * j;
+             
+              float values_min[4];
+              float values_max[4];
+              float r,g,b,a;
+              
+              previous_level_image.get_pixel(x,y,         values_min,     &g,&b,&a);
+              previous_level_image.get_pixel(x + 1,y,     values_min + 1, &g,&b,&a);
+              previous_level_image.get_pixel(x,y + 1,     values_min + 2, &g,&b,&a);
+              previous_level_image.get_pixel(x + 1,y + 1, values_min + 3, &g,&b,&a);
+              
+              previous_level_image.get_pixel(x,y,         &r, values_max,     &b,&a);
+              previous_level_image.get_pixel(x + 1,y,     &r, values_max + 1, &b,&a);
+              previous_level_image.get_pixel(x,y + 1,     &r, values_max + 2, &b,&a);
+              previous_level_image.get_pixel(x + 1,y + 1, &r, values_max + 3, &b,&a);
+                
+              float new_min = glm::min(glm::min(glm::min(values_min[0],values_min[1]),values_min[2]),values_min[3]);
+              float new_max = glm::max(glm::max(glm::max(values_max[0],values_max[1]),values_max[2]),values_max[3]);
+              
+              distance_texture->image_front->set_pixel(i,j,new_min,new_max,b,a);
+            }
+        
+        distance_texture->update_gpu();
+        
+        level++;
+        
+        if (distance_texture->image_front->get_width() <= 1)
+          break;
+      }
+      
+    distance_texture->set_mipmap_level(0);
+    distance_texture->load_from_gpu();
+  }
+  
 void save_images()
   {
     cout << "saving images" << endl;
@@ -381,27 +434,21 @@ void save_images()
     texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
 */  
 
-//cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
-//    cubemaps[0]->get_texture_color()->load_from_gpu();
-//    cubemaps[0]->get_texture_depth()->load_from_gpu();
-//    cubemaps[0]->get_texture_color()->save_ppms("cubemap_images/cubemaps[0]");
-//cubemaps[0]->get_texture_distance()->raise_to_power(0.8);
-
-cubemaps[0]->get_texture_distance()->load_from_gpu(); 
 double coeff = 0.01;
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/cubemaps0_distance");
-cubemaps[0]->get_texture_distance()->multiply(1.0 / coeff);
 
-//cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
-//    cubemaps[0]->get_texture_depth()->raise_to_power(256);  
-//    cubemaps[0]->get_texture_depth()->save_ppms("cubemap_images/cubemaps0_depth");
-    
-//    cubemaps[1]->get_texture_color()->load_from_gpu();  
-//    cubemaps[1]->get_texture_depth()->load_from_gpu();
-//    cubemaps[1]->get_texture_color()->save_ppms("cubemap_images/cubemaps1");
-//    cubemaps[1]->get_texture_depth()->raise_to_power(256);  
-//    cubemaps[1]->get_texture_depth()->save_ppms("cubemap_images/cube_map1_depth"); 
+cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip0");
+
+cubemaps[0]->get_texture_distance()->set_mipmap_level(1);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip1");
+
+cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(1.0 / coeff);
   }
   
 void recompute_cubemap()
@@ -439,8 +486,6 @@ void recompute_cubemap()
     cubemaps[1]->get_texture_color()->load_from_gpu();  
     cubemaps[1]->get_texture_depth()->load_from_gpu();
     cubemaps[1]->get_texture_distance()->load_from_gpu();   
-    
-    save_images();
   }  
 
 void special_callback(int key, int x, int y)
@@ -490,12 +535,14 @@ void special_callback(int key, int x, int y)
               acceleration_textures[i]->update_gpu();
             }
           
+          create_acceleration_sw(cubemaps[0]->get_texture_distance());
+          
           cout << "acceleration max: " << acceleration_textures[0]->get_max_value() << endl;
           cout << "acceleration 2 max: " << acceleration_textures[1]->get_max_value() << endl;
 
        //   acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
        //   acceleration_textures[1]->get_image_data()->save_ppm("cubemap_images/acceleration2.ppm");
-       //   save_images();
+          save_images();
           break;
           
         case GLUT_KEY_F1:

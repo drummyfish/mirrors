@@ -1117,7 +1117,15 @@ class Image2D: public Printable
         {
           this->data_type = image->get_data_type();
           this->set_size(image->get_width(),image->get_height());
-          memcpy(this->get_data_pointer(),image->get_data_pointer(),this->get_data_size());
+          
+          for (int j = 0; j < image->get_height(); j++)
+            for (int i = 0; i < image->get_width(); i++)
+              {
+                float r,g,b,a;
+                
+                image->get_pixel(i,j,&r,&g,&b,&a);
+                this->set_pixel(i,j,r,g,b,a);
+              }
         }
         
       virtual ~Image2D()
@@ -1764,7 +1772,7 @@ class TextureCubeMap: public Texture
             {
               glTexImage2D(
                 targets[i],
-                0,
+                this->mipmap_level,
                 images[i]->get_internal_format(),
                 this->image_front->get_width(),
                 this->image_front->get_height(),
@@ -1774,8 +1782,7 @@ class TextureCubeMap: public Texture
                 images[i]->get_data_pointer()
                 );    
             }
-          
-          glGenerateMipmap(GL_TEXTURE_CUBE_MAP);         
+                  
           glBindTexture(GL_TEXTURE_CUBE_MAP,0);
         }
         
