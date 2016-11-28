@@ -1661,6 +1661,7 @@ class TextureCubeMap: public Texture
     protected:
       unsigned int size;
       unsigned int texel_type;
+      Image2D *images[6];
       
     public:
       Image2D *image_front;
@@ -1698,6 +1699,33 @@ class TextureCubeMap: public Texture
           this->image_right = new Image2D(size,size,texel_type);
           this->image_top = new Image2D(size,size,texel_type);
           this->image_bottom = new Image2D(size,size,texel_type);
+          
+          this->images[0] = this->image_front;
+          this->images[1] = this->image_back;
+          this->images[2] = this->image_left;
+          this->images[3] = this->image_right;
+          this->images[4] = this->image_bottom;
+          this->images[5] = this->image_top;
+        }
+ 
+      /**
+       * Returns an image of specified cubemap side.
+       * 
+       * @param side OpenGL cubemap side constant: GL_TEXTURE_CUBE_MAP_{NEGATIVE|POSITIOVE}_{X|Y|Z})
+       */
+ 
+      Image2D *get_texture_image(GLuint side)
+        {
+          switch (side)
+            {
+              case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z: return this->images[0];
+              case GL_TEXTURE_CUBE_MAP_POSITIVE_Z: return this->images[1];
+              case GL_TEXTURE_CUBE_MAP_NEGATIVE_X: return this->images[2];
+              case GL_TEXTURE_CUBE_MAP_POSITIVE_X: return this->images[3];
+              case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y: return this->images[4];
+              case GL_TEXTURE_CUBE_MAP_POSITIVE_Y: return this->images[5];
+              default: return NULL; break;
+            }
         }
  
       virtual void set_mipmap_level(unsigned int level)
@@ -1791,14 +1819,6 @@ class TextureCubeMap: public Texture
           int i;
           
           glBindTexture(GL_TEXTURE_CUBE_MAP,this->to);
-
-          Image2D *images[] =
-            {this->image_front,
-             this->image_back,
-             this->image_left,
-             this->image_right,
-             this->image_bottom,
-             this->image_top};
           
           GLuint targets[] =
             {GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
@@ -1813,11 +1833,11 @@ class TextureCubeMap: public Texture
               switch (this->texel_type)
                 {
                   case TEXEL_TYPE_COLOR:
-                    glGetTexImage(targets[i],this->mipmap_level,GL_RGBA,GL_FLOAT,images[i]->get_data_pointer());
+                    glGetTexImage(targets[i],this->mipmap_level,GL_RGBA,GL_FLOAT,this->images[i]->get_data_pointer());
                     break;
                     
                   case TEXEL_TYPE_DEPTH:
-                    glGetTexImage(targets[i],this->mipmap_level,GL_DEPTH_COMPONENT,GL_FLOAT,images[i]->get_data_pointer());
+                    glGetTexImage(targets[i],this->mipmap_level,GL_DEPTH_COMPONENT,GL_FLOAT,this->images[i]->get_data_pointer());
                     break;
                     
                   default:
