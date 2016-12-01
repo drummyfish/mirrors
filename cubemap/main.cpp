@@ -225,7 +225,7 @@ void render()
     draw_quad();
     
     shader_log->load_from_gpu();
- //   shader_log->print();
+//    shader_log->print();
     shader_log->clear();
     shader_log->update_gpu();
     
@@ -463,6 +463,26 @@ cubemaps[0]->get_texture_distance()->load_from_gpu();
 cubemaps[0]->get_texture_distance()->multiply(coeff);
 cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip1");
 
+cubemaps[0]->get_texture_distance()->set_mipmap_level(2);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip2");
+
+cubemaps[0]->get_texture_distance()->set_mipmap_level(3);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip3");
+
+cubemaps[0]->get_texture_distance()->set_mipmap_level(4);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip4");
+
+cubemaps[0]->get_texture_distance()->set_mipmap_level(5);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip5");
+
 cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
 cubemaps[0]->get_texture_distance()->load_from_gpu();
 cubemaps[0]->get_texture_distance()->multiply(1.0 / coeff);
@@ -556,8 +576,9 @@ void special_callback(int key, int x, int y)
           
           cout << "acceleration max: " << acceleration_textures[0]->get_max_value() << endl;
           cout << "acceleration 2 max: " << acceleration_textures[1]->get_max_value() << endl;
-
-       //   acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
+          
+//acceleration_textures[0]->get_image_data()->multiply(0.01);          
+//acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
        //   acceleration_textures[1]->get_image_data()->save_ppm("cubemap_images/acceleration2.ppm");
           save_images();
           break;

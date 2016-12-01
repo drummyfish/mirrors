@@ -3,6 +3,7 @@
 #define INTERSECTION_LIMIT 2   // what distance means intersection
 #define NUMBER_OF_CUBEMAPS 2
 #define ACCELERATION_LEVELS 9
+#define ACCELERATION_MIPMAP_LEVELS 9
 #define USE_ACCELERATION_LEVELS 3 // how many levels in acceleration texture to use
 #define INFINITY_T 999999         // infinite value for t (line parameter) 
 
@@ -192,6 +193,20 @@ vec2 get_acceleration_pixel(int texture_index, int side, vec2 coordinates, int l
     return result;
   }
   
+vec2 get_acceleration_pixel2(int texture_index, vec3 cube_coordinates, int level)
+  {
+    vec2 result;
+    
+    level = ACCELERATION_MIPMAP_LEVELS - level;
+
+    if (texture_index == 0)
+      result = textureLod(cubemaps[0].texture_distance,cube_coordinates,level).xy;
+    else
+      result = textureLod(cubemaps[1].texture_distance,cube_coordinates,level).xy;    
+
+    return result;
+  }
+  
 vec2 cubemap_side_coordinates(float right, float up, float forward)
   {
     return vec2(0.5 + 0.5 * right / forward, 0.5 + 0.5 * up / forward);
@@ -261,6 +276,7 @@ bool do_log =
   gl_FragCoord.y > log_coord.y &&
   gl_FragCoord.y < (log_coord.y + 1);
 */
+
     switch (texture_to_display)
         {
           case 2:
@@ -301,7 +317,8 @@ bool do_log =
                 if (texture_to_display == 5)   // debugging code, displays some information in the mirror pixel
                   {
                     vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
-                    vec2 helper_min_max = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,1) / 1000.0;
+                    vec2 helper_min_max = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,3) / 1000.0;
+                    vec2 helper_min_max2 = get_acceleration_pixel2(0,position1 - cubemaps[0].position,4) / 1000.0;
                     float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
                    
                     // uncomment one of following
@@ -312,8 +329,11 @@ bool do_log =
                     // --- acceleration texture max ---
                     //fragment_color = vec4(helper_min_max.y,helper_min_max.y,helper_min_max.y,0);
                     
+                    // --- acceleration texture 2 max ---
+                    fragment_color = vec4(helper_min_max2.y,helper_min_max2.y,helper_min_max2.y,0);
+                    
                     // --- acceleration texture max - min ---
-                    fragment_color = vec4(helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,0);
+                    //fragment_color = vec4(helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,0);
                    
                     // --- acceleration on ---
                     //fragment_color = vec4(float(acceleration_on),float(acceleration_on),float(acceleration_on),0);
@@ -397,7 +417,10 @@ shader_log_write_vec3(blender(tested_point2));
                                   
                                 // check if intersection can happen:
                                 
-                                vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j) + (-1 * INTERSECTION_LIMIT,INTERSECTION_LIMIT);
+                          //      vec2 min_max = get_acceleration_pixel(i,int(helper_coords.z),helper_coords.xy,j) + (-1 * INTERSECTION_LIMIT,INTERSECTION_LIMIT);
+                          
+                          
+                                vec2 min_max = get_acceleration_pixel2(i,cube_coordinates_current,j) + (-1 * INTERSECTION_LIMIT,INTERSECTION_LIMIT);                          
                                 vec3 position_next = mix(position1,position2,helper_bounds.x);
                                 vec3 position_previous = mix(position1,position2,helper_bounds.y);
                                 
@@ -469,10 +492,21 @@ shader_log_write_char(CHAR_S);*/
                     float iterations_float = iteration_counter / 10000.0;
                     float skips_float = skip_counter / 4.0;
                     
+                    
+                    
+                    
+                    vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
+                    vec2 helper_min_max = get_acceleration_pixel(0,int(helper_coords.z),helper_coords.xy,4) / 1000.0;
+                   
+                    // --- acceleration texture max ---
+                    fragment_color = vec4(helper_min_max.y,helper_min_max.y,helper_min_max.y,0);
+                    
+                   
+                    
                     // uncomennt one of the following
                     
                     // --- iteartions ---
-                    fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
+                    //fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
                     
                     // --- skips ---
                     //fragment_color = vec4(skips_float,skips_float,skips_float,0);
