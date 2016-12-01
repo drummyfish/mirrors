@@ -42,9 +42,6 @@ UniformVariable uniform_projection_matrix("projection_matrix");
 UniformVariable uniform_camera_position("camera_position");
 UniformVariable uniform_cubemap_position("cubemap_position");
 
-UniformVariable uniform_textures_acceleration_0("acceleration_textures[0]");
-UniformVariable uniform_textures_acceleration_1("acceleration_textures[1]");
-
 Shader *shader_3d;                   // for first pass: renders a 3D scene
 Shader *shader_quad;                 // for second pass: draws textures on quad
 Shader *shader_compute;              // for computing the acceleration texture
@@ -59,8 +56,6 @@ Texture2D *texture_camera_depth;
 Texture2D *texture_camera_position;
 Texture2D *texture_camera_normal;
 Texture2D *texture_camera_stencil;
-
-Texture2D *acceleration_textures[2];
 
 bool draw_mirror = true;
 
@@ -156,9 +151,6 @@ void draw_quad()  // for the second pass
     texture_camera_normal->bind(1);
     texture_camera_position->bind(2);
     texture_camera_stencil->bind(3);
-    
-    acceleration_textures[0]->bind(8);
-    acceleration_textures[1]->bind(9);
       
     geometry_quad->draw_as_triangles(); 
     glEnable(GL_DEPTH_TEST);
@@ -185,8 +177,6 @@ void set_up_pass2()
     uniform_texture_normal.update_int(1);
     uniform_texture_position.update_int(2);
     uniform_texture_stencil.update_int(3);
-    uniform_textures_acceleration_0.update_int(8);
-    uniform_textures_acceleration_1.update_int(9);
     
     uniform_texture_to_display.update_int(texture_to_display);
     uniform_acceleration_on.update_int(acceleration_on);
@@ -259,115 +249,9 @@ void recompute_cubemap_side(ReflectionTraceCubeMap *cube_map, GLuint side)
     frame_buffer_cube->deactivate();
   }
   
-  /**
-   * Creates an acceleration texture from given cubemap in software.
-   * 
-   * @param cubemap cubemap to create the texture for
-   * @return newly created acceleration texture
-   */
-  
-Texture2D *new_acceleration_texture(int cubemap_resolution)
-  {
-    return new Texture2D(cubemap_resolution * 3,cubemap_resolution * 2,TEXEL_TYPE_DEPTH);
-  }
-  
-void create_acceleration_texture_sw(ReflectionTraceCubeMap *cubemap, Texture2D *result)
-  {
-    int size = cubemap->get_texture_color()->image_front->get_width();
-    int half_size = size / 2;
-    int offset_x, offset_y;
- //   Texture2D *result = new Texture2D(size * 3,size * 2,TEXEL_TYPE_DEPTH);
-    Image2D *image_data;
-    Image2D *result_image_data = result->get_image_data();
-    int texture_direction;
-    
-    cout << "creating acceleration texture on CPU" << endl;
-    
-    for (texture_direction = 0; texture_direction < 6; texture_direction++)
-      {
-        switch (texture_direction)
-          {
-            case 0:
-              image_data = cubemap->get_texture_distance()->image_front;
-              offset_x = 0; offset_y = 0;
-              break;
-              
-            case 1:
-              image_data = cubemap->get_texture_distance()->image_back;
-              offset_x = size; offset_y = 0;
-              break;
-              
-            case 2:
-              image_data = cubemap->get_texture_distance()->image_left;
-              offset_x = 2 * size; offset_y = 0;
-              break;
-              
-            case 3:
-              image_data = cubemap->get_texture_distance()->image_right;
-              offset_x = 0; offset_y = size;
-              break;
-              
-            case 4:
-              image_data = cubemap->get_texture_distance()->image_top;
-              offset_x = size; offset_y = size;
-              break;
-              
-            case 5:
-            default:
-              image_data = cubemap->get_texture_distance()->image_bottom;
-              offset_x = 2 * size; offset_y = size;
-              break;
-          }
-          
-        float r, g, b, a, maximum, minimum;  
-        int i,j,x,y,level,block_size,level_offset;
-        
-        level = 1;
-        level_offset = 0;
-        
-        while (true)  // levels
-          {
-            block_size = size / level;
-            
-            if (block_size < 2)
-              break;
-            
-            for (j = 0; j < level; j++)
-              for (i = 0; i < level; i++)
-                {
-                  maximum = 0;
-                  minimum = 99999999999;
-                  
-                  for (y = 0; y < block_size; y++)
-                    for (x = 0; x < block_size; x++)
-                      {
-                        image_data->get_pixel(i * block_size + x,j * block_size + y,&r,&g,&b,&a);
-                                               
-                        if (r > maximum)
-                          maximum = r;
-                        
-                        if (r < minimum)
-                          minimum = r;
-                      }  
-                
-                   result_image_data->set_pixel(offset_x + i + level_offset,offset_y + j,maximum,0,0,0);
-                   result_image_data->set_pixel(offset_x + i + level_offset,offset_y + j + half_size,minimum,0,0,0);
-                }
-                
-            level_offset += level;
-            level *= 2;
-          }
-      }
-
- //   result->set_parameter_int(GL_TEXTURE_MIN_FILTER,GL_NEAREST);
- //   result->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-    result->update_gpu();    
-  }
-  
 void create_acceleration_sw(TextureCubeMap *distance_texture)
   {
     unsigned int level = 1;
-    unsigned int side;
     
     cout << "computing acceleration:" << endl;
     
@@ -564,22 +448,8 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_INSERT:
           recompute_cubemap();
           
-          for (int i = 0; i < 2; i++)
-            {
-              create_acceleration_texture_sw(cubemaps[i],acceleration_textures[i]);
-           //   acceleration_textures[i]->get_image_data()->raise_to_power(256);
-              cout << "updating acceleration texture " << i << endl;
-              acceleration_textures[i]->update_gpu();
-            }
-          
           create_acceleration_sw(cubemaps[0]->get_texture_distance());
           
-          cout << "acceleration max: " << acceleration_textures[0]->get_max_value() << endl;
-          cout << "acceleration 2 max: " << acceleration_textures[1]->get_max_value() << endl;
-          
-//acceleration_textures[0]->get_image_data()->multiply(0.01);          
-//acceleration_textures[0]->get_image_data()->save_ppm("cubemap_images/acceleration.ppm");
-       //   acceleration_textures[1]->get_image_data()->save_ppm("cubemap_images/acceleration2.ppm");
           save_images();
           break;
           
@@ -714,12 +584,6 @@ int main(int argc, char** argv)
     
     texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
     texture_camera_stencil->update_gpu();
-
-    for (int i = 0; i < 2; i++)
-      {
-        acceleration_textures[i] = new Texture2D(CUBEMAP_RESOLUTION * 3,CUBEMAP_RESOLUTION * 2,TEXEL_TYPE_COLOR); //new_acceleration_texture(CUBEMAP_RESOLUTION);
-        acceleration_textures[i]->update_gpu();
-      }
     
     cubemaps[0] = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].position",4,5);
     cubemaps[0]->update_gpu();
@@ -783,8 +647,6 @@ int main(int argc, char** argv)
     uniform_texture_to_display.retrieve_location(shader_quad);
     uniform_acceleration_on.retrieve_location(shader_quad);
     uniform_camera_position.retrieve_location(shader_quad);
-    uniform_textures_acceleration_0.retrieve_location(shader_quad);
-    uniform_textures_acceleration_1.retrieve_location(shader_quad);
     
     ErrorWriter::checkGlErrors("after init",true);
     
@@ -815,8 +677,6 @@ int main(int argc, char** argv)
     delete texture_mirror;
     delete cubemaps[0];
     delete cubemaps[1];
-    delete acceleration_textures[0];
-    delete acceleration_textures[1];
     delete texture_scene;
     delete texture_sky;
     delete texture_mirror_depth;
