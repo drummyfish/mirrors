@@ -2058,18 +2058,89 @@ class ReflectionTraceCubeMap: public GPUObject
        for cubemap rendering.
        */
   
-      void setViewport()
+      void set_viewport()
         {
           glGetIntegerv(GL_VIEWPORT,this->initial_viewport);   // save the old viewport
           glViewport(0,0,this->size,this->size);
         }
+
+      /**
+       Computes the acceleration texture on CPU and stores it in MIPmap
+       levels of the distance texture. This will also cause distance texture
+       update on GPU.
+       */
+        
+      void compute_acceleration_texture_sw()
+        {
+          unsigned int level = 1;
+    
+          while (true)  // for all mipmap levels
+            {
+              Image2D *previous_level_images[6];
+        
+              GLuint sides[] =
+                {
+                  GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                  GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+                  GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+                  GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+                  GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+                  GL_TEXTURE_CUBE_MAP_POSITIVE_Y
+                };
+        
+              for (int i = 0; i < 6; i++)
+                previous_level_images[i] = new Image2D(this->texture_distance->get_texture_image(sides[i]));
+        
+              this->texture_distance->set_mipmap_level(level);
+     
+              for (int k = 0; k < 6; k++)
+                for (int j = 0; j < this->texture_distance->image_front->get_width(); j++)
+                  for (int i = 0; i < this->texture_distance->image_front->get_height(); i++)
+                    {
+                      int x = 2 * i;
+                      int y = 2 * j;
+             
+                      float values_min[4];
+                      float values_max[4];
+                      float r,g,b,a;
+              
+                      previous_level_images[k]->get_pixel(x,y,         values_min,     &g,&b,&a);
+                      previous_level_images[k]->get_pixel(x + 1,y,     values_min + 1, &g,&b,&a);
+                      previous_level_images[k]->get_pixel(x,y + 1,     values_min + 2, &g,&b,&a);
+                      previous_level_images[k]->get_pixel(x + 1,y + 1, values_min + 3, &g,&b,&a);
+              
+                      previous_level_images[k]->get_pixel(x,y,         &r, values_max,     &b,&a);
+                      previous_level_images[k]->get_pixel(x + 1,y,     &r, values_max + 1, &b,&a);
+                      previous_level_images[k]->get_pixel(x,y + 1,     &r, values_max + 2, &b,&a);
+                      previous_level_images[k]->get_pixel(x + 1,y + 1, &r, values_max + 3, &b,&a);
+                
+                      float new_min = glm::min(glm::min(glm::min(values_min[0],values_min[1]),values_min[2]),values_min[3]);
+                      float new_max = glm::max(glm::max(glm::max(values_max[0],values_max[1]),values_max[2]),values_max[3]);
+              
+                      this->texture_distance->get_texture_image(sides[k])->set_pixel(i,j,new_min,new_max,b,a);
+                    }
+        
+              this->texture_distance->update_gpu();
+        
+              level++;
+        
+              for (int i = 0; i < 6; i++)
+                delete previous_level_images[i];
+        
+              if (this->texture_distance->image_front->get_width() <= 1)
+                break;
+            }
       
+          this->texture_distance->set_mipmap_level(0);
+          this->texture_distance->load_from_gpu();
+        }
+        
       /**
        Restores the original viewport settings (saved when setViewport
        was called).
        */
       
-      void unsetViewport()
+      void unset_viewport()
         {
           glViewport(this->initial_viewport[0],this->initial_viewport[1],this->initial_viewport[2],this->initial_viewport[3]);
         }

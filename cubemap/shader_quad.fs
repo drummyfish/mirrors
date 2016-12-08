@@ -7,6 +7,8 @@
 #define USE_ACCELERATION_LEVELS 3 // how many levels in acceleration texture to use
 #define INFINITY_T 999999         // infinite value for t (line parameter) 
 
+#define NO_LOG
+
 in vec3 transformed_normal;
 in vec4 transformed_position;
 in vec2 uv_coords;
@@ -213,14 +215,16 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
   
 void main()
   {
-/*
-ivec2 log_coord = ivec2(283,265);
+
+#ifndef NO_LOG
+ivec2 log_coord = ivec2(341,137);
 bool do_log =
   gl_FragCoord.x < (log_coord.x + 1) &&
   gl_FragCoord.x > log_coord.x &&
   gl_FragCoord.y > log_coord.y &&
   gl_FragCoord.y < (log_coord.y + 1);
-*/
+#endif
+  
     switch (texture_to_display)
         {
           case 2:
@@ -295,13 +299,13 @@ bool do_log =
                       next_acceleration_bounds[j] = -1;
    
                     t = 0.0;
-/*
+#ifndef NO_LOG
 if (do_log)
 {
 shader_log_write_char(CHAR_C);
 shader_log_write_newline();
-}*/
-                    
+}
+#endif                    
                     while (t <= 1.0) // trace the ray
                       {
                         t += interpolation_step;
@@ -329,10 +333,10 @@ shader_log_write_newline();
                               {
                                 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
                                 ivec2 int_coordinates;
-               
+         
                                 float level_step = 1 / pow(2,j);
                                 
-                                int_coordinates = ivec2(int(helper_coords.x / level_step),int(helper_coords.y / level_step));
+                                int_coordinates = ivec2(int(helper_coords.x / level_step),int(helper_coords.y / level_step));    
                                 
                                 vec2 helper_bounds = get_next_prev_acceleration_bound(
                                   cubemaps[i].position,
@@ -346,13 +350,25 @@ shader_log_write_newline();
                                   
                                 // check if intersection can happen:
                                 
-                                vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,j) + (-1 * INTERSECTION_LIMIT,INTERSECTION_LIMIT);                          
+                                vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,j) + (INTERSECTION_LIMIT, -1 * INTERSECTION_LIMIT);                          
                                 vec3 position_next = mix(position1,position2,helper_bounds.x);
                                 vec3 position_previous = mix(position1,position2,helper_bounds.y);
                                 
                                 float distance_next = length(position_next - cubemaps[i].position);
                                 float distance_previous = length(position_previous - cubemaps[i].position);
-                                
+#ifndef NO_LOG
+if (do_log)
+{
+shader_log_write_char(CHAR_L);
+shader_log_write_uint(j);
+shader_log_write_vec3(blender(tested_point2));
+shader_log_write_ivec2(int_coordinates);
+shader_log_write_vec2(min_max);
+shader_log_write_float(distance_previous);
+shader_log_write_float(distance_next);
+shader_log_write_newline();
+}  
+#endif                               
                                 if
                                   (
                                     (min_max.y < distance_next && min_max.y < distance_previous)  ||
@@ -360,7 +376,13 @@ shader_log_write_newline();
                                   )
                                   {
                                     skip_counter += 1;
-
+#ifndef NO_LOG
+if (do_log)
+{
+shader_log_write_char(CHAR_S);
+shader_log_write_newline();
+}
+#endif
                                     t = helper_bounds.x;  // jump to the next bound
                                               
                                     skipped = true;
@@ -429,4 +451,9 @@ shader_log_write_newline();
           
             break;  
         }
+#ifndef NO_LOG        
+if (do_log)
+  fragment_color = vec4(1,1,1,0);
+#endif
+  
   }

@@ -215,7 +215,9 @@ void render()
     draw_quad();
     
     shader_log->load_from_gpu();
-//    shader_log->print();
+
+  //  shader_log->print();
+
     shader_log->clear();
     shader_log->update_gpu();
     
@@ -247,75 +249,6 @@ void recompute_cubemap_side(ReflectionTraceCubeMap *cube_map, GLuint side)
     draw_scene();
     draw_mirror = true;
     frame_buffer_cube->deactivate();
-  }
-  
-void create_acceleration_sw(TextureCubeMap *distance_texture)
-  {
-    unsigned int level = 1;
-    
-    cout << "computing acceleration:" << endl;
-    
-    while (true)  // for all mipmap levels
-      {
-        Image2D *previous_level_images[6];
-        
-        GLuint sides[] =
-          {
-            GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
-            GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
-            GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-            GL_TEXTURE_CUBE_MAP_POSITIVE_X,
-            GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
-            GL_TEXTURE_CUBE_MAP_POSITIVE_Y
-          };
-        
-        for (int i = 0; i < 6; i++)
-          previous_level_images[i] = new Image2D(distance_texture->get_texture_image(sides[i]));
-        
-        distance_texture->set_mipmap_level(level);
-
-        cout << "  MIP level " << level << ", size: " << distance_texture->image_front->get_width() << endl;
-        
-        for (int k = 0; k < 6; k++)
-          for (int j = 0; j < distance_texture->image_front->get_width(); j++)
-            for (int i = 0; i < distance_texture->image_front->get_height(); i++)
-              {
-                int x = 2 * i;
-                int y = 2 * j;
-             
-                float values_min[4];
-                float values_max[4];
-                float r,g,b,a;
-              
-                previous_level_images[k]->get_pixel(x,y,         values_min,     &g,&b,&a);
-                previous_level_images[k]->get_pixel(x + 1,y,     values_min + 1, &g,&b,&a);
-                previous_level_images[k]->get_pixel(x,y + 1,     values_min + 2, &g,&b,&a);
-                previous_level_images[k]->get_pixel(x + 1,y + 1, values_min + 3, &g,&b,&a);
-              
-                previous_level_images[k]->get_pixel(x,y,         &r, values_max,     &b,&a);
-                previous_level_images[k]->get_pixel(x + 1,y,     &r, values_max + 1, &b,&a);
-                previous_level_images[k]->get_pixel(x,y + 1,     &r, values_max + 2, &b,&a);
-                previous_level_images[k]->get_pixel(x + 1,y + 1, &r, values_max + 3, &b,&a);
-                
-                float new_min = glm::min(glm::min(glm::min(values_min[0],values_min[1]),values_min[2]),values_min[3]);
-                float new_max = glm::max(glm::max(glm::max(values_max[0],values_max[1]),values_max[2]),values_max[3]);
-              
-                distance_texture->get_texture_image(sides[k])->set_pixel(i,j,new_min,new_max,b,a);
-              }
-        
-        distance_texture->update_gpu();
-        
-        level++;
-        
-        for (int i = 0; i < 6; i++)
-          delete previous_level_images[i];
-        
-        if (distance_texture->image_front->get_width() <= 1)
-          break;
-      }
-      
-    distance_texture->set_mipmap_level(0);
-    distance_texture->load_from_gpu();
   }
   
 void save_images()
@@ -380,7 +313,7 @@ void recompute_cubemap()
     uniform_projection_matrix.update_mat4(ReflectionTraceCubeMap::get_projection_matrix());
     
     uniform_cubemap_position.update_vec3(cubemaps[0]->transformation.get_translation());
-    cubemaps[0]->setViewport();
+    cubemaps[0]->set_viewport();
     cout << "rendering cube map 1..." << endl;
     recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
     recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
@@ -388,10 +321,10 @@ void recompute_cubemap()
     recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
     recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
     recompute_cubemap_side(cubemaps[0],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cubemaps[0]->unsetViewport();  
+    cubemaps[0]->unset_viewport();  
     
     uniform_cubemap_position.update_vec3(cubemaps[1]->transformation.get_translation());
-    cubemaps[1]->setViewport();
+    cubemaps[1]->set_viewport();
     cout << "rendering cube map 2..." << endl;
     recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_X);
     recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
@@ -399,7 +332,7 @@ void recompute_cubemap()
     recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
     recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
     recompute_cubemap_side(cubemaps[1],GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cubemaps[1]->unsetViewport();  
+    cubemaps[1]->unset_viewport();  
 
     cubemaps[0]->get_texture_color()->load_from_gpu();  
     cubemaps[0]->get_texture_depth()->load_from_gpu();
@@ -448,7 +381,8 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_INSERT:
           recompute_cubemap();
           
-          create_acceleration_sw(cubemaps[0]->get_texture_distance());
+          cubemaps[0]->compute_acceleration_texture_sw();
+          cubemaps[1]->compute_acceleration_texture_sw();
           
           save_images();
           break;
