@@ -15,7 +15,6 @@ TransformationTRSModel transformation_sky;
 Geometry3D *geometry_scene;
 Geometry3D *geometry_sky;             // skybox
 Geometry3D *geometry_line;            // helper marking line
-Geometry3D *geometry_quad;            // quad for the second render pass
 Geometry3D *geometry_mirror;
 Geometry3D *geometry_box;             // box marking the cube map positions
 
@@ -141,9 +140,6 @@ void draw_scene()
 
 void draw_quad()  // for the second pass
   {
-    glDisable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT);
-    
     cubemaps[0]->bind_textures();
     cubemaps[1]->bind_textures();
     
@@ -152,10 +148,9 @@ void draw_quad()  // for the second pass
     texture_camera_position->bind(2);
     texture_camera_stencil->bind(3);
       
-    geometry_quad->draw_as_triangles(); 
-    glEnable(GL_DEPTH_TEST);
+    draw_fullscreen_quad();
   }
- 
+
 void set_up_pass1()
   {
     shader_3d->use();
@@ -381,6 +376,7 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_INSERT:
           recompute_cubemap();
           
+   //       cubemaps[0]->compute_acceleration_texture();
           cubemaps[0]->compute_acceleration_texture_sw();
           cubemaps[1]->compute_acceleration_texture_sw();
           
@@ -491,10 +487,6 @@ int main(int argc, char** argv)
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
     
-    Geometry3D g6 = make_quad(2.0,2.0,0.5);
-    geometry_quad = &g6;
-    geometry_quad->update_gpu();
-    
     texture_sky = new Texture2D(16,16,TEXEL_TYPE_COLOR);
     texture_sky->load_ppm("../resources/sky.ppm");
     texture_sky->update_gpu();
@@ -550,7 +542,7 @@ int main(int argc, char** argv)
     texture_mirror_depth->update_gpu();
     
     Shader shad1(file_text("shader_3d.vs",true),file_text("shader_3d.fs",true),"");
-    Shader shad2(file_text("shader_quad.vs",true),file_text("shader_quad.fs",true),"");
+    Shader shad2(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad.fs",true),"");
     
     shader_3d = &shad1;
     shader_quad = &shad2;
@@ -596,6 +588,8 @@ int main(int argc, char** argv)
     
     special_callback(GLUT_KEY_INSERT,0,0);   // compute the cubemaps
    
+//return 0;
+    
     shader_log = new ShaderLog();
     shader_log->set_print_limit(20);
     shader_log->update_gpu();

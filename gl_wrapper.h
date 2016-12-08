@@ -34,6 +34,21 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <stdint.h>
 
+std::string __vs_quad_text =
+  "#version 330\n"
+  "layout (location = 0) in vec3 position;\n"
+  "layout (location = 1) in vec3 texture_coords;\n"
+  "layout (location = 2) in vec3 normal;\n"
+  "out vec4 transformed_position;\n"
+  "out vec2 uv_coords;\n"
+  "void main() {\n"
+  "  transformed_position = vec4(position,1.0);\n"
+  "  gl_Position = transformed_position;\n"
+  "  uv_coords = texture_coords.xy;\n"
+  "}\n";
+
+#define VERTEX_SHADER_QUAD_TEXT __vs_quad_text ///< vertex shader code, can be used for drawind quads
+
 using namespace std;
 
 /**
@@ -295,7 +310,7 @@ class GLSession
           this->mouse_callback = 0;                      ///< for mouse press and releases, signature: void f(int button, int state, int x, int y)
           this->reshape_callback = 0;
           this->mouse_pressed_motion_callback = 0;       ///< for mouse movement with mouse buttons pressed, signature: void f(int x, int y)
-          this->mouse_not_pressed_motion_callback = 0;   ///< for mouse movement without mouse buttons pressed, signature: void f(int x, int y)
+          this->mouse_not_pressed_motion_callback = 0;   ///< for mouse movement without mouse buttons pressed, signature: void f(int x, int y)            
         };
     
     public:
@@ -2065,6 +2080,27 @@ class ReflectionTraceCubeMap: public GPUObject
         }
 
       /**
+       Computes the acceleration texture on GPU and stores it in MIPmap
+       levels of the distance texture. This will also cause distance texture
+       update on GPU.
+       
+       NOT WORKING YET
+       */
+        
+      void compute_acceleration_texture()
+        {
+          string helper_shader_fs_text =
+            "#version 330\n" 
+            "layout(location = 0) out vec4 fragment_color;\n" 
+            
+            "void main() {\n" 
+            "fragment_color = vec4(0.5,1,0);\n" 
+            "}\n";
+    
+    
+        }
+        
+      /**
        Computes the acceleration texture on CPU and stores it in MIPmap
        levels of the distance texture. This will also cause distance texture
        update on GPU.
@@ -3445,5 +3481,26 @@ float CameraHandler::rotation_step = 1.0;
 int CameraHandler::initial_mouse_coords[2] = {0,0};
 glm::vec3 CameraHandler::initial_camera_rotation;
 TransformationTRSCamera CameraHandler::camera_transformation;
+
+Geometry3D *geometry_fullscreen_quad = 0;
+
+void draw_fullscreen_quad()
+  {
+    static Geometry3D g;
+      
+    if (geometry_fullscreen_quad == 0)
+      {
+        g = make_quad(2,2,0.5);
+        geometry_fullscreen_quad = &g;
+        geometry_fullscreen_quad->update_gpu();
+      }
+    
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    geometry_fullscreen_quad->draw_as_triangles();
+    
+    glEnable(GL_DEPTH_TEST);
+  }
 
 #endif
