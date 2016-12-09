@@ -48,8 +48,15 @@ std::string __vs_quad_text =
   "}\n";
 
 #define VERTEX_SHADER_QUAD_TEXT __vs_quad_text ///< vertex shader code, can be used for drawind quads
-
+  
 using namespace std;
+
+// necessary forward declarations:
+  
+void draw_fullscreen_quad(int,int);
+static string file_text(string, bool);
+
+// -------------------------------
 
 /**
  * An object that can be printed.
@@ -180,6 +187,35 @@ void print_vec3(glm::vec3 vector)
     cout << vector.x << " " << vector.y << " " << vector.z << endl;
   }
 
+static string preprocess_text(string text)
+  {
+    int include_limit = 255;
+    bool include_found;
+    size_t position, position2,position3;
+    string include_string = "#include ";
+    string filename2;
+    
+    while (include_limit >= 0) // each iteration replaces one #include
+      {
+        position = text.find(include_string);
+        include_found = position != string::npos;
+            
+        if (!include_found)
+          break;
+            
+        position3 = position + include_string.length();
+        position2 = text.find("\n",position3);
+        filename2 = text.substr(position3,position2 - position3);
+        text = text.replace(position,position2 - position,file_text(filename2,false));
+        include_limit--;
+      }
+          
+    if (include_limit < 0)
+      ErrorWriter::write_error("Include limit reached."); 
+
+    return text;    
+  }
+  
 /**
   * Gets a text of given file.
   * 
@@ -189,11 +225,6 @@ void print_vec3(glm::vec3 vector)
       
 static string file_text(string filename, bool preprocess=false)
   {
-    int include_limit = 256;
-    bool include_found;
-    string include_string = "#include ";
-    size_t position, position2,position3;
-    string filename2;
     std::ifstream stream(filename);
     
     if (!stream.is_open())
@@ -204,25 +235,7 @@ static string file_text(string filename, bool preprocess=false)
     std::string result((std::istreambuf_iterator<char>(stream)),std::istreambuf_iterator<char>());
        
     if (preprocess)
-      {
-        while (include_limit >= 0) // each iteration replaces one #include
-          {
-            position = result.find(include_string);
-            include_found = position != string::npos;
-            
-            if (!include_found)
-              break;
-            
-            position3 = position + include_string.length();
-            position2 = result.find("\n",position3);
-            filename2 = result.substr(position3,position2 - position3);
-            result = result.replace(position,position2 - position,file_text(filename2));
-            include_limit--;
-          }
-          
-        if (include_limit < 0)
-          ErrorWriter::write_error("Include limit reached.");  
-      }
+      result = preprocess_text(result);
           
     return result;
   }
@@ -1936,302 +1949,6 @@ class TextureCubeMap: public Texture
           glBindTexture(GL_TEXTURE_CUBE_MAP,this->to);
         }
   };
-  
-/**
- * Represents a cube map that is used for capturing environment.
- */
-  
-class ReflectionTraceCubeMap: public GPUObject
-  {
-    protected:
-      unsigned int size;
-      TextureCubeMap *texture_color;
-      TextureCubeMap *texture_depth;
-      TextureCubeMap *texture_distance;
-      static glm::mat4 projection_matrix;       // matrix used for cubemap texture rendering
-      GLint initial_viewport[4];
-      
-      // uniforms associated with the cubemap
-      UniformVariable *uniform_texture_color;
-      UniformVariable *uniform_texture_distance;
-      UniformVariable *uniform_position;
-      
-      unsigned int texture_color_sampler;
-      unsigned int texture_distance_sampler;
-      
-    public:    
-      TransformationTRSModel transformation;    // contains the cubemap transformation, to be able to place it in the world, only translation is considered 
-      
-      /**
-       * Creates a new object.
-       * 
-       * @param size size of cubemap side in pixels
-       * @param uniform_texture_color_name name of the uniform variable (sampler cube) for color
-       * @param uniform_texture_distance_name name of the uniform variable (sampler cube) for distance
-       * @param uniform_position_name name of the uniform variable (vec3) for cubemap position
-       * @param texture_color_sampler number of texture sampler to use for color texture
-       * @param texture_distance_sampler number of texture sampler to use for position texture
-       */
-      
-      ReflectionTraceCubeMap(int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_distance_sampler)
-        {
-          this->size = size;
-          ReflectionTraceCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 500.0f);          
-          
-          this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
-          this->texture_distance = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
-          this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
-        
-          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,GL_NEAREST_MIPMAP_NEAREST); 
-          
-
-          this->uniform_texture_color = new UniformVariable(uniform_texture_color_name);
-          this->uniform_texture_distance = new UniformVariable(uniform_texture_distance_name);
-          this->uniform_position = new UniformVariable(uniform_position_name);
-          
-          this->texture_color_sampler = texture_color_sampler;
-          this->texture_distance_sampler = texture_distance_sampler;
-        }
-        
-      /**
-       * Retrieves uniform locations from given shader.
-       */
-        
-      bool retrieve_uniform_locations(Shader *shader)
-        {
-          bool result = true;
-          
-          result = result && this->uniform_texture_color->retrieve_location(shader);
-          result = result && this->uniform_texture_distance->retrieve_location(shader);
-          result = result && this->uniform_position->retrieve_location(shader);
-          
-          return result;
-        }
-        
-      /**
-       * Updates the uniform variables (which must have been initialised with retrieve_uniform_locations()).
-       */
-        
-      void update_uniforms()
-        {
-          this->uniform_texture_color->update_int((int) this->texture_color_sampler);
-          this->uniform_texture_distance->update_int((int) this->texture_distance_sampler);
-          this->uniform_position->update_vec3(this->transformation.get_translation());
-        }
-        
-      /**
-       * Binds the textures to samplers that were set with the constructor.
-       */
-        
-      void bind_textures()
-        {
-          this->texture_color->bind(this->texture_color_sampler);
-          this->texture_distance->bind(this->texture_distance_sampler);
-        }
-        
-      virtual ~ReflectionTraceCubeMap()
-        {
-          delete this->texture_color;
-          delete this->texture_distance;
-          delete this->texture_depth;
-          
-          delete this->uniform_texture_color;
-          delete this->uniform_texture_distance;
-          delete this->uniform_position; 
-        }
-      
-      virtual void update_gpu()
-        {
-          this->get_texture_color()->update_gpu();
-          this->get_texture_distance()->update_gpu();
-          this->get_texture_depth()->update_gpu();
-        }
-      
-      static glm::mat4 get_projection_matrix()
-        {
-          return ReflectionTraceCubeMap::projection_matrix;
-        }
-      
-      TextureCubeMap *get_texture_color()
-        {
-          return this->texture_color;
-        }
-      
-      TextureCubeMap *get_texture_depth()
-        {
-          return this->texture_depth;
-        }
-  
-      TextureCubeMap *get_texture_distance()
-        {
-          return this->texture_distance;
-        }
-  
-      /**
-       Saves the current viewport settings and sets the new one
-       for cubemap rendering.
-       */
-  
-      void set_viewport()
-        {
-          glGetIntegerv(GL_VIEWPORT,this->initial_viewport);   // save the old viewport
-          glViewport(0,0,this->size,this->size);
-        }
-
-      /**
-       Computes the acceleration texture on GPU and stores it in MIPmap
-       levels of the distance texture. This will also cause distance texture
-       update on GPU.
-       
-       NOT WORKING YET
-       */
-        
-      void compute_acceleration_texture()
-        {
-          string helper_shader_fs_text =
-            "#version 330\n" 
-            "layout(location = 0) out vec4 fragment_color;\n" 
-            
-            "void main() {\n" 
-            "fragment_color = vec4(0.5,1,0);\n" 
-            "}\n";
-    
-    
-        }
-        
-      /**
-       Computes the acceleration texture on CPU and stores it in MIPmap
-       levels of the distance texture. This will also cause distance texture
-       update on GPU.
-       */
-        
-      void compute_acceleration_texture_sw()
-        {
-          unsigned int level = 1;
-    
-          while (true)  // for all mipmap levels
-            {
-              Image2D *previous_level_images[6];
-        
-              GLuint sides[] =
-                {
-                  GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
-                  GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
-                  GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-                  GL_TEXTURE_CUBE_MAP_POSITIVE_X,
-                  GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
-                  GL_TEXTURE_CUBE_MAP_POSITIVE_Y
-                };
-        
-              for (int i = 0; i < 6; i++)
-                previous_level_images[i] = new Image2D(this->texture_distance->get_texture_image(sides[i]));
-        
-              this->texture_distance->set_mipmap_level(level);
-     
-              for (int k = 0; k < 6; k++)
-                for (int j = 0; j < this->texture_distance->image_front->get_width(); j++)
-                  for (int i = 0; i < this->texture_distance->image_front->get_height(); i++)
-                    {
-                      int x = 2 * i;
-                      int y = 2 * j;
-             
-                      float values_min[4];
-                      float values_max[4];
-                      float r,g,b,a;
-              
-                      previous_level_images[k]->get_pixel(x,y,         values_min,     &g,&b,&a);
-                      previous_level_images[k]->get_pixel(x + 1,y,     values_min + 1, &g,&b,&a);
-                      previous_level_images[k]->get_pixel(x,y + 1,     values_min + 2, &g,&b,&a);
-                      previous_level_images[k]->get_pixel(x + 1,y + 1, values_min + 3, &g,&b,&a);
-              
-                      previous_level_images[k]->get_pixel(x,y,         &r, values_max,     &b,&a);
-                      previous_level_images[k]->get_pixel(x + 1,y,     &r, values_max + 1, &b,&a);
-                      previous_level_images[k]->get_pixel(x,y + 1,     &r, values_max + 2, &b,&a);
-                      previous_level_images[k]->get_pixel(x + 1,y + 1, &r, values_max + 3, &b,&a);
-                
-                      float new_min = glm::min(glm::min(glm::min(values_min[0],values_min[1]),values_min[2]),values_min[3]);
-                      float new_max = glm::max(glm::max(glm::max(values_max[0],values_max[1]),values_max[2]),values_max[3]);
-              
-                      this->texture_distance->get_texture_image(sides[k])->set_pixel(i,j,new_min,new_max,b,a);
-                    }
-        
-              this->texture_distance->update_gpu();
-        
-              level++;
-        
-              for (int i = 0; i < 6; i++)
-                delete previous_level_images[i];
-        
-              if (this->texture_distance->image_front->get_width() <= 1)
-                break;
-            }
-      
-          this->texture_distance->set_mipmap_level(0);
-          this->texture_distance->load_from_gpu();
-        }
-        
-      /**
-       Restores the original viewport settings (saved when setViewport
-       was called).
-       */
-      
-      void unset_viewport()
-        {
-          glViewport(this->initial_viewport[0],this->initial_viewport[1],this->initial_viewport[2],this->initial_viewport[3]);
-        }
-  
-      /**
-       Gets the transformation for the camera by given cube map side
-       (such as GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...)
-       */
-  
-      TransformationTRSCamera get_camera_transformation(GLuint cube_side_target)
-        {
-          TransformationTRSCamera result;
-          
-          result.set_translation(this->transformation.get_translation());
-          result.set_rotation(this->transformation.get_rotation());
-          
-          switch (cube_side_target)
-            {
-              case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-                result.add_rotation(glm::vec3(0.0,0.0,M_PI));
-                // forward => do nothing
-                break;
-                
-              case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
-                // backward
-                result.add_rotation(glm::vec3(M_PI,0.0,0.0));
-                break;
-                
-              case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
-                // left
-                result.add_rotation(glm::vec3(0.0,M_PI / 2.0,M_PI));
-                break;
-                
-              case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
-                // right
-                result.add_rotation(glm::vec3(0.0,-1 * M_PI / 2.0,M_PI));
-                break;
-                
-              case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
-                result.add_rotation(glm::vec3(-1 * M_PI / 2.0,0.0,0.0));
-                break;
-                
-              case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
-                result.add_rotation(glm::vec3(M_PI / 2.0,0.0,0.0));
-                break;
-                
-              default:
-                break;
-            }
-          
-          return result;
-        }
-  };
-
-glm::mat4 ReflectionTraceCubeMap::projection_matrix;  
       
 /**
  * RGBA 2D texture.
@@ -2503,6 +2220,331 @@ class FrameBuffer
           glDeleteFramebuffers(1,&(this->fbo));
         } 
   };
+
+/**
+ * Represents a cube map that is used for capturing environment.
+ */
+  
+class ReflectionTraceCubeMap: public GPUObject
+  {
+    protected:
+      unsigned int size;
+      TextureCubeMap *texture_color;
+      TextureCubeMap *texture_depth;
+      TextureCubeMap *texture_distance;
+      static glm::mat4 projection_matrix;       // matrix used for cubemap texture rendering
+      GLint initial_viewport[4];
+      
+      // uniforms associated with the cubemap
+      UniformVariable *uniform_texture_color;
+      UniformVariable *uniform_texture_distance;
+      UniformVariable *uniform_position;
+      
+      unsigned int texture_color_sampler;
+      unsigned int texture_distance_sampler;
+      
+    public:    
+      TransformationTRSModel transformation;    // contains the cubemap transformation, to be able to place it in the world, only translation is considered 
+      
+      /**
+       * Creates a new object.
+       * 
+       * @param size size of cubemap side in pixels
+       * @param uniform_texture_color_name name of the uniform variable (sampler cube) for color
+       * @param uniform_texture_distance_name name of the uniform variable (sampler cube) for distance
+       * @param uniform_position_name name of the uniform variable (vec3) for cubemap position
+       * @param texture_color_sampler number of texture sampler to use for color texture
+       * @param texture_distance_sampler number of texture sampler to use for position texture
+       */
+      
+      ReflectionTraceCubeMap(int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_distance_sampler)
+        {
+          this->size = size;
+          ReflectionTraceCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 500.0f);          
+          
+          this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
+          this->texture_distance = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
+          this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
+        
+          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,GL_NEAREST_MIPMAP_NEAREST); 
+          
+
+          this->uniform_texture_color = new UniformVariable(uniform_texture_color_name);
+          this->uniform_texture_distance = new UniformVariable(uniform_texture_distance_name);
+          this->uniform_position = new UniformVariable(uniform_position_name);
+          
+          this->texture_color_sampler = texture_color_sampler;
+          this->texture_distance_sampler = texture_distance_sampler;
+        }
+        
+      /**
+       * Retrieves uniform locations from given shader.
+       */
+        
+      bool retrieve_uniform_locations(Shader *shader)
+        {
+          bool result = true;
+          
+          result = result && this->uniform_texture_color->retrieve_location(shader);
+          result = result && this->uniform_texture_distance->retrieve_location(shader);
+          result = result && this->uniform_position->retrieve_location(shader);
+          
+          return result;
+        }
+        
+      /**
+       * Updates the uniform variables (which must have been initialised with retrieve_uniform_locations()).
+       */
+        
+      void update_uniforms()
+        {
+          this->uniform_texture_color->update_int((int) this->texture_color_sampler);
+          this->uniform_texture_distance->update_int((int) this->texture_distance_sampler);
+          this->uniform_position->update_vec3(this->transformation.get_translation());
+        }
+        
+      /**
+       * Binds the textures to samplers that were set with the constructor.
+       */
+        
+      void bind_textures()
+        {
+          this->texture_color->bind(this->texture_color_sampler);
+          this->texture_distance->bind(this->texture_distance_sampler);
+        }
+        
+      virtual ~ReflectionTraceCubeMap()
+        {
+          delete this->texture_color;
+          delete this->texture_distance;
+          delete this->texture_depth;
+          
+          delete this->uniform_texture_color;
+          delete this->uniform_texture_distance;
+          delete this->uniform_position; 
+        }
+      
+      virtual void update_gpu()
+        {
+          this->get_texture_color()->update_gpu();
+          this->get_texture_distance()->update_gpu();
+          this->get_texture_depth()->update_gpu();
+        }
+      
+      static glm::mat4 get_projection_matrix()
+        {
+          return ReflectionTraceCubeMap::projection_matrix;
+        }
+      
+      TextureCubeMap *get_texture_color()
+        {
+          return this->texture_color;
+        }
+      
+      TextureCubeMap *get_texture_depth()
+        {
+          return this->texture_depth;
+        }
+  
+      TextureCubeMap *get_texture_distance()
+        {
+          return this->texture_distance;
+        }
+  
+      /**
+       Saves the current viewport settings and sets the new one
+       for cubemap rendering.
+       */
+  
+      void set_viewport()
+        {
+          glGetIntegerv(GL_VIEWPORT,this->initial_viewport);   // save the old viewport
+          glViewport(0,0,this->size,this->size);
+        }
+
+      /**
+       Computes the acceleration texture on GPU and stores it in MIPmap
+       levels of the distance texture. This will also cause distance texture
+       update on GPU.
+       
+       NOT WORKING YET
+       */
+        
+      void compute_acceleration_texture()
+        {
+          string helper_shader_fs_text =
+            "#version 430\n"
+"#include ../shader_log_include.txt\n"
+            "layout(location = 0) out vec4 fragment_color;\n" 
+            "uniform samplerCube cubemap;\n"
+            
+            "void main() {\n" 
+            
+            
+            "fragment_color = vec4(0,1000,0,0);\n" 
+
+            "if (gl_FragCoord.x > 250 && gl_FragCoord.x < 251 && gl_FragCoord.y > 475 && gl_FragCoord.y < 476) { shader_log_write_uint(1); fragment_color = vec4(1000,0,0,0);  };\n"
+            
+            "}\n";
+    
+          UniformVariable uniform_cubemap("cubemap");
+    
+          Shader helper_shader(VERTEX_SHADER_QUAD_TEXT,preprocess_text(helper_shader_fs_text),"");
+          FrameBuffer helper_frame_buffer;
+          
+          uniform_cubemap.retrieve_location(&helper_shader);
+
+          helper_frame_buffer.set_textures(
+            0,0,
+            0,0,
+            this->get_texture_distance(),GL_TEXTURE_CUBE_MAP_POSITIVE_Y
+            );
+          
+          helper_shader.use();
+          
+          this->get_texture_distance()->bind(1);
+          uniform_cubemap.update_int(1);
+          helper_frame_buffer.activate();
+          
+          draw_fullscreen_quad(this->size,this->size);
+          helper_frame_buffer.deactivate();
+          
+          ErrorWriter::checkGlErrors("acceleration texture GPU",true);
+        }
+        
+      /**
+       Computes the acceleration texture on CPU and stores it in MIPmap
+       levels of the distance texture. This will also cause distance texture
+       update on GPU.
+       */
+        
+      void compute_acceleration_texture_sw()
+        {
+          unsigned int level = 1;
+    
+          while (true)  // for all mipmap levels
+            {
+              Image2D *previous_level_images[6];
+        
+              GLuint sides[] =
+                {
+                  GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                  GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+                  GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+                  GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+                  GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+                  GL_TEXTURE_CUBE_MAP_POSITIVE_Y
+                };
+        
+              for (int i = 0; i < 6; i++)
+                previous_level_images[i] = new Image2D(this->texture_distance->get_texture_image(sides[i]));
+        
+              this->texture_distance->set_mipmap_level(level);
+     
+              for (int k = 0; k < 6; k++)
+                for (int j = 0; j < this->texture_distance->image_front->get_width(); j++)
+                  for (int i = 0; i < this->texture_distance->image_front->get_height(); i++)
+                    {
+                      int x = 2 * i;
+                      int y = 2 * j;
+             
+                      float values_min[4];
+                      float values_max[4];
+                      float r,g,b,a;
+              
+                      previous_level_images[k]->get_pixel(x,y,         values_min,     &g,&b,&a);
+                      previous_level_images[k]->get_pixel(x + 1,y,     values_min + 1, &g,&b,&a);
+                      previous_level_images[k]->get_pixel(x,y + 1,     values_min + 2, &g,&b,&a);
+                      previous_level_images[k]->get_pixel(x + 1,y + 1, values_min + 3, &g,&b,&a);
+              
+                      previous_level_images[k]->get_pixel(x,y,         &r, values_max,     &b,&a);
+                      previous_level_images[k]->get_pixel(x + 1,y,     &r, values_max + 1, &b,&a);
+                      previous_level_images[k]->get_pixel(x,y + 1,     &r, values_max + 2, &b,&a);
+                      previous_level_images[k]->get_pixel(x + 1,y + 1, &r, values_max + 3, &b,&a);
+                
+                      float new_min = glm::min(glm::min(glm::min(values_min[0],values_min[1]),values_min[2]),values_min[3]);
+                      float new_max = glm::max(glm::max(glm::max(values_max[0],values_max[1]),values_max[2]),values_max[3]);
+              
+                      this->texture_distance->get_texture_image(sides[k])->set_pixel(i,j,new_min,new_max,b,a);
+                    }
+        
+              this->texture_distance->update_gpu();
+        
+              level++;
+        
+              for (int i = 0; i < 6; i++)
+                delete previous_level_images[i];
+        
+              if (this->texture_distance->image_front->get_width() <= 1)
+                break;
+            }
+      
+          this->texture_distance->set_mipmap_level(0);
+          this->texture_distance->load_from_gpu();
+        }
+        
+      /**
+       Restores the original viewport settings (saved when setViewport
+       was called).
+       */
+      
+      void unset_viewport()
+        {
+          glViewport(this->initial_viewport[0],this->initial_viewport[1],this->initial_viewport[2],this->initial_viewport[3]);
+        }
+  
+      /**
+       Gets the transformation for the camera by given cube map side
+       (such as GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...)
+       */
+  
+      TransformationTRSCamera get_camera_transformation(GLuint cube_side_target)
+        {
+          TransformationTRSCamera result;
+          
+          result.set_translation(this->transformation.get_translation());
+          result.set_rotation(this->transformation.get_rotation());
+          
+          switch (cube_side_target)
+            {
+              case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+                result.add_rotation(glm::vec3(0.0,0.0,M_PI));
+                // forward => do nothing
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+                // backward
+                result.add_rotation(glm::vec3(M_PI,0.0,0.0));
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+                // left
+                result.add_rotation(glm::vec3(0.0,M_PI / 2.0,M_PI));
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+                // right
+                result.add_rotation(glm::vec3(0.0,-1 * M_PI / 2.0,M_PI));
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+                result.add_rotation(glm::vec3(-1 * M_PI / 2.0,0.0,0.0));
+                break;
+                
+              case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+                result.add_rotation(glm::vec3(M_PI / 2.0,0.0,0.0));
+                break;
+                
+              default:
+                break;
+            }
+          
+          return result;
+        }
+  };
+
+glm::mat4 ReflectionTraceCubeMap::projection_matrix; 
   
 /**
  * Represents a 3D geometry consisting of vertices and triangles.
@@ -3484,15 +3526,22 @@ TransformationTRSCamera CameraHandler::camera_transformation;
 
 Geometry3D *geometry_fullscreen_quad = 0;
 
-void draw_fullscreen_quad()
+void draw_fullscreen_quad(int viewport_width=-1, int viewport_height=-1)
   {
     static Geometry3D g;
+    GLint old_viewport[4];
       
     if (geometry_fullscreen_quad == 0)
       {
         g = make_quad(2,2,0.5);
         geometry_fullscreen_quad = &g;
         geometry_fullscreen_quad->update_gpu();
+      }
+
+    if (viewport_width >= 0 && viewport_height >= 0)
+      {
+        glGetIntegerv(GL_VIEWPORT,old_viewport);   // save the old viewport
+        glViewport(0,0,viewport_width,viewport_height);
       }
     
     glDisable(GL_DEPTH_TEST);
@@ -3501,6 +3550,11 @@ void draw_fullscreen_quad()
     geometry_fullscreen_quad->draw_as_triangles();
     
     glEnable(GL_DEPTH_TEST);
+    
+    if (viewport_width >= 0 && viewport_height >= 0)
+      {
+        glViewport(old_viewport[0],old_viewport[1],old_viewport[2],old_viewport[3]);
+      }
   }
 
 #endif

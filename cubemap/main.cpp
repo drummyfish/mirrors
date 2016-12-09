@@ -376,9 +376,9 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_INSERT:
           recompute_cubemap();
           
-   //       cubemaps[0]->compute_acceleration_texture();
-          cubemaps[0]->compute_acceleration_texture_sw();
-          cubemaps[1]->compute_acceleration_texture_sw();
+          cubemaps[0]->compute_acceleration_texture();
+   //        cubemaps[0]->compute_acceleration_texture_sw();
+   //       cubemaps[1]->compute_acceleration_texture_sw();
           
           save_images();
           break;
@@ -585,14 +585,20 @@ int main(int argc, char** argv)
       texture_camera_stencil,GL_TEXTURE_2D);
     
     ErrorWriter::checkGlErrors("frame buffer init",true);
-    
-    special_callback(GLUT_KEY_INSERT,0,0);   // compute the cubemaps
-   
-//return 0;
-    
+
     shader_log = new ShaderLog();
     shader_log->set_print_limit(20);
     shader_log->update_gpu();
+    
+
+shader_log->bind();
+    
+    special_callback(GLUT_KEY_INSERT,0,0);   // compute the cubemaps
+
+shader_log->load_from_gpu();
+shader_log->print();
+    
+return 0;
     
     ErrorWriter::checkGlErrors("shader log init",true);
     
