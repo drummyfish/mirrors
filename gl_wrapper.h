@@ -946,6 +946,12 @@ class UniformVariable
           this->pre_update_check();
           glUniform1i(this->location,value);
         }
+
+      void update_mat3(glm::mat3 value)
+        {
+          this->pre_update_check();
+          glUniformMatrix3fv(this->location,1,GL_TRUE,glm::value_ptr(value));
+        }
         
       void update_mat4(glm::mat4 value)
         {
@@ -2377,50 +2383,129 @@ class ReflectionTraceCubeMap: public GPUObject
 "#include ../shader_log_include.txt\n"
             "layout(location = 0) out vec4 fragment_color;\n" 
             "uniform samplerCube cubemap;\n"
-            "void main() {\n" 
-            "  float x = -128;\n"
-            "  float y = 128 - gl_FragCoord.y;\n"
-            "  float z = gl_FragCoord.x - 128;\n"
-            "  vec4 texel1 = textureLod(cubemap,normalize(vec3(x,y + 0.1,z + 0.1)),0);\n" // too bad textureGather can't be used with cubemaps
-            "  vec4 texel2 = textureLod(cubemap,normalize(vec3(x,y + 0.1,z - 0.1)),0);\n"
-            "  vec4 texel3 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z + 0.1)),0);\n"
-            "  vec4 texel4 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z - 0.1)),0);\n"
-            "  vec4 new_texel = vec4(min(min(texel1.x,texel2.x),min(texel3.x,texel4.x)),max(max(texel1.y,texel2.y),max(texel3.y,texel4.y)),0,0);\n"
-            "fragment_color = new_texel;\n" 
-
-         //   "if (gl_FragCoord.x > 250 && gl_FragCoord.x < 251 && gl_FragCoord.y > 475 && gl_FragCoord.y < 476) { shader_log_write_uint(1); fragment_color = vec4(1000,0,0,0);  };\n"
+            "uniform uint sample_mip;\n"
             
+            "uniform mat3 coord_coeffs;"   // coefficients for each cubemap side, rows in format: a + b * gl_FragCoord.x + c * gl_FragCoord.y
+            
+            "void main() {\n" 
+            "  float x = coord_coeffs[0][0] + coord_coeffs[0][1] * gl_FragCoord.x + coord_coeffs[0][2] * gl_FragCoord.y;\n"
+            "  float y = coord_coeffs[1][0] + coord_coeffs[1][1] * gl_FragCoord.x + coord_coeffs[1][2] * gl_FragCoord.y;\n"
+            "  float z = coord_coeffs[2][0] + coord_coeffs[2][1] * gl_FragCoord.x + coord_coeffs[2][2] * gl_FragCoord.y;\n"
+            
+            "  vec4 texel1 = textureLod(cubemap,normalize(vec3(x,y + 0.1,z + 0.1)),sample_mip);\n" // too bad textureGather can't be used with cubemaps
+            "  vec4 texel2 = textureLod(cubemap,normalize(vec3(x,y + 0.1,z - 0.1)),sample_mip);\n"
+            "  vec4 texel3 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z + 0.1)),sample_mip);\n"
+            "  vec4 texel4 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z - 0.1)),sample_mip);\n"
+            "  vec4 new_texel = vec4(min(min(texel1.x,texel2.x),min(texel3.x,texel4.x)),max(max(texel1.y,texel2.y),max(texel3.y,texel4.y)),0,0);\n"
+            "fragment_color = new_texel;\n"     
             "}\n";
     
           UniformVariable uniform_cubemap("cubemap");
+          UniformVariable uniform_coeffs("coord_coeffs");
+          UniformVariable uniform_sample_mip("sample_mip");
     
           Shader helper_shader(VERTEX_SHADER_QUAD_TEXT,preprocess_text(helper_shader_fs_text),"");
           FrameBuffer helper_frame_buffer;
           
           uniform_cubemap.retrieve_location(&helper_shader);
+          uniform_coeffs.retrieve_location(&helper_shader);
+          uniform_sample_mip.retrieve_location(&helper_shader);
 
           glGenerateTextureMipmap(this->get_texture_distance()->get_texture_object());
           
-          helper_frame_buffer.set_textures(
-            0,0,
-            0,0,
-            this->get_texture_distance(),GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-            0,0,
-            0,0,
-            0,0,
-            0,0,
-            1
-            );
+          GLuint sides[] =
+            {
+              GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+              GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+              GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+              GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+              GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+              GL_TEXTURE_CUBE_MAP_POSITIVE_Y
+            };
+  
+          int mip_resolution = this->size;
+          int mip_level = 0;  
           
-          helper_shader.use();
+          while (true) // for each mipmap level
+            {
+              if (mip_resolution <= 1)
+                break;
+                
+              mip_resolution /= 2;
+              mip_level++;
+                
+              for (int i = 0; i < 6; i++) // for each side
+                {
+                  glm::mat3 coeffs;
+
+                  switch (i)
+                    {   
+                      case 0:
+                        coeffs[0][0] = mip_resolution / 2;   coeffs[0][1] = -1;    coeffs[0][2] = 0;
+                        coeffs[1][0] = mip_resolution / 2;   coeffs[1][1] = 0;     coeffs[1][2] = -1;
+                        coeffs[2][0] = -mip_resolution / 2;  coeffs[2][1] = 0;     coeffs[2][2] = 0;
+                        break;
+                    
+                      case 1:
+                        coeffs[0][0] = -mip_resolution / 2;  coeffs[0][1] = 1;     coeffs[0][2] = 0;
+                        coeffs[1][0] = mip_resolution / 2;   coeffs[1][1] = 0;     coeffs[1][2] = -1;
+                        coeffs[2][0] = mip_resolution / 2;   coeffs[2][1] = 0;     coeffs[2][2] = 0;
+                        break;
+                    
+                      case 2:
+                        coeffs[0][0] = -mip_resolution / 2;  coeffs[0][1] = 0;     coeffs[0][2] = 0;
+                        coeffs[1][0] = mip_resolution / 2;   coeffs[1][1] = 0;     coeffs[1][2] = -1;
+                        coeffs[2][0] = -mip_resolution / 2;  coeffs[2][1] = 1;     coeffs[2][2] = 0;
+                        break;
+                  
+                      case 3:
+                        coeffs[0][0] = mip_resolution / 2;   coeffs[0][1] = 0;     coeffs[0][2] = 0;
+                        coeffs[1][0] = mip_resolution / 2;   coeffs[1][1] = 0;     coeffs[1][2] = -1;
+                        coeffs[2][0] = mip_resolution / 2;   coeffs[2][1] = -1;    coeffs[2][2] = 0;
+                        break;
+                  
+                      case 4:
+                        coeffs[0][0] = -mip_resolution / 2;  coeffs[0][1] = 1;     coeffs[0][2] = 0;
+                        coeffs[1][0] = -mip_resolution / 2;  coeffs[1][1] = 0;     coeffs[1][2] = 0;
+                        coeffs[2][0] = mip_resolution / 2;   coeffs[2][1] = 0;     coeffs[2][2] = -1;
+                        break;
+                  
+                      case 5:
+                        coeffs[0][0] = -mip_resolution / 2;  coeffs[0][1] = 1;     coeffs[0][2] = 0;
+                        coeffs[1][0] = mip_resolution / 2;   coeffs[1][1] = 0;     coeffs[1][2] = 0;
+                        coeffs[2][0] = -mip_resolution / 2;  coeffs[2][1] = 0;     coeffs[2][2] = 1;
+                        break;
+                    
+                      default:
+                        break;
+                    }
+              
+                coeffs = transpose(coeffs);
           
-          this->get_texture_distance()->bind(1);
-          uniform_cubemap.update_int(1);
-          helper_frame_buffer.activate();
+                helper_frame_buffer.set_textures(
+                  0,0,
+                  0,0,
+                  this->get_texture_distance(),sides[i],
+                  0,0,
+                  0,0,
+                  0,0,
+                  0,0,
+                  mip_level
+                  );
           
-          draw_fullscreen_quad(this->size,this->size);
-          helper_frame_buffer.deactivate();
+                helper_shader.use();
           
+                this->get_texture_distance()->bind(1);
+                uniform_cubemap.update_int(1);
+                uniform_sample_mip.update_uint(mip_level - 1);
+                uniform_coeffs.update_mat3(coeffs);
+                
+                helper_frame_buffer.activate();
+                draw_fullscreen_quad(this->size,this->size);
+                helper_frame_buffer.deactivate();
+              }
+            }
+            
           ErrorWriter::checkGlErrors("acceleration texture GPU",true);
         }
         

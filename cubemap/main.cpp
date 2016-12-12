@@ -590,15 +590,9 @@ int main(int argc, char** argv)
     shader_log->set_print_limit(20);
     shader_log->update_gpu();
     
-
-shader_log->bind();
-    
     special_callback(GLUT_KEY_INSERT,0,0);   // compute the cubemaps
 
-shader_log->load_from_gpu();
-shader_log->print();
-    
-return 0;
+//return 0;
     
     ErrorWriter::checkGlErrors("shader log init",true);
     
