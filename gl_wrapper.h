@@ -2119,8 +2119,6 @@ class FrameBuffer
        are OpenGL targets (GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...).
        
        Stencil is not supported yet.
-       
-       help: https://www.opengl.org/wiki/Fragment_Shader
        */
         
       void set_textures(
@@ -2130,7 +2128,8 @@ class FrameBuffer
         Texture *color1=0, GLuint color1_target=GL_TEXTURE_2D,
         Texture *color2=0, GLuint color2_target=GL_TEXTURE_2D,
         Texture *color3=0, GLuint color3_target=GL_TEXTURE_2D,
-        Texture *color4=0, GLuint color4_target=GL_TEXTURE_2D)
+        Texture *color4=0, GLuint color4_target=GL_TEXTURE_2D,
+        int mipmap_level=0)
         {
           vector<GLenum> draw_buffers;
           
@@ -2138,43 +2137,43 @@ class FrameBuffer
             
           if (color0 != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,color0_target,color0->get_texture_object(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,color0_target,color0->get_texture_object(),mipmap_level);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT0);
             }
             
           if (color1 != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT1,color1_target,color1->get_texture_object(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT1,color1_target,color1->get_texture_object(),mipmap_level);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT1);
             }
           
           if (color2 != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT2,color2_target,color2->get_texture_object(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT2,color2_target,color2->get_texture_object(),mipmap_level);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT2);
             }
           
           if (color3 != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT3,color3_target,color3->get_texture_object(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT3,color3_target,color3->get_texture_object(),mipmap_level);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT3);
             }
           
           if (color4 != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT4,color4_target,color4->get_texture_object(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT4,color4_target,color4->get_texture_object(),mipmap_level);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT4);
             }
           
           if (depth != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,depth_target,depth->get_texture_object(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,depth_target,depth->get_texture_object(),mipmap_level);
               draw_buffers.push_back(GL_NONE);
             }
        /*        
           if (stencil != 0)
             {
-              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_STENCIL_ATTACHMENT,stencil_target,stencil->get_texture_object(),0);
+              glFramebufferTexture2D(GL_FRAMEBUFFER,GL_STENCIL_ATTACHMENT,stencil_target,stencil->get_texture_object(),mipmap_level);
               draw_buffers.push_back(GL_COLOR_ATTACHMENT3);
             }
         */
@@ -2378,13 +2377,18 @@ class ReflectionTraceCubeMap: public GPUObject
 "#include ../shader_log_include.txt\n"
             "layout(location = 0) out vec4 fragment_color;\n" 
             "uniform samplerCube cubemap;\n"
-            
             "void main() {\n" 
-            
-            
-            "fragment_color = vec4(0,1000,0,0);\n" 
+            "  float x = -128;\n"
+            "  float y = 128 - gl_FragCoord.y;\n"
+            "  float z = gl_FragCoord.x - 128;\n"
+            "  vec4 texel1 = textureLod(cubemap,normalize(vec3(x,y + 0.1,z + 0.1)),0);\n" // too bad textureGather can't be used with cubemaps
+            "  vec4 texel2 = textureLod(cubemap,normalize(vec3(x,y + 0.1,z - 0.1)),0);\n"
+            "  vec4 texel3 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z + 0.1)),0);\n"
+            "  vec4 texel4 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z - 0.1)),0);\n"
+            "  vec4 new_texel = vec4(min(min(texel1.x,texel2.x),min(texel3.x,texel4.x)),max(max(texel1.y,texel2.y),max(texel3.y,texel4.y)),0,0);\n"
+            "fragment_color = new_texel;\n" 
 
-            "if (gl_FragCoord.x > 250 && gl_FragCoord.x < 251 && gl_FragCoord.y > 475 && gl_FragCoord.y < 476) { shader_log_write_uint(1); fragment_color = vec4(1000,0,0,0);  };\n"
+         //   "if (gl_FragCoord.x > 250 && gl_FragCoord.x < 251 && gl_FragCoord.y > 475 && gl_FragCoord.y < 476) { shader_log_write_uint(1); fragment_color = vec4(1000,0,0,0);  };\n"
             
             "}\n";
     
@@ -2395,10 +2399,17 @@ class ReflectionTraceCubeMap: public GPUObject
           
           uniform_cubemap.retrieve_location(&helper_shader);
 
+          glGenerateTextureMipmap(this->get_texture_distance()->get_texture_object());
+          
           helper_frame_buffer.set_textures(
             0,0,
             0,0,
-            this->get_texture_distance(),GL_TEXTURE_CUBE_MAP_POSITIVE_Y
+            this->get_texture_distance(),GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+            0,0,
+            0,0,
+            0,0,
+            0,0,
+            1
             );
           
           helper_shader.use();
