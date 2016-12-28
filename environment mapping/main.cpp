@@ -6,8 +6,8 @@
 
 #include "../gl_wrapper.h"
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 480
 #define CUBEMAP_RESOLUTION 512
 
 TransformationTRSModel transformation_teapot;
@@ -103,14 +103,14 @@ void render_to_cubemap()
     uniform_projection_matrix->update_mat4(ReflectionTraceCubeMap::get_projection_matrix());
     
     uniform_mirror->update_uint(0);
-    cubemap->setViewport();
+    cubemap->set_viewport();
     recompute_cubemap_side(cubemap,GL_TEXTURE_CUBE_MAP_POSITIVE_X);
     recompute_cubemap_side(cubemap,GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
     recompute_cubemap_side(cubemap,GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
     recompute_cubemap_side(cubemap,GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
     recompute_cubemap_side(cubemap,GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
     recompute_cubemap_side(cubemap,GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-    cubemap->unsetViewport();
+    cubemap->unset_viewport();
     
     uniform_projection_matrix->update_mat4(projection_matrix);
     
@@ -176,18 +176,23 @@ int main(int argc, char** argv)
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
     
-    CameraHandler::camera_transformation.set_translation(glm::vec3(-11.3201,14.6312,-14.7686));
-    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.425,-2.30833,0));
+    CameraHandler::camera_transformation.set_translation(glm::vec3(15.696,46.504,-47.3324));
+    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.37625,2.60668,0));
     
     Geometry3D g = load_obj("../resources/teapot.obj");
     geometry_teapot = &g;
     geometry_teapot->update_gpu();
-    transformation_teapot.set_translation(glm::vec3(0,5,-3));
-    transformation_teapot.set_scale(glm::vec3(4,4,4));
+    transformation_teapot.set_translation(glm::vec3(0.0,30.0,-30.0));
+    transformation_teapot.set_scale(glm::vec3(15.0,15.0,15.0));
     
     Geometry3D g3 = load_obj("../resources/scene.obj");
     geometry_scene = &g3;
     geometry_scene->update_gpu();
+    
+    transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
+    transformation_scene.set_scale(glm::vec3(6,6,6));
+    
+    transformation_sky.set_scale(glm::vec3(100.0,100.0,100.0));
     
     Geometry3D g4 = make_box_sharp(160,160,160);
     geometry_sky = &g4;
@@ -222,7 +227,7 @@ int main(int argc, char** argv)
     uniform_model_matrix->retrieve_location(&shader);
     uniform_projection_matrix->retrieve_location(&shader);
     
-    projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 1000.0f);
+    projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 10000.0f);
     view_matrix = glm::mat4(1.0f);
     
     frame_buffer_cube = new FrameBuffer();
