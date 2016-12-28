@@ -2265,7 +2265,7 @@ class ReflectionTraceCubeMap: public GPUObject
       ReflectionTraceCubeMap(int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_distance_sampler)
         {
           this->size = size;
-          ReflectionTraceCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 500.0f);          
+          ReflectionTraceCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 10000.0f);          
           
           this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_distance = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
@@ -2380,7 +2380,6 @@ class ReflectionTraceCubeMap: public GPUObject
         {
           string helper_shader_fs_text =
             "#version 430\n"
-"#include ../shader_log_include.txt\n"
             "layout(location = 0) out vec4 fragment_color;\n" 
             "uniform samplerCube cubemap;\n"
             "uniform uint sample_mip;\n"
@@ -3266,6 +3265,8 @@ class CameraHandler
  * average values can be retrieved or printed. This class also provides
  * methods for measuring metrics such as time or rasterised fragments
  * (using OpenGL queries).
+ * 
+ * TODO: fps mesurement is inaccurate, only whole seconds are measured => fix this
  */
   
 class Profiler: public Printable
@@ -3282,6 +3283,10 @@ class Profiler: public Printable
       GLuint time_query_id;
       GLuint fragment_count_query_id;
       
+      int frame_count;
+      double time_start;     // for fps measurement
+      double fps;
+      
     public:
       Profiler()
         {
@@ -3290,9 +3295,14 @@ class Profiler: public Printable
             
           glGenQueries(1,&this->time_query_id);
           glGenQueries(1,&this->fragment_count_query_id);
-          this->skip_frames = 16;
+          this->skip_frames = 32;
           this->frames_to_be_skipped = 0;
           this->frames_recorded_total = 0;
+          
+          this->frame_count = -1;
+          this->time_start = -1.0;
+          this->fps = 0;
+          
           this->reset();
         }
         
@@ -3369,10 +3379,28 @@ class Profiler: public Printable
        
       void next_frame()
         {
+          time_t time_sec;
+          time(&time_sec);
+            
+          if (this->frame_count >= 0 )
+            {
+              if (this->time_start < 0)
+                this->time_start = time_sec;
+            }
+              
+          this->frame_count++;
+
           if (this->frames_to_be_skipped <= 0)
             {
               this->frames_recorded_total++;
               this->frames_to_be_skipped = this->skip_frames;
+
+              double elapsed_time = clock() - this->time_start;
+              elapsed_time = time_sec - this->time_start;
+              
+              this->fps = this->frame_count / elapsed_time; 
+              this->frame_count = 0;
+              this->time_start = -1.0;
             }
           else
             {
@@ -3414,7 +3442,8 @@ class Profiler: public Printable
           unsigned int i;
           
           cout << "profiling info:" << endl;
-          cout << "  total frames recorded (" << this->skip_frames << " frame skip):" << this->frames_recorded_total << endl;
+          cout << "  fps: " << this->fps << endl;
+          cout << "  total frames recorded (" << this->skip_frames << " frame skip): " << this->frames_recorded_total << endl;
           cout << "  average values recorded:" << endl;
           
           for (i = 0; i < this->cumulative_values.size(); i++)
