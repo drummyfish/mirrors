@@ -67,6 +67,12 @@ float get_plane_line_intersection_parametric(vec3 line_point1, vec3 line_point2,
     return t;
   }
 
+ivec2 normalized_coords_to_int_coords(vec2 normalized_coords, int level)   // converts normalized cubemap side coords (uv) to 2D integer coordinates within given acceleration level
+  {
+    float level_step = 1 / pow(2,level);
+    return ivec2(int(normalized_coords.x / level_step),int(normalized_coords.y / level_step)); 
+  }
+  
 float correct_intersection(vec2 correct_values_interval, float t)
   {
     if (t > correct_values_interval.y)
@@ -332,11 +338,7 @@ shader_log_write_newline();
                             if (t > next_acceleration_bounds[j])
                               {
                                 vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
-                                ivec2 int_coordinates;
-         
-                                float level_step = 1 / pow(2,j);
-                                
-                                int_coordinates = ivec2(int(helper_coords.x / level_step),int(helper_coords.y / level_step));    
+                                ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,j);
                                 
                                 vec2 helper_bounds = get_next_prev_acceleration_bound(
                                   cubemaps[i].position,
