@@ -7,6 +7,8 @@
 #define USE_ACCELERATION_LEVELS 3 // how many levels in acceleration texture to use
 #define INFINITY_T 999999         // infinite value for t (line parameter) 
 
+#define ANALYTICAL_INTERSECTION   // this switches between analytical and more precise sampling intersection decision
+
 #define NO_LOG
 
 in vec3 transformed_normal;
@@ -39,7 +41,7 @@ vec3 position1, position2;
 vec3 reflection_vector;
 
 float t;
-float distance;
+float distance, distance_prev;
 float best_candidate_distance;
 float interpolation_step;
 int i, j;
@@ -307,7 +309,7 @@ bool do_log =
                     position1_to_cube_center = cubemaps[i].position - position1;
                     cube_coordinates1 = normalize(position1 - cubemaps[i].position);
                     cube_coordinates2 = normalize(position2 - cubemaps[i].position);   
-                    interpolation_step = 0.001;
+                    interpolation_step = 0.001; //0.001;
               
                     for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                       next_acceleration_bounds[j] = -1;
@@ -319,7 +321,9 @@ if (do_log)
 shader_log_write_char(CHAR_C);
 shader_log_write_newline();
 }
-#endif                    
+#endif                   
+                    bool first_iteration = true;
+
                     while (t <= 1.0) // trace the ray
                       {
                         t += interpolation_step;
@@ -408,6 +412,10 @@ shader_log_write_newline();
                           
                         // ==== END OF ACCELERATION CODE
                
+                        // intersection decision:
+                      
+                        #ifndef ANALYTICAL_INTERSECTION
+               
                         distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
                
                         if (distance < best_candidate_distance)
@@ -422,6 +430,30 @@ shader_log_write_newline();
                                 break;
                               }
                           }
+                        #endif
+                        #ifdef ANALYTICAL_INTERSECTION
+                      
+                        distance = get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2);
+               
+                        if (first_iteration)
+                          {
+                            first_iteration = false;
+                          }
+                        else
+                          {
+                            if (distance_prev * distance <= 0)
+                              {
+                                best_candidate_distance = distance;
+                                best_candidate_color = sample_color(i,cube_coordinates_current);
+                                intersection_found = true;
+                                break;
+                              }
+                          }
+                          
+                        distance_prev = distance;
+                        
+                        #endif
+              
                       }
                       
                     if (intersection_found)
