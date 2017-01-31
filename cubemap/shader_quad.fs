@@ -96,6 +96,14 @@ float get_distance_to_center(int cubemap_index, vec3 cubemap_coordinates)
     return distance_to_center; 
   }
   
+vec4 sample_color(int cubemap_index, vec3 cubemap_coordinates)
+  {
+    if (cubemap_index == 0)  // for some reason we can only index with constants
+      return textureLod(cubemaps[0].texture_color,cubemap_coordinates,0);
+    else
+      return textureLod(cubemaps[1].texture_color,cubemap_coordinates,0);
+  }
+  
 vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec3 line_point2, int current_side, int current_x, int current_y, int level)
   {
     vec3 vector_start, vector_right, vector_up, forward_vector;
@@ -406,10 +414,7 @@ shader_log_write_newline();
                           {
                             best_candidate_distance = distance;
                             
-                            if (i == 0)
-                              best_candidate_color = textureLod(cubemaps[0].texture_color,cube_coordinates_current,0);
-                            else
-                              best_candidate_color = textureLod(cubemaps[1].texture_color,cube_coordinates_current,0);
+                            best_candidate_color = sample_color(i,cube_coordinates_current);
                               
                             if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
                               {
