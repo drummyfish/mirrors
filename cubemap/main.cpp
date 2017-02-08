@@ -2,8 +2,8 @@
 
 #define CAMERA_STEP 0.1
 #define ROTATION_STEP 0.1
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 480
+#define WINDOW_WIDTH 320
+#define WINDOW_HEIGHT 240
 #define CUBEMAP_RESOLUTION 512
 #define NEAR 0.01f
 #define FAR 1000.0f
@@ -177,9 +177,9 @@ void set_up_pass2()
     uniform_acceleration_on.update_int(acceleration_on);
     uniform_camera_position.update_vec3(CameraHandler::camera_transformation.get_translation());
   }
- 
+
 void render()
-  {        
+  { 
     info_countdown--;
     wait_for_key_release = false;
     
@@ -211,7 +211,7 @@ void render()
     
     shader_log->load_from_gpu();
 
-  //  shader_log->print();
+    shader_log->print();
 
     shader_log->clear();
     shader_log->update_gpu();
@@ -220,7 +220,7 @@ void render()
     
     ErrorWriter::checkGlErrors("rendering loop");  
     glutSwapBuffers();
-    
+
     profiler->next_frame();
   }
   
@@ -294,6 +294,26 @@ cubemaps[0]->get_texture_distance()->set_mipmap_level(5);
 cubemaps[0]->get_texture_distance()->load_from_gpu();
 cubemaps[0]->get_texture_distance()->multiply(coeff);
 cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip5");
+
+cubemaps[0]->get_texture_distance()->set_mipmap_level(6);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip6");
+
+cubemaps[0]->get_texture_distance()->set_mipmap_level(7);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip7");
+
+cubemaps[0]->get_texture_distance()->set_mipmap_level(8);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip8");
+
+cubemaps[0]->get_texture_distance()->set_mipmap_level(9);
+cubemaps[0]->get_texture_distance()->load_from_gpu();
+cubemaps[0]->get_texture_distance()->multiply(coeff);
+cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip9");
 
 cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
 cubemaps[0]->get_texture_distance()->load_from_gpu();
@@ -453,8 +473,11 @@ int main(int argc, char** argv)
     profiler->new_value("pass 2");
     profiler->new_value("mirror fragments");
     
-    CameraHandler::camera_transformation.set_translation(glm::vec3(-78.2378,90.4943,-118.219));
-    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.37875,-8.60999,0));
+    CameraHandler::camera_transformation.set_translation(glm::vec3(13.9726,39.3919,-48.0639));
+    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.1825,-10.04,0));
+    
+    //CameraHandler::camera_transformation.set_translation(glm::vec3(-78.2378,90.4943,-118.219));
+    //CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.37875,-8.60999,0));
     CameraHandler::translation_step = 2.0;
     
     glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
@@ -482,7 +505,7 @@ int main(int argc, char** argv)
     geometry_sky->update_gpu();
     
     //Geometry3D g5 = load_obj("teapot.obj");
-    Geometry3D g5 = make_box_sharp(3,3,3);
+    Geometry3D g5 = load_obj("../resources/teapot.obj");//make_box_sharp(3,3,3);
     
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
@@ -591,8 +614,6 @@ int main(int argc, char** argv)
     shader_log->update_gpu();
     
     special_callback(GLUT_KEY_INSERT,0,0);   // compute the cubemaps
-
-//return 0;
     
     ErrorWriter::checkGlErrors("shader log init",true);
     
