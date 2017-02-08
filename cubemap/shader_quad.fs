@@ -11,7 +11,7 @@
 
 #define ITERATION_LIMIT 100        // to avoid infinite loops etc.
 
-//#define EFFECTIVE_SAMPLING         // sample each pixel at most once
+#define EFFECTIVE_SAMPLING         // sample each pixel at most once
 
 #define DISABLE_ACCELERATION
 
@@ -328,8 +328,35 @@ bool do_log =
 
                     while (t <= 1.0) // trace the ray
                       {
+                        // decide the interpolation step:
+                        
                         #ifndef EFFECTIVE_SAMPLING
                           t += interpolation_step;
+                        #else
+                          // TODO
+                          vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
+                          ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,ACCELERATION_MIPMAP_LEVELS);
+                          vec2 helper_bounds = get_next_prev_acceleration_bound(
+                            cubemaps[i].position,
+                            position1,
+                            position2,
+                            int(helper_coords.z),
+                            int_coordinates.x,
+                            int_coordinates.y,
+                            ACCELERATION_MIPMAP_LEVELS
+                            );  
+                          
+                          vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,ACCELERATION_MIPMAP_LEVELS);                          
+                          
+                          vec3 position_next = mix(position1,position2,helper_bounds.x);
+                          vec3 position_previous = mix(position1,position2,helper_bounds.y);
+                                
+                          float distance_next = length(position_next - cubemaps[i].position);
+                          float distance_previous = length(position_previous - cubemaps[i].position);
+                          
+                          float distance2 = abs(distance - distance_next);
+                          
+                          t = helper_bounds.x > t ? helper_bounds.x + 0.0001 : t + interpolation_step;
                         #endif
                       
                         iteration_counter += 1;
@@ -399,92 +426,43 @@ bool do_log =
                
                         // intersection decision:
                
-                        #ifdef EFFECTIVE_SAMPLING
-                          distance = get_distance_to_center(i,cube_coordinates_current);
-                          
-                          vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
-                          ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,ACCELERATION_MIPMAP_LEVELS);
-                          vec2 helper_bounds = get_next_prev_acceleration_bound(
-                            cubemaps[i].position,
-                            position1,
-                            position2,
-                            int(helper_coords.z),
-                            int_coordinates.x,
-                            int_coordinates.y,
-                            ACCELERATION_MIPMAP_LEVELS
-                            );  
-                          
-                          vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,ACCELERATION_MIPMAP_LEVELS) + vec2(INTERSECTION_LIMIT, -1 * INTERSECTION_LIMIT);                          
-                          
-                          vec3 position_next = mix(position1,position2,helper_bounds.x);
-                          vec3 position_previous = mix(position1,position2,helper_bounds.y);
-                                
-                          float distance_next = length(position_next - cubemaps[i].position);
-                          float distance_previous = length(position_previous - cubemaps[i].position);
-                          
-                          float distance2 = abs(distance - distance_next);
-#ifndef NO_LOG
-if (do_log)
-  {
-    shader_log_write_vec2(min_max);
-  }
-#endif
-                          
-                          
-                          
-                          if (distance2 <= INTERSECTION_LIMIT)
+               
+                        #ifndef ANALYTICAL_INTERSECTION
+                          distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
+               
+                          if (distance < best_candidate_distance)
                             {
-                              best_candidate_distance = distance2;
+                              best_candidate_distance = distance;
+                            
                               best_candidate_color = sample_color(i,cube_coordinates_current);
-                              intersection_found = true;
-                              break;
+                              
+                              if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
+                                {
+                                  intersection_found = true;
+                                  break;
+                                }
+                            }
+                        #else
+                      
+                          distance = get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2);
+               
+                          if (first_iteration)
+                            {
+                              first_iteration = false;
                             }
                           else
                             {
-                              t = max(helper_bounds.x, t + interpolation_step);
+                              if (distance_prev * distance <= 0)
+                                {
+                                  best_candidate_distance = distance;
+                                  best_candidate_color = sample_color(i,cube_coordinates_current);
+                                  intersection_found = true;
+                                  break;
+                                }
                             }
-                            
-                        #endif
-               
-                        #ifndef EFFECTIVE_SAMPLING
-                          #ifndef ANALYTICAL_INTERSECTION
-                            distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
-               
-                            if (distance < best_candidate_distance)
-                              {
-                                best_candidate_distance = distance;
-                            
-                                best_candidate_color = sample_color(i,cube_coordinates_current);
-                              
-                                if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
-                                  {
-                                    intersection_found = true;
-                                    break;
-                                  }
-                              }
-                          #endif
-                          #ifdef ANALYTICAL_INTERSECTION
-                      
-                            distance = get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2);
-               
-                            if (first_iteration)
-                              {
-                                first_iteration = false;
-                              }
-                            else
-                              {
-                                if (distance_prev * distance <= 0)
-                                  {
-                                    best_candidate_distance = distance;
-                                    best_candidate_color = sample_color(i,cube_coordinates_current);
-                                    intersection_found = true;
-                                    break;
-                                  }
-                              }
                           
-                            distance_prev = distance;
+                          distance_prev = distance;
                         
-                          #endif
                         #endif
               
                       }
@@ -494,6 +472,13 @@ if (do_log)
                   }
                 
                 fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
+
+#ifndef NO_LOG
+if (do_log)
+  {
+    fragment_color = vec4(0,0,0,0);
+  }
+#endif
                 
                 if (texture_to_display == 6)   // debugging code 2, displays some information computed after tracing
                   {
