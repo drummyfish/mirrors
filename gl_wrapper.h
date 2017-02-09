@@ -2274,7 +2274,6 @@ class ReflectionTraceCubeMap: public GPUObject
           glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MAG_FILTER,GL_NEAREST);
           glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,GL_NEAREST_MIPMAP_NEAREST); 
           
-
           this->uniform_texture_color = new UniformVariable(uniform_texture_color_name);
           this->uniform_texture_distance = new UniformVariable(uniform_texture_distance_name);
           this->uniform_position = new UniformVariable(uniform_position_name);

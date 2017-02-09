@@ -9,13 +9,17 @@
 
 #define INTERPOLATION_STEP 0.001
 
-#define ITERATION_LIMIT 100        // to avoid infinite loops etc.
+#define ITERATION_LIMIT 1000000   // to avoid infinite loops etc.
 
-#define EFFECTIVE_SAMPLING         // sample each pixel at most once
+//#define EFFECTIVE_SAMPLING         // sample each pixel at most once
 
-#define DISABLE_ACCELERATION
+//#define DISABLE_ACCELERATION
 
-//#define ANALYTICAL_INTERSECTION   // this switches between analytical and more precise sampling intersection decision
+#define ANALYTICAL_INTERSECTION   // this switches between analytical and more precise sampling intersection decision
+
+#define SELF_REFLECTIONS
+#define SELF_REFLECTIONS_LIMIT 2
+#define SELF_REFLECTIONS_BIAS 0.01
 
 //#define NO_LOG
 
@@ -51,10 +55,10 @@ vec3 reflection_vector;
 float t;
 float distance, distance_prev;
 float best_candidate_distance;
-float interpolation_step;
 int i, j;
 
 bool intersection_found;
+bool intersection_on_mirror;
 bool skipped;
 
 vec4 best_candidate_color;
@@ -112,6 +116,14 @@ vec4 sample_color(int cubemap_index, vec3 cubemap_coordinates)
       return textureLod(cubemaps[0].texture_color,cubemap_coordinates,0);
     else
       return textureLod(cubemaps[1].texture_color,cubemap_coordinates,0);
+  }
+  
+bool sample_mirror_mask(int cubemap_index, vec3 cubemap_coordinates)
+  {
+    if (cubemap_index == 0)  // for some reason we can only index with constants
+      return textureLod(cubemaps[0].texture_distance,cubemap_coordinates,0).z > 0.5;
+    else
+      return textureLod(cubemaps[1].texture_distance,cubemap_coordinates,0).z > 0.5;
   }
   
 vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec3 line_point2, int current_side, int current_x, int current_y, int level)
@@ -314,164 +326,171 @@ bool do_log =
               
                 for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
                   {   
-                    position1_to_cube_center = cubemaps[i].position - position1;
-                    cube_coordinates1 = normalize(position1 - cubemaps[i].position);
-                    cube_coordinates2 = normalize(position2 - cubemaps[i].position);   
-                    interpolation_step = INTERPOLATION_STEP; // 0.001
+                    for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
+                      {                  
+                        position1_to_cube_center = cubemaps[i].position - position1;
+                        cube_coordinates1 = normalize(position1 - cubemaps[i].position);
+                        cube_coordinates2 = normalize(position2 - cubemaps[i].position);
               
-                    for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
-                      next_acceleration_bounds[j] = -1;
+                        for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
+                          next_acceleration_bounds[j] = -1;
    
-                    t = 0.0;
+                        t = 0.0;
                  
-                    bool first_iteration = true;
+                        bool first_iteration = true;
 
-                    while (t <= 1.0) // trace the ray
-                      {
-                        // decide the interpolation step:
+                        while (t <= 1.0) // trace the ray
+                          {
+                            // decide the interpolation step:
                         
-                        #ifndef EFFECTIVE_SAMPLING
-                          t += interpolation_step;
-                        #else
-                          // TODO
-                          vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
-                          ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,ACCELERATION_MIPMAP_LEVELS);
-                          vec2 helper_bounds = get_next_prev_acceleration_bound(
-                            cubemaps[i].position,
-                            position1,
-                            position2,
-                            int(helper_coords.z),
-                            int_coordinates.x,
-                            int_coordinates.y,
-                            ACCELERATION_MIPMAP_LEVELS
-                            );  
+                            #ifndef EFFECTIVE_SAMPLING
+                              t += INTERPOLATION_STEP;
+                            #else
+                              // TODO
+                              vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
+                              ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,ACCELERATION_MIPMAP_LEVELS);
+                              vec2 helper_bounds = get_next_prev_acceleration_bound(
+                                cubemaps[i].position,
+                                position1,
+                                position2,
+                                int(helper_coords.z),
+                                int_coordinates.x,
+                                int_coordinates.y,
+                                ACCELERATION_MIPMAP_LEVELS
+                                );  
                           
-                          vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,ACCELERATION_MIPMAP_LEVELS);                          
+                              vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,ACCELERATION_MIPMAP_LEVELS);                          
                           
-                          vec3 position_next = mix(position1,position2,helper_bounds.x);
-                          vec3 position_previous = mix(position1,position2,helper_bounds.y);
+                              vec3 position_next = mix(position1,position2,helper_bounds.x);
+                              vec3 position_previous = mix(position1,position2,helper_bounds.y);
                                 
-                          float distance_next = length(position_next - cubemaps[i].position);
-                          float distance_previous = length(position_previous - cubemaps[i].position);
+                              float distance_next = length(position_next - cubemaps[i].position);
+                              float distance_previous = length(position_previous - cubemaps[i].position);
                           
-                          float distance2 = abs(distance - distance_next);
+                              float distance2 = abs(distance - distance_next);
                           
-                          t = helper_bounds.x > t ? helper_bounds.x + 0.0001 : t + interpolation_step;
-                        #endif
+                              t = helper_bounds.x > t ? helper_bounds.x + 0.0001 : t + INTERPOLATION_STEP;
+                            #endif
                       
-                        iteration_counter += 1;
+                            iteration_counter += 1;
                       
-                        tested_point2 = mix(position1,position2,t);
-                        cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
+                            tested_point2 = mix(position1,position2,t);
+                            cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
              
-                        // ==== ACCELERATION CODE HERE:
-                        #ifndef DISABLE_ACCELERATION
-                        skipped = false;
+                            // ==== ACCELERATION CODE HERE:
+                            #ifndef DISABLE_ACCELERATION
+                            skipped = false;
 
-                        if (iteration_counter > ITERATION_LIMIT)      // prevent the forever loop in case of bugs
+                            if (iteration_counter > ITERATION_LIMIT)      // prevent the forever loop in case of bugs
+                              {
+                                break;
+                              }
+                         
+                            for (j = 1; j < USE_ACCELERATION_LEVELS; j++)
+                              {
+                                if (acceleration_on < 1)
+                                  break;
+                          
+                                if (t > next_acceleration_bounds[j])
+                                  {
+                                    vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
+                                
+                                    ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,j);
+                                
+                                    vec2 helper_bounds = get_next_prev_acceleration_bound(
+                                      cubemaps[i].position,
+                                      position1,
+                                      position2,
+                                      int(helper_coords.z),
+                                      int_coordinates.x,
+                                      int_coordinates.y,
+                                      j
+                                      );
+                                  
+                                    // check if intersection can happen:
+                                
+                                    vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,j) + vec2(-1 * INTERSECTION_LIMIT,INTERSECTION_LIMIT);                          
+                                    vec3 position_next = mix(position1,position2,helper_bounds.x);
+                                    vec3 position_previous = mix(position1,position2,helper_bounds.y);
+                                
+                                    float distance_next = length(position_next - cubemaps[i].position);
+                                    float distance_previous = length(position_previous - cubemaps[i].position);
+
+                                    if
+                                      (
+                                        (min_max.y < distance_next && min_max.y < distance_previous)  ||
+                                        (min_max.x > distance_next && min_max.x > distance_previous)    
+                                      )
+                                      {
+                                        skip_counter += 1;
+                                        t = helper_bounds.x;  // jump to the next bound
+                                        skipped = true;
+                                        break;
+                                      }
+                                    else
+                                      next_acceleration_bounds[j] = helper_bounds.x + INTERPOLATION_STEP;
+                                  }
+                              }
+                           
+                            if (skipped)
+                              continue;
+                            #endif
+                            // ==== END OF ACCELERATION CODE
+               
+                            // intersection decision:
+               
+                            #ifndef ANALYTICAL_INTERSECTION
+                              distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
+               
+                              if (distance < best_candidate_distance)
+                                {
+                                  best_candidate_distance = distance;
+                            
+                                  best_candidate_color = sample_color(i,cube_coordinates_current);
+                              
+                                  if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
+                                    {
+                                      intersection_found = true;
+                                      break;
+                                    }
+                                }
+                            #else
+                              distance = get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2);
+               
+                              if (first_iteration)
+                                {
+                                  first_iteration = false;
+                                }
+                              else
+                                {
+                                  if (distance_prev * distance <= 0)
+                                    {
+                                      best_candidate_distance = distance;
+                                      best_candidate_color = sample_color(i,cube_coordinates_current);
+                                      intersection_found = true;
+                                      
+                                      intersection_on_mirror = sample_mirror_mask(i,cube_coordinates_current);
+                                      
+                                      break;
+                                    }
+                                }
+                          
+                              distance_prev = distance;
+                            #endif
+              
+                          }
+                      
+                        if (intersection_found)
                           {
                             break;
                           }
-                          
-                        for (j = 1; j < USE_ACCELERATION_LEVELS; j++)
-                          {
-                            if (acceleration_on < 1)
-                              break;
-                          
-                            if (t > next_acceleration_bounds[j])
-                              {
-                                vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
-                                
-                                ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,j);
-                                
-                                vec2 helper_bounds = get_next_prev_acceleration_bound(
-                                  cubemaps[i].position,
-                                  position1,
-                                  position2,
-                                  int(helper_coords.z),
-                                  int_coordinates.x,
-                                  int_coordinates.y,
-                                  j
-                                  );
-                                  
-                                // check if intersection can happen:
-                                
-                                vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,j) + vec2(INTERSECTION_LIMIT, -1 * INTERSECTION_LIMIT);                          
-                                vec3 position_next = mix(position1,position2,helper_bounds.x);
-                                vec3 position_previous = mix(position1,position2,helper_bounds.y);
-                                
-                                float distance_next = length(position_next - cubemaps[i].position);
-                                float distance_previous = length(position_previous - cubemaps[i].position);
-
-                                if
-                                  (
-                                    (min_max.y < distance_next && min_max.y < distance_previous)  ||
-                                    (min_max.x > distance_next && min_max.x > distance_previous)    
-                                  )
-                                  {
-                                    skip_counter += 1;
-                                    t = helper_bounds.x;  // jump to the next bound
-                                    skipped = true;
-                                    break;
-                                  }
-                                else
-                                  next_acceleration_bounds[j] = helper_bounds.x + interpolation_step;
-                              }
-                          }
-                           
-                        if (skipped)
-                          continue;
-                        #endif
-                        // ==== END OF ACCELERATION CODE
-               
-                        // intersection decision:
-               
-               
-                        #ifndef ANALYTICAL_INTERSECTION
-                          distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
-               
-                          if (distance < best_candidate_distance)
-                            {
-                              best_candidate_distance = distance;
-                            
-                              best_candidate_color = sample_color(i,cube_coordinates_current);
-                              
-                              if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
-                                {
-                                  intersection_found = true;
-                                  break;
-                                }
-                            }
-                        #else
-                      
-                          distance = get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2);
-               
-                          if (first_iteration)
-                            {
-                              first_iteration = false;
-                            }
-                          else
-                            {
-                              if (distance_prev * distance <= 0)
-                                {
-                                  best_candidate_distance = distance;
-                                  best_candidate_color = sample_color(i,cube_coordinates_current);
-                                  intersection_found = true;
-                                  break;
-                                }
-                            }
-                          
-                          distance_prev = distance;
-                        
-                        #endif
-              
-                      }
-                      
-                    if (intersection_found)
-                      break;
-                  }
+                      } // for self reflection count
+                  } // for each cubemap
                 
-                fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
+                if (intersection_on_mirror)
+                  fragment_color = vec4(1,1,1,0);
+                else
+                  fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
 
 #ifndef NO_LOG
 if (do_log)

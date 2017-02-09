@@ -45,7 +45,7 @@ void main()
     if (rendering_cubemap)
       {
         distance_from_cubemap = distance(world_position.xyz,cubemap_position);
-        output_position_distance = vec3(distance_from_cubemap,distance_from_cubemap,0.0);
+        output_position_distance = vec3(distance_from_cubemap,distance_from_cubemap,mirror ? 1.0 : 0.0); // save the mirror mask in z
       }
     else
       {
