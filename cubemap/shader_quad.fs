@@ -1,25 +1,25 @@
 #version 430
 #include ../shader_log_include.txt
-#define INTERSECTION_LIMIT 2      // what distance means intersection, aplies only if ANALYTICAL_INTERSECTION is not defined
+#define INTERSECTION_LIMIT 1      // what distance means intersection, aplies only if ANALYTICAL_INTERSECTION is not defined
 #define NUMBER_OF_CUBEMAPS 2
 #define ACCELERATION_LEVELS 9
 #define ACCELERATION_MIPMAP_LEVELS 9
 #define USE_ACCELERATION_LEVELS 3 // how many levels in acceleration texture to use
 #define INFINITY_T 999999         // infinite value for t (line parameter) 
 
-#define INTERPOLATION_STEP 0.001
+#define INTERPOLATION_STEP 0.0005
 
 #define ITERATION_LIMIT 1000000   // to avoid infinite loops etc.
 
 //#define EFFECTIVE_SAMPLING         // sample each pixel at most once
 
-//#define DISABLE_ACCELERATION
+#define DISABLE_ACCELERATION
 
-#define ANALYTICAL_INTERSECTION   // this switches between analytical and more precise sampling intersection decision
+//#define ANALYTICAL_INTERSECTION   // this switches between analytical and more precise sampling intersection decision
 
 #define SELF_REFLECTIONS
 #define SELF_REFLECTIONS_LIMIT 2
-#define SELF_REFLECTIONS_BIAS 0.01
+#define SELF_REFLECTIONS_BIAS 0.001
 
 //#define NO_LOG
 
@@ -121,9 +121,9 @@ vec4 sample_color(int cubemap_index, vec3 cubemap_coordinates)
 bool sample_mirror_mask(int cubemap_index, vec3 cubemap_coordinates)
   {
     if (cubemap_index == 0)  // for some reason we can only index with constants
-      return textureLod(cubemaps[0].texture_distance,cubemap_coordinates,0).z > 0.5;
+      return textureLod(cubemaps[0].texture_distance,cubemap_coordinates,0).z > 50;
     else
-      return textureLod(cubemaps[1].texture_distance,cubemap_coordinates,0).z > 0.5;
+      return textureLod(cubemaps[1].texture_distance,cubemap_coordinates,0).z > 50;
   }
   
 vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec3 line_point2, int current_side, int current_x, int current_y, int level)
@@ -303,11 +303,16 @@ bool do_log =
                     vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
                     vec2 helper_min_max = get_acceleration_pixel(0,position1 - cubemaps[0].position,4) / 1000.0;
                     float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
+                    bool helper_mask = sample_mirror_mask(0,position1 - vec3(0,30,-30));
+                    vec4 helper_color = sample_color(i,position1 - vec3(0,30,-30));
                    
                     // uncomment one of following
                     
+                    // --- color ---
+                    //fragment_color = helper_color;
+                    
                     // --- acceleration texture max ---
-                    fragment_color = vec4(helper_min_max.y,helper_min_max.y,helper_min_max.y,0);
+                    //fragment_color = vec4(helper_min_max.y,helper_min_max.y,helper_min_max.y,0);
                     
                     // --- acceleration texture max - min ---
                     //fragment_color = vec4(helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,0);
@@ -320,6 +325,9 @@ bool do_log =
                     
                     // --- distance to center ---
                     //fragment_color = vec4(helper_distance,helper_distance,helper_distance,0);
+                    
+                    // --- mirror mask ---
+                    fragment_color = vec4(helper_mask ? 1 : 0,helper_mask ? 1 : 0,helper_mask ? 1 : 0,0);
                     
                     break;
                   }
@@ -335,7 +343,11 @@ bool do_log =
                         for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                           next_acceleration_bounds[j] = -1;
    
-                        t = 0.0;
+                        #ifdef SELF_REFLECTIONS
+                          t = SELF_REFLECTIONS_BIAS;
+                        #else
+                          t = 0.0;
+                        #endif
                  
                         bool first_iteration = true;
 
@@ -451,6 +463,9 @@ bool do_log =
                                   if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
                                     {
                                       intersection_found = true;
+           
+                                      intersection_on_mirror = sample_mirror_mask(i,cube_coordinates_current);
+            
                                       break;
                                     }
                                 }
@@ -488,7 +503,7 @@ bool do_log =
                   } // for each cubemap
                 
                 if (intersection_on_mirror)
-                  fragment_color = vec4(1,1,1,0);
+                  fragment_color = vec4(0,1,0,0);
                 else
                   fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
 

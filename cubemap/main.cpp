@@ -2,11 +2,13 @@
 
 #define CAMERA_STEP 0.1
 #define ROTATION_STEP 0.1
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 480
+#define WINDOW_WIDTH 320
+#define WINDOW_HEIGHT 240
 #define CUBEMAP_RESOLUTION 512
 #define NEAR 0.01f
 #define FAR 1000.0f
+
+#define SELF_REFLECTIONS
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
@@ -136,6 +138,15 @@ void draw_scene()
         profiler->record_value(2,profiler->fragment_count_measure_end());
         uniform_mirror.update_int(0);
       }
+      
+    #ifdef SELF_REFLECTIONS
+    // mirror has to be always drawn for self reflections
+    
+    uniform_model_matrix.update_mat4(transformation_mirror.get_matrix());
+    uniform_mirror.update_int(1);
+    geometry_mirror->draw_as_triangles();
+    uniform_mirror.update_int(0);
+    #endif
   }
 
 void draw_quad()  // for the second pass
@@ -265,59 +276,60 @@ void save_images()
 
 double coeff = 0.01;
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip0");
+int cube_index = 0;
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(0);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip0");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(1);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip1");
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(1);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip1");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(2);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip2");
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(2);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip2");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(3);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip3");
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(3);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip3");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(4);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip4");
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(4);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip4");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(5);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip5");
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(5);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip5");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(6);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip6");
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(6);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip6");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(7);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip7");
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(7);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip7");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(8);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip8");
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(8);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip8");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(9);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(coeff);
-cubemaps[0]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemaps0_distance_mip9");
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(9);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip9");
 
-cubemaps[0]->get_texture_distance()->set_mipmap_level(0);
-cubemaps[0]->get_texture_distance()->load_from_gpu();
-cubemaps[0]->get_texture_distance()->multiply(1.0 / coeff);
+cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(0);
+cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+cubemaps[cube_index]->get_texture_distance()->multiply(1.0 / coeff);
   }
   
 void recompute_cubemap()
@@ -397,6 +409,7 @@ void special_callback(int key, int x, int y)
           recompute_cubemap();
           
           cubemaps[0]->compute_acceleration_texture();
+          cubemaps[1]->compute_acceleration_texture();
    //        cubemaps[0]->compute_acceleration_texture_sw();
    //       cubemaps[1]->compute_acceleration_texture_sw();
           
@@ -504,8 +517,8 @@ int main(int argc, char** argv)
     geometry_sky = &g4;
     geometry_sky->update_gpu();
     
-    //Geometry3D g5 = load_obj("teapot.obj");
     Geometry3D g5 = load_obj("../resources/teapot.obj");//make_box_sharp(3,3,3);
+    //Geometry3D g5 = make_box_sharp(0.5,0.5,0.5);
     
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
@@ -542,7 +555,7 @@ int main(int argc, char** argv)
     
     ErrorWriter::checkGlErrors("cube map init",true);
       
-    cubemaps[0]->transformation.set_translation(glm::vec3(0.0,30.0,-30.0));
+    cubemaps[0]->transformation.set_translation(glm::vec3(10.0,30.0,-30.0));
     cubemaps[1]->transformation.set_translation(glm::vec3(-18,35,-22));
     
     transformation_sky.set_scale(glm::vec3(100.0,100.0,100.0));
