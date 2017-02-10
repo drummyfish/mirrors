@@ -1,25 +1,25 @@
 #version 430
 #include ../shader_log_include.txt
-#define INTERSECTION_LIMIT 1      // what distance means intersection, aplies only if ANALYTICAL_INTERSECTION is not defined
+#define INTERSECTION_LIMIT 1.5          // what distance means intersection, aplies only if ANALYTICAL_INTERSECTION is not defined
 #define NUMBER_OF_CUBEMAPS 2
 #define ACCELERATION_LEVELS 9
 #define ACCELERATION_MIPMAP_LEVELS 9
-#define USE_ACCELERATION_LEVELS 3 // how many levels in acceleration texture to use
-#define INFINITY_T 999999         // infinite value for t (line parameter) 
+#define USE_ACCELERATION_LEVELS 3     // how many levels in acceleration texture to use
+#define INFINITY_T 999999             // infinite value for t (line parameter) 
 
 #define INTERPOLATION_STEP 0.0005
 
-#define ITERATION_LIMIT 1000000   // to avoid infinite loops etc.
+#define ITERATION_LIMIT 1000000       // to avoid infinite loops etc.
 
-//#define EFFECTIVE_SAMPLING         // sample each pixel at most once
+//#define EFFECTIVE_SAMPLING          // sample each pixel at most once
 
 #define DISABLE_ACCELERATION
 
-//#define ANALYTICAL_INTERSECTION   // this switches between analytical and more precise sampling intersection decision
+//#define ANALYTICAL_INTERSECTION     // this switches between analytical and more precise sampling intersection decision
 
 #define SELF_REFLECTIONS
 #define SELF_REFLECTIONS_LIMIT 2
-#define SELF_REFLECTIONS_BIAS 0.001
+#define SELF_REFLECTIONS_BIAS 0.005   // in terms of t
 
 //#define NO_LOG
 
@@ -332,10 +332,11 @@ bool do_log =
                     break;
                   }
               
-                for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
-                  {   
-                    for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
-                      {                  
+                for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
+                  {               
+                    for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
+                      {   
+                                     
                         position1_to_cube_center = cubemaps[i].position - position1;
                         cube_coordinates1 = normalize(position1 - cubemaps[i].position);
                         cube_coordinates2 = normalize(position2 - cubemaps[i].position);
@@ -500,6 +501,20 @@ bool do_log =
                             break;
                           }
                       } // for self reflection count
+                      
+                    if (!intersection_on_mirror)
+                      {
+                        break;
+                      }
+                    else
+                      {
+                    /*    position1 = tested_point2;
+                        position2 = position1 + vec3(1000,0,0);
+                        position1_to_position2 = position2 - position1;
+                        intersection_found = false; */
+                        
+                        break;
+                      }
                   } // for each cubemap
                 
                 if (intersection_on_mirror)
