@@ -244,7 +244,8 @@ void recompute_cubemap_side(ReflectionTraceCubeMap *cube_map, GLuint side)
         cube_map->get_texture_depth(),side,
         0,0,
         cube_map->get_texture_color(),side,
-        cube_map->get_texture_distance(),side 
+        cube_map->get_texture_distance(),side, 
+        cube_map->get_texture_normal(),side 
       );
       
     frame_buffer_cube->activate();
@@ -277,6 +278,8 @@ void save_images()
 double coeff = 0.01;
 
 int cube_index = 0;
+cubemaps[cube_index]->get_texture_normal()->save_ppms("cubemap_images/cubemap_normal");
+
 cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(0);
 cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
 cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
@@ -363,10 +366,12 @@ void recompute_cubemap()
 
     cubemaps[0]->get_texture_color()->load_from_gpu();  
     cubemaps[0]->get_texture_depth()->load_from_gpu();
-    cubemaps[0]->get_texture_distance()->load_from_gpu();      
+    cubemaps[0]->get_texture_distance()->load_from_gpu(); 
+    cubemaps[0]->get_texture_normal()->load_from_gpu();     
     cubemaps[1]->get_texture_color()->load_from_gpu();  
     cubemaps[1]->get_texture_depth()->load_from_gpu();
-    cubemaps[1]->get_texture_distance()->load_from_gpu();   
+    cubemaps[1]->get_texture_distance()->load_from_gpu(); 
+    cubemaps[1]->get_texture_normal()->load_from_gpu();   
   }  
 
 void special_callback(int key, int x, int y)
@@ -547,10 +552,10 @@ int main(int argc, char** argv)
     texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
     texture_camera_stencil->update_gpu();
     
-    cubemaps[0] = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].position",4,5);
+    cubemaps[0] = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].texture_normal","cubemaps[0].position",4,5,6);
     cubemaps[0]->update_gpu();
     
-    cubemaps[1] = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemaps[1].texture_color","cubemaps[1].texture_distance","cubemaps[1].position",6,7);
+    cubemaps[1] = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemaps[1].texture_color","cubemaps[1].texture_distance","cubemaps[1].texture_normal","cubemaps[1].position",7,8,9);
     cubemaps[1]->update_gpu();
     
     ErrorWriter::checkGlErrors("cube map init",true);

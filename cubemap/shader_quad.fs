@@ -31,6 +31,7 @@ struct environment_cubemap
   {
     samplerCube texture_color;        // contains color
     samplerCube texture_distance;     // contains distance to cubemap center, this is NOT a depth texture
+    samplerCube texture_normal;
     vec3 position;                    // cubemap world position
   };
 
@@ -117,7 +118,15 @@ vec4 sample_color(int cubemap_index, vec3 cubemap_coordinates)
     else
       return textureLod(cubemaps[1].texture_color,cubemap_coordinates,0);
   }
-  
+ 
+vec3 sample_normal(int cubemap_index, vec3 cubemap_coordinates)
+  {
+    if (cubemap_index == 0)  // for some reason we can only index with constants
+      return textureLod(cubemaps[0].texture_normal,cubemap_coordinates,0).xyz;
+    else
+      return textureLod(cubemaps[1].texture_normal,cubemap_coordinates,0).xyz;
+  }
+ 
 bool sample_mirror_mask(int cubemap_index, vec3 cubemap_coordinates)
   {
     if (cubemap_index == 0)  // for some reason we can only index with constants
@@ -304,12 +313,16 @@ bool do_log =
                     vec2 helper_min_max = get_acceleration_pixel(0,position1 - cubemaps[0].position,4) / 1000.0;
                     float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
                     bool helper_mask = sample_mirror_mask(0,position1 - vec3(0,30,-30));
-                    vec4 helper_color = sample_color(i,position1 - vec3(0,30,-30));
+                    vec4 helper_color = sample_color(0,position1 - vec3(0,30,-30));
+                    vec3 helper_normal = sample_normal(0,position1 - vec3(0,30,-30));
                    
                     // uncomment one of following
                     
                     // --- color ---
                     //fragment_color = helper_color;
+                    
+                    // -- normal ----
+                    //fragment_color = vec4(helper_normal,0);
                     
                     // --- acceleration texture max ---
                     //fragment_color = vec4(helper_min_max.y,helper_min_max.y,helper_min_max.y,0);
@@ -327,7 +340,7 @@ bool do_log =
                     //fragment_color = vec4(helper_distance,helper_distance,helper_distance,0);
                     
                     // --- mirror mask ---
-                    fragment_color = vec4(helper_mask ? 1 : 0,helper_mask ? 1 : 0,helper_mask ? 1 : 0,0);
+                    //fragment_color = vec4(helper_mask ? 1 : 0,helper_mask ? 1 : 0,helper_mask ? 1 : 0,0);
                     
                     break;
                   }
@@ -508,12 +521,12 @@ bool do_log =
                       }
                     else
                       {
-                    /*    position1 = tested_point2;
-                        position2 = position1 + vec3(1000,0,0);
+                        position1 = tested_point2;
+                        normal = sample_normal(i,cube_coordinates_current);
+                        reflection_vector = reflect(normalize(position1_to_position2),normal);
+                        position2 = position1 + reflection_vector * 1000;
                         position1_to_position2 = position2 - position1;
-                        intersection_found = false; */
-                        
-                        break;
+                        intersection_found = false;
                       }
                   } // for each cubemap
                 

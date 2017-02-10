@@ -2237,16 +2237,19 @@ class ReflectionTraceCubeMap: public GPUObject
       TextureCubeMap *texture_color;
       TextureCubeMap *texture_depth;
       TextureCubeMap *texture_distance;
+      TextureCubeMap *texture_normal;
       static glm::mat4 projection_matrix;       // matrix used for cubemap texture rendering
       GLint initial_viewport[4];
       
       // uniforms associated with the cubemap
       UniformVariable *uniform_texture_color;
       UniformVariable *uniform_texture_distance;
+      UniformVariable *uniform_texture_normal;
       UniformVariable *uniform_position;
       
       unsigned int texture_color_sampler;
       unsigned int texture_distance_sampler;
+      unsigned int texture_normal_sampler;
       
     public:    
       TransformationTRSModel transformation;    // contains the cubemap transformation, to be able to place it in the world, only translation is considered 
@@ -2257,12 +2260,14 @@ class ReflectionTraceCubeMap: public GPUObject
        * @param size size of cubemap side in pixels
        * @param uniform_texture_color_name name of the uniform variable (sampler cube) for color
        * @param uniform_texture_distance_name name of the uniform variable (sampler cube) for distance
-       * @param uniform_position_name name of the uniform variable (vec3) for cubemap position
+       * @param uniform_texture_normal_name name of the uniform variable (sampler cube) for normal
+       * @param uniform_position_name name of the uniform variable (vec3) for cubemap position       
        * @param texture_color_sampler number of texture sampler to use for color texture
+       * @param texture_normal_sampler number of texture sampler to use for normal texture
        * @param texture_distance_sampler number of texture sampler to use for position texture
        */
       
-      ReflectionTraceCubeMap(int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_distance_sampler)
+      ReflectionTraceCubeMap(int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_texture_normal_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_normal_sampler, unsigned int texture_distance_sampler)
         {
           this->size = size;
           ReflectionTraceCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 10000.0f);          
@@ -2270,16 +2275,19 @@ class ReflectionTraceCubeMap: public GPUObject
           this->texture_color = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_distance = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
           this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
+          this->texture_normal = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
         
           glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MAG_FILTER,GL_NEAREST);
           glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,GL_NEAREST_MIPMAP_NEAREST); 
           
           this->uniform_texture_color = new UniformVariable(uniform_texture_color_name);
           this->uniform_texture_distance = new UniformVariable(uniform_texture_distance_name);
+          this->uniform_texture_normal = new UniformVariable(uniform_texture_normal_name);
           this->uniform_position = new UniformVariable(uniform_position_name);
           
           this->texture_color_sampler = texture_color_sampler;
           this->texture_distance_sampler = texture_distance_sampler;
+          this->texture_normal_sampler = texture_normal_sampler;
         }
         
       /**
@@ -2292,6 +2300,7 @@ class ReflectionTraceCubeMap: public GPUObject
           
           result = result && this->uniform_texture_color->retrieve_location(shader);
           result = result && this->uniform_texture_distance->retrieve_location(shader);
+          result = result && this->uniform_texture_normal->retrieve_location(shader);
           result = result && this->uniform_position->retrieve_location(shader);
           
           return result;
@@ -2305,6 +2314,7 @@ class ReflectionTraceCubeMap: public GPUObject
         {
           this->uniform_texture_color->update_int((int) this->texture_color_sampler);
           this->uniform_texture_distance->update_int((int) this->texture_distance_sampler);
+          this->uniform_texture_normal->update_int((int) this->texture_normal_sampler);
           this->uniform_position->update_vec3(this->transformation.get_translation());
         }
         
@@ -2316,6 +2326,7 @@ class ReflectionTraceCubeMap: public GPUObject
         {
           this->texture_color->bind(this->texture_color_sampler);
           this->texture_distance->bind(this->texture_distance_sampler);
+          this->texture_normal->bind(this->texture_normal_sampler);
         }
         
       virtual ~ReflectionTraceCubeMap()
@@ -2323,9 +2334,11 @@ class ReflectionTraceCubeMap: public GPUObject
           delete this->texture_color;
           delete this->texture_distance;
           delete this->texture_depth;
+          delete this->texture_normal;
           
           delete this->uniform_texture_color;
           delete this->uniform_texture_distance;
+          delete this->uniform_texture_normal;
           delete this->uniform_position; 
         }
       
@@ -2334,6 +2347,7 @@ class ReflectionTraceCubeMap: public GPUObject
           this->get_texture_color()->update_gpu();
           this->get_texture_distance()->update_gpu();
           this->get_texture_depth()->update_gpu();
+          this->get_texture_normal()->update_gpu();
         }
       
       static glm::mat4 get_projection_matrix()
@@ -2350,7 +2364,12 @@ class ReflectionTraceCubeMap: public GPUObject
         {
           return this->texture_depth;
         }
-  
+
+      TextureCubeMap *get_texture_normal()
+        {
+          return this->texture_normal;
+        }
+        
       TextureCubeMap *get_texture_distance()
         {
           return this->texture_distance;
@@ -2394,7 +2413,7 @@ class ReflectionTraceCubeMap: public GPUObject
             "  vec4 texel2 = textureLod(cubemap,normalize(vec3(x,y + 0.1,z - 0.1)),sample_mip);\n"
             "  vec4 texel3 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z + 0.1)),sample_mip);\n"
             "  vec4 texel4 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z - 0.1)),sample_mip);\n"
-            "  vec4 new_texel = vec4(min(min(texel1.x,texel2.x),min(texel3.x,texel4.x)),max(max(texel1.y,texel2.y),max(texel3.y,texel4.y)),0,0);\n"
+            "  vec4 new_texel = vec4(min(min(texel1.x,texel2.x),min(texel3.x,texel4.x)),max(max(texel1.y,texel2.y),max(texel3.y,texel4.y)),texel1.z,0);\n"
             "fragment_color = new_texel;\n"     
             "}\n";
     
