@@ -8,7 +8,7 @@
 #define NEAR 0.01f
 #define FAR 1000.0f
 
-#define SELF_REFLECTIONS
+//#define SELF_REFLECTIONS
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
@@ -523,7 +523,7 @@ int main(int argc, char** argv)
     geometry_sky->update_gpu();
     
     Geometry3D g5 = load_obj("../resources/teapot.obj");//make_box_sharp(3,3,3);
-    //Geometry3D g5 = make_box_sharp(0.5,0.5,0.5);
+    //Geometry3D g5 = load_obj("../resources/self_reflection_test.obj"); 
     
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
