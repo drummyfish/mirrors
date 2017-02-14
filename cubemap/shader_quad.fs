@@ -18,8 +18,8 @@
 //#define ANALYTICAL_INTERSECTION     // this switches between analytical and more precise sampling intersection decision
 
 #define SELF_REFLECTIONS
-#define SELF_REFLECTIONS_LIMIT 2
-#define SELF_REFLECTIONS_BIAS 0.005   // in terms of t
+#define SELF_REFLECTIONS_LIMIT 5
+#define SELF_REFLECTIONS_BIAS 0.0001   // in terms of t
 
 //#define NO_LOG
 
@@ -262,7 +262,7 @@ void main()
   {
 
 #ifndef NO_LOG
-ivec2 log_coord = ivec2(180,120);
+ivec2 log_coord = ivec2(103,120);
 bool do_log =
   gl_FragCoord.x < (log_coord.x + 1) &&
   gl_FragCoord.x > log_coord.x &&
@@ -346,10 +346,11 @@ bool do_log =
                   }
               
                 for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
-                  {               
+                  {  
                     for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
                       {   
                                      
+                        position1_to_position2 = position2 - position1;
                         position1_to_cube_center = cubemaps[i].position - position1;
                         cube_coordinates1 = normalize(position1 - cubemaps[i].position);
                         cube_coordinates2 = normalize(position2 - cubemaps[i].position);
@@ -360,15 +361,20 @@ bool do_log =
                         #ifdef SELF_REFLECTIONS
                           t = SELF_REFLECTIONS_BIAS;
                         #else
-                          t = 0.0;
+                          t = 0;
                         #endif
                  
                         bool first_iteration = true;
-
+#ifndef NO_LOG
+if (do_log)
+  {
+    shader_log_write_vec3(blender(position1));
+  }
+#endif   
                         while (t <= 1.0) // trace the ray
                           {
                             // decide the interpolation step:
-                        
+                            
                             #ifndef EFFECTIVE_SAMPLING
                               t += INTERPOLATION_STEP;
                             #else
@@ -464,7 +470,7 @@ bool do_log =
                             // ==== END OF ACCELERATION CODE
                
                             // intersection decision:
-               
+                  
                             #ifndef ANALYTICAL_INTERSECTION
                               distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
                
@@ -478,8 +484,7 @@ bool do_log =
                                     {
                                       intersection_found = true;
            
-                                      intersection_on_mirror = sample_mirror_mask(i,cube_coordinates_current);
-            
+                                      intersection_on_mirror = sample_mirror_mask(i,cube_coordinates_current);           
                                       break;
                                     }
                                 }
@@ -497,7 +502,7 @@ bool do_log =
                                       best_candidate_distance = distance;
                                       best_candidate_color = sample_color(i,cube_coordinates_current);
                                       intersection_found = true;
-                                      
+                                    
                                       intersection_on_mirror = sample_mirror_mask(i,cube_coordinates_current);
                                       
                                       break;
@@ -508,11 +513,15 @@ bool do_log =
                             #endif
               
                           }
-                      
+                  
                         if (intersection_found)
                           {
                             break;
                           }
+                          
+                        #ifndef SELF_REFLECTIONS
+                        break;
+                        #endif
                       } // for self reflection count
                       
                     if (!intersection_on_mirror)
@@ -530,9 +539,11 @@ bool do_log =
                       }
                   } // for each cubemap
                 
+                #ifdef SELF_REFLECTIONS
                 if (intersection_on_mirror)
-                  fragment_color = vec4(0,1,0,0);
+                  fragment_color = vec4(1,0,0,1);
                 else
+                #endif
                   fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
 
 #ifndef NO_LOG

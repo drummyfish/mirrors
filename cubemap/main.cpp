@@ -498,8 +498,6 @@ int main(int argc, char** argv)
     //CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.37875,-8.60999,0));
     CameraHandler::translation_step = 2.0;
     
-    glDisable(GL_CULL_FACE);    // the mirror will reverse the vertex order :/
-    
     frame_buffer_cube = new FrameBuffer();
     frame_buffer_camera = new FrameBuffer();
     
@@ -519,11 +517,12 @@ int main(int argc, char** argv)
     geometry_scene->update_gpu();
     
     Geometry3D g4 = make_box_sharp(6,6,6);
+    g4.flip_triangles();
     geometry_sky = &g4;
     geometry_sky->update_gpu();
     
     Geometry3D g5 = load_obj("../resources/teapot.obj");//make_box_sharp(3,3,3);
-    //Geometry3D g5 = make_box_sharp(0.5,0.5,0.5);
+    //Geometry3D g5 = load_obj("../resources/self_reflection_test.obj"); 
     
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();

@@ -3677,6 +3677,7 @@ void draw_fullscreen_quad(int viewport_width=-1, int viewport_height=-1)
     if (geometry_fullscreen_quad == 0)
       {
         g = make_quad(2,2,0.5);
+        g.flip_triangles();
         geometry_fullscreen_quad = &g;
         geometry_fullscreen_quad->update_gpu();
       }
