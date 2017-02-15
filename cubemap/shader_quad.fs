@@ -17,9 +17,9 @@
 
 //#define ANALYTICAL_INTERSECTION     // this switches between analytical and more precise sampling intersection decision
 
-#define SELF_REFLECTIONS
+//#define SELF_REFLECTIONS
 #define SELF_REFLECTIONS_LIMIT 2
-#define SELF_REFLECTIONS_BIAS 0.0001   // in terms of t
+#define SELF_REFLECTIONS_BIAS 0.001 //0.0001   // in terms of t
 
 //#define NO_LOG
 
@@ -262,7 +262,7 @@ void main()
   {
 
 #ifndef NO_LOG
-ivec2 log_coord = ivec2(130,160);
+ivec2 log_coord = ivec2(170,160);
 bool do_log =
   gl_FragCoord.x < (log_coord.x + 1) &&
   gl_FragCoord.x > log_coord.x &&
@@ -371,7 +371,9 @@ if (do_log)
                           t = SELF_REFLECTIONS_BIAS;
                         #else
                           // TMP: set this back to zero later
+                          
                           t = SELF_REFLECTIONS_BIAS;
+
                           //t = 0;
                         #endif
                  
@@ -380,7 +382,12 @@ if (do_log)
                         while (t <= 1.0) // trace the ray
                           {
                             // decide the interpolation step:
-                            
+#ifndef NO_LOG
+if (do_log)
+  {
+    shader_log_write_float(t);
+  }
+#endif                              
                             #ifndef EFFECTIVE_SAMPLING
                               t += INTERPOLATION_STEP;
                             #else
