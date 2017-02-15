@@ -559,7 +559,7 @@ int main(int argc, char** argv)
     
     ErrorWriter::checkGlErrors("cube map init",true);
       
-    cubemaps[0]->transformation.set_translation(glm::vec3(10.0,30.0,-30.0));
+    cubemaps[0]->transformation.set_translation(glm::vec3(0.85156,36.844,-30.7379));
     cubemaps[1]->transformation.set_translation(glm::vec3(-18,35,-22));
     
     transformation_sky.set_scale(glm::vec3(100.0,100.0,100.0));

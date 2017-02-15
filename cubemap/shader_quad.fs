@@ -18,7 +18,7 @@
 //#define ANALYTICAL_INTERSECTION     // this switches between analytical and more precise sampling intersection decision
 
 #define SELF_REFLECTIONS
-#define SELF_REFLECTIONS_LIMIT 5
+#define SELF_REFLECTIONS_LIMIT 2
 #define SELF_REFLECTIONS_BIAS 0.0001   // in terms of t
 
 //#define NO_LOG
@@ -262,7 +262,7 @@ void main()
   {
 
 #ifndef NO_LOG
-ivec2 log_coord = ivec2(103,120);
+ivec2 log_coord = ivec2(130,160);
 bool do_log =
   gl_FragCoord.x < (log_coord.x + 1) &&
   gl_FragCoord.x > log_coord.x &&
@@ -303,6 +303,7 @@ bool do_log =
                 
                 intersection_found = false;                    
                 int iteration_counter = 0;
+                int mirror_bounce_counter = 0;
                 int skip_counter = 0;
                 bool assertion = true;
                 vec3 debug_vector = vec3(0,0,0);
@@ -346,7 +347,15 @@ bool do_log =
                   }
               
                 for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
-                  {  
+                  {
+                    
+#ifndef NO_LOG
+if (do_log)
+  {
+    shader_log_write_char(65);
+  }
+#endif   
+                  
                     for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
                       {   
                                      
@@ -361,16 +370,13 @@ bool do_log =
                         #ifdef SELF_REFLECTIONS
                           t = SELF_REFLECTIONS_BIAS;
                         #else
-                          t = 0;
+                          // TMP: set this back to zero later
+                          t = SELF_REFLECTIONS_BIAS;
+                          //t = 0;
                         #endif
                  
                         bool first_iteration = true;
-#ifndef NO_LOG
-if (do_log)
-  {
-    shader_log_write_vec3(blender(position1));
-  }
-#endif   
+
                         while (t <= 1.0) // trace the ray
                           {
                             // decide the interpolation step:
@@ -514,14 +520,14 @@ if (do_log)
               
                           }
                   
+                        #ifndef SELF_REFLECTIONS
+                        intersection_on_mirror = false;
+                        #endif
+                  
                         if (intersection_found)
                           {
                             break;
                           }
-                          
-                        #ifndef SELF_REFLECTIONS
-                        break;
-                        #endif
                       } // for self reflection count
                       
                     if (!intersection_on_mirror)
@@ -530,6 +536,7 @@ if (do_log)
                       }
                     else
                       {
+                        mirror_bounce_counter += 1;
                         position1 = tested_point2;
                         normal = sample_normal(i,cube_coordinates_current);
                         reflection_vector = reflect(normalize(position1_to_position2),normal);
@@ -544,7 +551,7 @@ if (do_log)
                   fragment_color = vec4(1,0,0,1);
                 else
                 #endif
-                  fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * 0.75 : vec4(1,0,0,1);
+                  fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * (0.75 - mirror_bounce_counter * 0.2) : vec4(1,0,0,1);
 
 #ifndef NO_LOG
 if (do_log)
