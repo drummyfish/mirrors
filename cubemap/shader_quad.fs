@@ -17,9 +17,10 @@
 
 //#define ANALYTICAL_INTERSECTION     // this switches between analytical and more precise sampling intersection decision
 
-//#define SELF_REFLECTIONS
+#define SELF_REFLECTIONS
 #define SELF_REFLECTIONS_LIMIT 2
-#define SELF_REFLECTIONS_BIAS 0.001 //0.0001   // in terms of t
+#define SELF_REFLECTIONS_BIAS  0.001  // these are unfortunately dependent on cubemap positions very much
+#define SELF_REFLECTIONS_BIAS2 0.002
 
 //#define NO_LOG
 
@@ -368,13 +369,10 @@ if (do_log)
                           next_acceleration_bounds[j] = -1;
    
                         #ifdef SELF_REFLECTIONS
-                          t = SELF_REFLECTIONS_BIAS;
+                          t = mix(SELF_REFLECTIONS_BIAS2,SELF_REFLECTIONS_BIAS,dot(normalize(position1_to_position2),normalize(camera_to_position1))  )    ;
                         #else
-                          // TMP: set this back to zero later
-                          
-                          t = SELF_REFLECTIONS_BIAS;
-
-                          //t = 0;
+                          //t = SELF_REFLECTIONS_BIAS;
+                          t = 0;
                         #endif
                  
                         bool first_iteration = true;
