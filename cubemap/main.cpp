@@ -8,7 +8,7 @@
 #define NEAR 0.01f
 #define FAR 1000.0f
 
-#define SELF_REFLECTIONS
+//#define SELF_REFLECTIONS              // !!! NEEDS TO ALSO BE ENAMBLED IN shader_quad.fs !!!
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;

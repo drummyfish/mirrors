@@ -1,25 +1,25 @@
 #version 430
 #include ../shader_log_include.txt
-#define INTERSECTION_LIMIT 1.5          // what distance means intersection, aplies only if ANALYTICAL_INTERSECTION is not defined
+#define INTERSECTION_LIMIT 1.5         // what distance means intersection, aplies only if ANALYTICAL_INTERSECTION is not defined
 #define NUMBER_OF_CUBEMAPS 2
 #define ACCELERATION_LEVELS 9
 #define ACCELERATION_MIPMAP_LEVELS 9
-#define USE_ACCELERATION_LEVELS 3     // how many levels in acceleration texture to use
-#define INFINITY_T 999999             // infinite value for t (line parameter) 
+#define USE_ACCELERATION_LEVELS 3      // how many levels in acceleration texture to use
+#define INFINITY_T 999999              // infinite value for t (line parameter) 
 
 #define INTERPOLATION_STEP 0.0005
 
-#define ITERATION_LIMIT 1000000       // to avoid infinite loops etc.
+#define ITERATION_LIMIT 1000000        // to avoid infinite loops etc.
 
-//#define EFFECTIVE_SAMPLING          // sample each pixel at most once
+//#define EFFECTIVE_SAMPLING           // sample each pixel at most once, not implemented yet
 
-#define DISABLE_ACCELERATION
+//#define DISABLE_ACCELERATION
 
-//#define ANALYTICAL_INTERSECTION     // this switches between analytical and more precise sampling intersection decision
+//#define ANALYTICAL_INTERSECTION      // this switches between analytical and more precise sampling intersection decision
 
-#define SELF_REFLECTIONS
-#define SELF_REFLECTIONS_LIMIT 2
-#define SELF_REFLECTIONS_BIAS  0.001  // these are unfortunately dependent on cubemap positions very much
+//#define SELF_REFLECTIONS               // !!! NEEDS TO ALSO BE ENAMBLED IN main.cpp !!!
+#define SELF_REFLECTIONS_LIMIT 3
+#define SELF_REFLECTIONS_BIAS  0.001   // these are unfortunately dependent on cubemap positions very much
 #define SELF_REFLECTIONS_BIAS2 0.002
 
 //#define NO_LOG
@@ -349,14 +349,6 @@ bool do_log =
               
                 for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
                   {
-                    
-#ifndef NO_LOG
-if (do_log)
-  {
-    shader_log_write_char(65);
-  }
-#endif   
-                  
                     for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
                       {   
                                      
@@ -371,7 +363,6 @@ if (do_log)
                         #ifdef SELF_REFLECTIONS
                           t = mix(SELF_REFLECTIONS_BIAS2,SELF_REFLECTIONS_BIAS,dot(normalize(position1_to_position2),normalize(camera_to_position1))  )    ;
                         #else
-                          //t = SELF_REFLECTIONS_BIAS;
                           t = 0;
                         #endif
                  
@@ -380,12 +371,7 @@ if (do_log)
                         while (t <= 1.0) // trace the ray
                           {
                             // decide the interpolation step:
-#ifndef NO_LOG
-if (do_log)
-  {
-    shader_log_write_float(t);
-  }
-#endif                              
+                            
                             #ifndef EFFECTIVE_SAMPLING
                               t += INTERPOLATION_STEP;
                             #else
