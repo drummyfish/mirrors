@@ -9,13 +9,13 @@
 
 #define INTERPOLATION_STEP 0.0005
 
-#define ITERATION_LIMIT 1000000        // to avoid infinite loops etc.
+#define ITERATION_LIMIT 1000000      // to avoid infinite loops etc.
 
-//#define EFFECTIVE_SAMPLING           // sample each pixel at most once, not implemented yet
+#define EFFECTIVE_SAMPLING           // sample each pixel at most once, not implemented yet
 
 //#define DISABLE_ACCELERATION
 
-//#define ANALYTICAL_INTERSECTION      // this switches between analytical and more precise sampling intersection decision
+#define ANALYTICAL_INTERSECTION      // this switches between analytical and more precise sampling intersection decision
 
 //#define SELF_REFLECTIONS               // !!! NEEDS TO ALSO BE ENAMBLED IN main.cpp !!!
 #define SELF_REFLECTIONS_LIMIT 3
@@ -263,7 +263,7 @@ void main()
   {
 
 #ifndef NO_LOG
-ivec2 log_coord = ivec2(170,160);
+ivec2 log_coord = ivec2(160,105);
 bool do_log =
   gl_FragCoord.x < (log_coord.x + 1) &&
   gl_FragCoord.x > log_coord.x &&
@@ -356,6 +356,8 @@ bool do_log =
                         position1_to_cube_center = cubemaps[i].position - position1;
                         cube_coordinates1 = normalize(position1 - cubemaps[i].position);
                         cube_coordinates2 = normalize(position2 - cubemaps[i].position);
+                        
+                        cube_coordinates_current = normalize(-1 * position1_to_cube_center);
               
                         for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
                           next_acceleration_bounds[j] = -1;
@@ -386,8 +388,8 @@ bool do_log =
                                 int_coordinates.x,
                                 int_coordinates.y,
                                 ACCELERATION_MIPMAP_LEVELS
-                                );  
-                          
+                                );
+                             
                               vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,ACCELERATION_MIPMAP_LEVELS);                          
                           
                               vec3 position_next = mix(position1,position2,helper_bounds.x);
@@ -397,7 +399,7 @@ bool do_log =
                               float distance_previous = length(position_previous - cubemaps[i].position);
                           
                               float distance2 = abs(distance - distance_next);
-                          
+                      
                               t = helper_bounds.x > t ? helper_bounds.x + 0.0001 : t + INTERPOLATION_STEP;
                             #endif
                       
