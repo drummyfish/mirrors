@@ -259,6 +259,31 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
     return result;
   }
   
+void get_acc_cell_info(vec3 current_cube_coords, int acc_level, vec3 cubemap_pos, vec3 ray_pos1, vec3 ray_pos2, out vec2 min_max, out vec2 next_prev_t, out vec2 next_prev_dist)
+  {
+    vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(current_cube_coords);
+    ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,acc_level);
+    vec2 helper_bounds = get_next_prev_acceleration_bound(
+                           cubemap_pos,
+                           ray_pos1,
+                           ray_pos2,
+                           int(helper_coords.z),
+                           int_coordinates.x,
+                           int_coordinates.y,
+                           acc_level
+                           );
+                             
+    vec2 helper_min_max = get_acceleration_pixel(i,current_cube_coords,acc_level);                                                    
+    vec3 position_next = mix(ray_pos1,ray_pos2,helper_bounds.x);
+    vec3 position_previous = mix(ray_pos1,ray_pos2,helper_bounds.y); 
+    float distance_next = length(position_next - cubemap_pos);
+    float distance_previous = length(position_previous - cubemap_pos);
+    
+    min_max = helper_min_max;
+    next_prev_t = helper_bounds;
+    next_prev_dist = vec2(distance_next,distance_previous);
+  }
+  
 void main()
   {
 
@@ -377,30 +402,21 @@ bool do_log =
                             #ifndef EFFECTIVE_SAMPLING
                               t += INTERPOLATION_STEP;
                             #else
-                              // TODO
-                              vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
-                              ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,ACCELERATION_MIPMAP_LEVELS);
-                              vec2 helper_bounds = get_next_prev_acceleration_bound(
+                              vec2 min_max, next_prev_t, next_prev_dist;
+                              
+                              get_acc_cell_info(
+                                cube_coordinates_current,
+                                ACCELERATION_MIPMAP_LEVELS,
                                 cubemaps[i].position,
                                 position1,
                                 position2,
-                                int(helper_coords.z),
-                                int_coordinates.x,
-                                int_coordinates.y,
-                                ACCELERATION_MIPMAP_LEVELS
+                                min_max,
+                                next_prev_t,
+                                next_prev_dist
                                 );
-                             
-                              vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,ACCELERATION_MIPMAP_LEVELS);                          
-                          
-                              vec3 position_next = mix(position1,position2,helper_bounds.x);
-                              vec3 position_previous = mix(position1,position2,helper_bounds.y);
-                                
-                              float distance_next = length(position_next - cubemaps[i].position);
-                              float distance_previous = length(position_previous - cubemaps[i].position);
-                          
-                              float distance2 = abs(distance - distance_next);
-                      
-                              t = helper_bounds.x > t ? helper_bounds.x + 0.0001 : t + INTERPOLATION_STEP;
+                              
+                              float distance2 = abs(distance - next_prev_dist.x);
+                              t = next_prev_t.x > t ? next_prev_t.x + 0.0001 : t + INTERPOLATION_STEP;
                             #endif
                       
                             iteration_counter += 1;
@@ -424,42 +440,32 @@ bool do_log =
                           
                                 if (t > next_acceleration_bounds[j])
                                   {
-                                    vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(cube_coordinates_current);
-                                
-                                    ivec2 int_coordinates = normalized_coords_to_int_coords(helper_coords.xy,j);
-                                
-                                    vec2 helper_bounds = get_next_prev_acceleration_bound(
+                                    vec2 min_max, next_prev_t, next_prev_dist;
+                                    
+                                    get_acc_cell_info(
+                                      cube_coordinates_current,
+                                      j,
                                       cubemaps[i].position,
                                       position1,
                                       position2,
-                                      int(helper_coords.z),
-                                      int_coordinates.x,
-                                      int_coordinates.y,
-                                      j
+                                      min_max,
+                                      next_prev_t,
+                                      next_prev_dist
                                       );
-                                  
-                                    // check if intersection can happen:
-                                
-                                    vec2 min_max = get_acceleration_pixel(i,cube_coordinates_current,j) + vec2(-1 * INTERSECTION_LIMIT,INTERSECTION_LIMIT);                          
-                                    vec3 position_next = mix(position1,position2,helper_bounds.x);
-                                    vec3 position_previous = mix(position1,position2,helper_bounds.y);
-                                
-                                    float distance_next = length(position_next - cubemaps[i].position);
-                                    float distance_previous = length(position_previous - cubemaps[i].position);
-
+                                    
                                     if
                                       (
-                                        (min_max.y < distance_next && min_max.y < distance_previous)  ||
-                                        (min_max.x > distance_next && min_max.x > distance_previous)    
+                                        (min_max.y < next_prev_dist.x && min_max.y < next_prev_dist.y)  ||
+                                        (min_max.x > next_prev_dist.x && min_max.x > next_prev_dist.y)    
                                       )
                                       {
                                         skip_counter += 1;
-                                        t = helper_bounds.x;  // jump to the next bound
+                                        t = next_prev_t.x;  // jump to the next bound
                                         skipped = true;
                                         break;
                                       }
                                     else
-                                      next_acceleration_bounds[j] = helper_bounds.x + INTERPOLATION_STEP;
+                                      next_acceleration_bounds[j] = next_prev_t.x + INTERPOLATION_STEP;
                                   }
                               }
                            

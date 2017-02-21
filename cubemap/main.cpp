@@ -222,7 +222,7 @@ void render()
     
     shader_log->load_from_gpu();
 
-    shader_log->print();
+ //   shader_log->print();
 
     shader_log->clear();
     shader_log->update_gpu();
