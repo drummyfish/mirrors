@@ -417,17 +417,22 @@ bool do_log =
                               
                               float distance2 = abs(distance - next_prev_dist.x);
                               t = next_prev_t.x > t ? next_prev_t.x + 0.0001 : t + INTERPOLATION_STEP;
+                              
+                              if (t > 1.0)  // tmp fix, prevents a mysterious bug that sometimes causes infinite looping
+                                {
+                                  break;
+                                }
                             #endif
                       
                             iteration_counter += 1;
                       
                             tested_point2 = mix(position1,position2,t);
                             cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
-             
+
                             // ==== ACCELERATION CODE HERE:
                             #ifndef DISABLE_ACCELERATION
                             skipped = false;
-
+                            
                             if (iteration_counter > ITERATION_LIMIT)      // prevent the forever loop in case of bugs
                               {
                                 break;
@@ -473,7 +478,7 @@ bool do_log =
                               continue;
                             #endif
                             // ==== END OF ACCELERATION CODE
-               
+                            
                             // intersection decision:
                   
                             #ifndef ANALYTICAL_INTERSECTION

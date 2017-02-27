@@ -7,6 +7,7 @@
 #define CUBEMAP_RESOLUTION 512
 #define NEAR 0.01f
 #define FAR 1000.0f
+//#define SHADER_LOG
 
 //#define SELF_REFLECTIONS              // !!! NEEDS TO ALSO BE ENAMBLED IN shader_quad.fs !!!
 
@@ -219,13 +220,13 @@ void render()
     profiler->time_measure_begin();
     set_up_pass2();
     draw_quad();
-    
-    shader_log->load_from_gpu();
 
- //   shader_log->print();
-
-    shader_log->clear();
-    shader_log->update_gpu();
+    #ifdef SHADER_LOG    
+      shader_log->load_from_gpu();
+      shader_log->print();
+      shader_log->clear();
+      shader_log->update_gpu();
+    #endif
     
     profiler->record_value(1,profiler->time_measure_end());
     
