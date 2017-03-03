@@ -794,6 +794,7 @@ class Shader
        * 
        * @param vertex_shader_text vertex shader source code
        * @param fragment_shader_text fragment shader source code
+       * @param compute_shader_text compute shader source code
        * @param transform_feedback_variables list of output vertex shader variable names
        *   to be recorded in transform feedback, leave empty if you don't want to use
        *   transform feedback 
@@ -813,9 +814,10 @@ class Shader
           if (compute_shader_text.length() != 0)
             {
               if (!this->add_shader(compute_shader_text.c_str(),GL_COMPUTE_SHADER))
-                ErrorWriter::write_error("Could not add a compute shader program. (you need OpenGL 4.3 for compute shaders.)");
-            
-              this->is_ok = false;
+                {
+                  ErrorWriter::write_error("Could not add a compute shader program. (you need OpenGL 4.5 for compute shaders.)");
+                  this->is_ok = false;
+                }
             }
           else  // can either have compute shader or pipeline shaders
             {
