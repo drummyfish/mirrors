@@ -2,14 +2,14 @@
 
 #define CAMERA_STEP 0.1
 #define ROTATION_STEP 0.1
-#define WINDOW_WIDTH 320
-#define WINDOW_HEIGHT 240
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 480
 #define CUBEMAP_RESOLUTION 512
 #define NEAR 0.01f
 #define FAR 1000.0f
 //#define SHADER_LOG
 
-//#define SELF_REFLECTIONS              // !!! NEEDS TO ALSO BE ENAMBLED IN shader_quad.fs !!!
+#define SELF_REFLECTIONS              // !!! NEEDS TO ALSO BE ENAMBLED IN shader_quad.fs !!!
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;

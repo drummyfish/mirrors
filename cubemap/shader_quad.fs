@@ -11,13 +11,12 @@
 
 #define ITERATION_LIMIT 1000000      // to avoid infinite loops etc.
 
-#define EFFECTIVE_SAMPLING           // sample each pixel at most once, not implemented yet
+//#define EFFECTIVE_SAMPLING           // sample each pixel at most once, not implemented yet
 
-//#define DISABLE_ACCELERATION
+#define DISABLE_ACCELERATION
+//#define ANALYTICAL_INTERSECTION      // this switches between analytical and more precise sampling intersection decision
 
-#define ANALYTICAL_INTERSECTION      // this switches between analytical and more precise sampling intersection decision
-
-//#define SELF_REFLECTIONS               // !!! NEEDS TO ALSO BE ENAMBLED IN main.cpp !!!
+#define SELF_REFLECTIONS               // !!! NEEDS TO ALSO BE ENAMBLED IN main.cpp !!!
 #define SELF_REFLECTIONS_LIMIT 3
 #define SELF_REFLECTIONS_BIAS  0.001   // these are unfortunately dependent on cubemap positions very much
 #define SELF_REFLECTIONS_BIAS2 0.002

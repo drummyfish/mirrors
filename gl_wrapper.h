@@ -3471,6 +3471,53 @@ class Profiler: public Printable
         };
   };
   
+class StorageBuffer: public GPUObject, public Printable
+  {
+    // WORK IN PROGRESS
+      
+    protected:
+      GLuint ssbo;
+      GLuint binding_point;
+      unsigned int size_bytes;
+      char *data;
+      
+    public:
+      StorageBuffer(unsigned int size_bytes)
+        {
+          glGenBuffers(1,&(this->ssbo));
+          glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
+          
+          this->size_bytes = size_bytes;
+          
+          this->binding_point = 1;
+          
+          this->data = (char *) malloc(size_bytes);
+          memset(this->data,0,size_bytes);
+          
+          glBufferData(GL_SHADER_STORAGE_BUFFER,size_bytes,this->data,GL_STATIC_DRAW);
+        }
+        
+      ~StorageBuffer()
+        {
+          free(this->data);
+        }
+        
+      virtual void update_gpu()
+        {
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
+          glBufferData(GL_SHADER_STORAGE_BUFFER,this->size_bytes,this->data,GL_STATIC_DRAW);
+        }
+      
+      virtual void load_from_gpu()
+        {
+          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->size_bytes,this->data);
+        }
+        
+      virtual void print()
+        {
+        }
+  };
+  
 /**
  * Allows the shaders to write debugging info into a log, using SSBOs. Only one log per program is now supported.
  */
@@ -3487,7 +3534,7 @@ class ShaderLog: public GPUObject, public Printable
       GLuint ssbo;
       GLuint binding_point;
       
-      uint32_t number_of_lines;
+      uint32_t number_of_lines;              // order of these members has to be kept!
       uint32_t max_lines;
       uint32_t line_length;
       uint32_t data[SHADER_LOG_DATA_SIZE];
@@ -3519,6 +3566,8 @@ class ShaderLog: public GPUObject, public Printable
           
           glGenBuffers(1,&(this->ssbo));
           glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
+          
+          // note: &(this->number_of_lines) on the next line is correct, it's the start of bigger memory block
           glBufferData(GL_SHADER_STORAGE_BUFFER,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines),GL_STATIC_DRAW);
         };
         
@@ -3534,7 +3583,7 @@ class ShaderLog: public GPUObject, public Printable
         
       void bind()
         {
-          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,this->ssbo);
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
           glFinish();
         }
         
@@ -3545,13 +3594,13 @@ class ShaderLog: public GPUObject, public Printable
         
       virtual void update_gpu()
         {
-          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,this->ssbo);
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
           glBufferData(GL_SHADER_STORAGE_BUFFER,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines),GL_STATIC_DRAW);
         }
       
       virtual void load_from_gpu()
         {
-          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines));
+          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,this->binding_point,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines));
         }
         
       virtual void print()
