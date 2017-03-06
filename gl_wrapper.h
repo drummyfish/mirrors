@@ -3482,22 +3482,29 @@ class StorageBuffer: public GPUObject, public Printable
       char *data;
       
     public:
-      StorageBuffer(unsigned int size_bytes)
+      StorageBuffer(unsigned int size_bytes, unsigned int binding_point)
         {
           glGenBuffers(1,&(this->ssbo));
           glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
           
           this->size_bytes = size_bytes;
           
-          this->binding_point = 1;
+          this->binding_point = binding_point;
           
           this->data = (char *) malloc(size_bytes);
           memset(this->data,0,size_bytes);
           
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
           glBufferData(GL_SHADER_STORAGE_BUFFER,size_bytes,this->data,GL_STATIC_DRAW);
         }
+
+      void bind()
+        {
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
+          glFinish();
+        }
         
-      ~StorageBuffer()
+      virtual ~StorageBuffer()
         {
           free(this->data);
         }
@@ -3510,11 +3517,16 @@ class StorageBuffer: public GPUObject, public Printable
       
       virtual void load_from_gpu()
         {
-          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->size_bytes,this->data);
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
+          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,this->size_bytes,this->data);
         }
         
       virtual void print()
         {
+          for (unsigned int i = 0; i < this->size_bytes; i++)
+            cout << ((int) this->data[i]) << " ";
+            
+          cout << endl;
         }
   };
   
@@ -3600,7 +3612,8 @@ class ShaderLog: public GPUObject, public Printable
       
       virtual void load_from_gpu()
         {
-          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,this->binding_point,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines));
+          glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
+          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,SHADER_LOG_TOTAL_SIZE,&(this->number_of_lines));
         }
         
       virtual void print()

@@ -10,9 +10,22 @@
 
 using namespace std;
 
+Shader *draw_shader;
+Shader *compute_shader;
+StorageBuffer *buffer;
+
 void render()
   {
     glClearColor(1,1,1,1);
+
+    buffer->bind();
+
+    draw_shader->use();
+    draw_fullscreen_quad();
+
+    buffer->load_from_gpu();
+    buffer->print();
+    
     glutSwapBuffers();
   }
   
@@ -24,18 +37,21 @@ int main(int argc, char** argv)
     session->window_size[1] = 240;
     session->init(render);
     
-    Shader *compute_shader = new Shader("","",file_text("shader.cs"));
+    draw_shader = new Shader(VERTEX_SHADER_QUAD_TEXT,file_text("shader.fs",true),"");
+    //compute_shader = new Shader("","",file_text("shader.cs",true));
+ 
+    buffer = new StorageBuffer(16,1);
     
-    if (compute_shader->loaded_succesfully())
-      cout << "Compute shader loaded." << endl;
-    else
-      cout << "Error: Compute shader not loaded." << endl;
+    //compute_shader->use();
+    //compute_shader->run_compute(1,1,1);
+    //buffer->load_from_gpu();
+    //buffer->print();
     
-    compute_shader->use();
-    compute_shader->run_compute(1,1,1);
-    
-    //session->start();
+    session->start();
+
     GLSession::clear();
+    
+    delete buffer;
     delete compute_shader;
     return 0;
   }
