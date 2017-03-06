@@ -3478,24 +3478,24 @@ class StorageBuffer: public GPUObject, public Printable
     protected:
       GLuint ssbo;
       GLuint binding_point;
-      unsigned int size_bytes;
-      char *data;
+      unsigned int size_ints;
+      GLuint *data;
       
     public:
-      StorageBuffer(unsigned int size_bytes, unsigned int binding_point)
+      StorageBuffer(unsigned int size_ints, unsigned int binding_point)
         {
           glGenBuffers(1,&(this->ssbo));
           glBindBuffer(GL_SHADER_STORAGE_BUFFER,this->ssbo);
           
-          this->size_bytes = size_bytes;
+          this->size_ints = size_ints;
           
           this->binding_point = binding_point;
           
-          this->data = (char *) malloc(size_bytes);
-          memset(this->data,0,size_bytes);
+          this->data = (GLuint *) malloc(size_ints * sizeof(GLuint));
+          memset(this->data,0,size_ints * sizeof(GLuint));
           
           glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
-          glBufferData(GL_SHADER_STORAGE_BUFFER,size_bytes,this->data,GL_STATIC_DRAW);
+          glBufferData(GL_SHADER_STORAGE_BUFFER,size_ints * sizeof(GLuint),this->data,GL_STATIC_DRAW);
         }
 
       void bind()
@@ -3512,18 +3512,18 @@ class StorageBuffer: public GPUObject, public Printable
       virtual void update_gpu()
         {
           glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
-          glBufferData(GL_SHADER_STORAGE_BUFFER,this->size_bytes,this->data,GL_STATIC_DRAW);
+          glBufferData(GL_SHADER_STORAGE_BUFFER,size_ints * sizeof(GLuint),this->data,GL_STATIC_DRAW);
         }
       
       virtual void load_from_gpu()
         {
           glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
-          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,this->size_bytes,this->data);
+          glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,size_ints * sizeof(GLuint),this->data);
         }
         
       virtual void print()
         {
-          for (unsigned int i = 0; i < this->size_bytes; i++)
+          for (unsigned int i = 0; i < this->size_ints; i++)
             cout << ((int) this->data[i]) << " ";
             
           cout << endl;

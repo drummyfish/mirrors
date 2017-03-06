@@ -26,6 +26,14 @@ void render()
     buffer->load_from_gpu();
     buffer->print();
     
+    compute_shader->use();
+    compute_shader->run_compute(1,1,1);
+    
+    buffer->load_from_gpu();
+    buffer->print();
+    
+    cout << "-----" << endl;
+    
     glutSwapBuffers();
   }
   
@@ -38,14 +46,9 @@ int main(int argc, char** argv)
     session->init(render);
     
     draw_shader = new Shader(VERTEX_SHADER_QUAD_TEXT,file_text("shader.fs",true),"");
-    //compute_shader = new Shader("","",file_text("shader.cs",true));
+    compute_shader = new Shader("","",file_text("shader.cs",true));
  
     buffer = new StorageBuffer(16,1);
-    
-    //compute_shader->use();
-    //compute_shader->run_compute(1,1,1);
-    //buffer->load_from_gpu();
-    //buffer->print();
     
     session->start();
 

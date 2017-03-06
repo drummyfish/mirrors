@@ -9,6 +9,6 @@ layout (std430, binding=1) buffer output_buffer_data
   
 void main()
   {
-    output_buffer.data[0] = 120;
+    output_buffer.data[0] = 100;
     FragColor = vec4(1,1,0,1);
   }
