@@ -19,4 +19,6 @@ void main()
   
   if (!mirror)      // no texture for mirror
     FragColor += texture(tex, uv_coords);
+  else
+    FragColor = vec4(0.9,0.9,1,0);
 }

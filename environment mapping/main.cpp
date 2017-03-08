@@ -227,11 +227,11 @@ int main(int argc, char** argv)
     uniform_model_matrix->retrieve_location(&shader);
     uniform_projection_matrix->retrieve_location(&shader);
     
-    projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 10000.0f);
+    projection_matrix = glm::perspective(45.0f, 4.0f / 3.0f, 0.01f, 100000.0f);
     view_matrix = glm::mat4(1.0f);
     
     frame_buffer_cube = new FrameBuffer();
-    cubemap = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemap_texture","","",1,2);
+    cubemap = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemap_texture","","","",1,2,3);
     cubemap->retrieve_uniform_locations(&shader);
     cubemap->update_gpu();
     

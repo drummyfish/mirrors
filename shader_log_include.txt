@@ -1,3 +1,30 @@
+#define CHAR_A 65
+#define CHAR_B 66
+#define CHAR_C 67
+#define CHAR_D 68
+#define CHAR_E 69
+#define CHAR_F 70
+#define CHAR_G 71
+#define CHAR_H 72
+#define CHAR_I 73
+#define CHAR_J 74
+#define CHAR_K 75
+#define CHAR_L 76
+#define CHAR_M 77
+#define CHAR_N 78
+#define CHAR_O 79
+#define CHAR_P 80
+#define CHAR_Q 81
+#define CHAR_R 82
+#define CHAR_S 83
+#define CHAR_T 84
+#define CHAR_U 85
+#define CHAR_V 86
+#define CHAR_W 87
+#define CHAR_X 88
+#define CHAR_Y 89
+#define CHAR_Z 90
+
 layout (std430, binding=0) buffer shader_log_data
   {
     uint number_of_lines;
@@ -76,6 +103,19 @@ void shader_log_write_vec2(vec2 data_to_write)
     shader_log_write_float(data_to_write.x);
     shader_log_write_float(data_to_write.y);
     shader_log_write_char(41);   // ')'
+  }
+  
+void shader_log_write_ivec2(ivec2 data_to_write)
+  {
+    shader_log_write_char(40);   // '('
+    shader_log_write_int(data_to_write.x);
+    shader_log_write_int(data_to_write.y);
+    shader_log_write_char(41);   // ')'
+  }
+  
+void shader_log_write_newline()
+  {
+    shader_log_write_char(10);
   }
   
 vec3 blender(vec3 what)   // converts to blender coordinates
