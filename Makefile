@@ -6,3 +6,4 @@ all:
 	cd "environment mapping" && $(MAKE)
 	cd "hello wrapper" && $(MAKE)
 	cd "planar mirror" && $(MAKE)
+

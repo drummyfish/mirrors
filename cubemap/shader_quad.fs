@@ -7,6 +7,8 @@
 #define USE_ACCELERATION_LEVELS 3      // how many levels in acceleration texture to use
 #define INFINITY_T 999999              // infinite value for t (line parameter) 
 
+#define COMPUTE_SHADER                 // if defined, the fragment shader will only pass the ray parameters to the buffer and leave the color computation for compute shaders
+
 #define INTERPOLATION_STEP 0.0005
 
 #define ITERATION_LIMIT 1000000      // to avoid infinite loops etc.
@@ -322,239 +324,241 @@ bool do_log =
                 position1 = textureLod(texture_position,uv_coords,0).xyz;
                 camera_to_position1 = normalize(position1 - camera_position);
                 reflection_vector = reflect(camera_to_position1,normal);
-     
+                
                 position2 = position1 + reflection_vector * 1000;
                 position1_to_position2 = position2 - position1;
                 
-                intersection_found = false;                    
-                int iteration_counter = 0;
-                int mirror_bounce_counter = 0;
-                int skip_counter = 0;
-                bool assertion = true;
-                vec3 debug_vector = vec3(0,0,0);
+                #ifndef COMPUTE_SHADER
+                
+                  intersection_found = false;                    
+                  int iteration_counter = 0;
+                  int mirror_bounce_counter = 0;
+                  int skip_counter = 0;
+                  bool assertion = true;
+                  vec3 debug_vector = vec3(0,0,0);
 
-                if (texture_to_display == 5)   // debugging code, displays some information in the mirror pixel
-                  {
-                    vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
-                    vec2 helper_min_max = get_acceleration_pixel(0,position1 - cubemaps[0].position,4) / 1000.0;
-                    float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
-                    bool helper_mask = sample_mirror_mask(0,position1 - vec3(0,30,-30));
-                    vec4 helper_color = sample_color(0,position1 - vec3(0,30,-30));
-                    vec3 helper_normal = sample_normal(0,position1 - vec3(0,30,-30));
+                  if (texture_to_display == 5)   // debugging code, displays some information in the mirror pixel
+                    {
+                      vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
+                      vec2 helper_min_max = get_acceleration_pixel(0,position1 - cubemaps[0].position,4) / 1000.0;
+                      float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
+                      bool helper_mask = sample_mirror_mask(0,position1 - vec3(0,30,-30));
+                      vec4 helper_color = sample_color(0,position1 - vec3(0,30,-30));
+                      vec3 helper_normal = sample_normal(0,position1 - vec3(0,30,-30));
                    
-                    // uncomment one of following
+                      // uncomment one of following
                     
-                    // --- color ---
-                    //fragment_color = helper_color;
+                      // --- color ---
+                      //fragment_color = helper_color;
                     
-                    // -- normal ----
-                    //fragment_color = vec4(helper_normal,0);
+                      // -- normal ----
+                      //fragment_color = vec4(helper_normal,0);
                     
-                    // --- acceleration texture max ---
-                    //fragment_color = vec4(helper_min_max.y,helper_min_max.y,helper_min_max.y,0);
+                      // --- acceleration texture max ---
+                      //fragment_color = vec4(helper_min_max.y,helper_min_max.y,helper_min_max.y,0);
                     
-                    // --- acceleration texture max - min ---
-                    //fragment_color = vec4(helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,0);
+                      // --- acceleration texture max - min ---
+                      //fragment_color = vec4(helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,0);
                    
-                    // --- acceleration on ---
-                    //fragment_color = vec4(float(acceleration_on),float(acceleration_on),float(acceleration_on),0);
+                      // --- acceleration on ---
+                      //fragment_color = vec4(float(acceleration_on),float(acceleration_on),float(acceleration_on),0);
                     
-                    // --- cubemap coordinates ---
-                    //fragment_color = vec4(helper_coords.x,helper_coords.y,helper_coords.z,0);    
+                      // --- cubemap coordinates ---
+                      //fragment_color = vec4(helper_coords.x,helper_coords.y,helper_coords.z,0);    
                     
-                    // --- distance to center ---
-                    //fragment_color = vec4(helper_distance,helper_distance,helper_distance,0);
+                      // --- distance to center ---
+                      //fragment_color = vec4(helper_distance,helper_distance,helper_distance,0);
                     
-                    // --- mirror mask ---
-                    //fragment_color = vec4(helper_mask ? 1 : 0,helper_mask ? 1 : 0,helper_mask ? 1 : 0,0);
+                      // --- mirror mask ---
+                      //fragment_color = vec4(helper_mask ? 1 : 0,helper_mask ? 1 : 0,helper_mask ? 1 : 0,0);
                     
-                    break;
-                  }
+                      break;
+                    }
               
-                for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
-                  {
-                    for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
-                      {   
+                  for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
+                    {
+                      for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
+                        {   
                                      
-                        position1_to_position2 = position2 - position1;
-                        position1_to_cube_center = cubemaps[i].position - position1;
-                        cube_coordinates1 = normalize(position1 - cubemaps[i].position);
-                        cube_coordinates2 = normalize(position2 - cubemaps[i].position);
+                          position1_to_position2 = position2 - position1;
+                          position1_to_cube_center = cubemaps[i].position - position1;
+                          cube_coordinates1 = normalize(position1 - cubemaps[i].position);
+                          cube_coordinates2 = normalize(position2 - cubemaps[i].position);
                         
-                        cube_coordinates_current = normalize(-1 * position1_to_cube_center);
+                          cube_coordinates_current = normalize(-1 * position1_to_cube_center);
               
-                        for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
-                          next_acceleration_bounds[j] = -1;
+                          for (j = 0; j < USE_ACCELERATION_LEVELS; j++)
+                            next_acceleration_bounds[j] = -1;
    
-                        #ifdef SELF_REFLECTIONS
-                          t = mix(SELF_REFLECTIONS_BIAS2,SELF_REFLECTIONS_BIAS,dot(normalize(position1_to_position2),normalize(camera_to_position1))  )    ;
-                        #else
-                          t = 0;
-                        #endif
+                          #ifdef SELF_REFLECTIONS
+                            t = mix(SELF_REFLECTIONS_BIAS2,SELF_REFLECTIONS_BIAS,dot(normalize(position1_to_position2),normalize(camera_to_position1))  )    ;
+                          #else
+                            t = 0;
+                          #endif
                  
-                        bool first_iteration = true;
+                          bool first_iteration = true;
 
-                        while (t <= 1.0) // trace the ray
-                          {
-                            // decide the interpolation step:
+                          while (t <= 1.0) // trace the ray
+                            {
+                              // decide the interpolation step:
                             
-                            #ifndef EFFECTIVE_SAMPLING
-                              t += INTERPOLATION_STEP;
-                            #else
-                              vec2 min_max, next_prev_t, next_prev_dist;
+                              #ifndef EFFECTIVE_SAMPLING
+                                t += INTERPOLATION_STEP;
+                              #else
+                                vec2 min_max, next_prev_t, next_prev_dist;
                               
-                              get_acc_cell_info(
-                                cube_coordinates_current,
-                                ACCELERATION_MIPMAP_LEVELS,
-                                cubemaps[i].position,
-                                position1,
-                                position2,
-                                min_max,
-                                next_prev_t,
-                                next_prev_dist
-                                );
+                                get_acc_cell_info(
+                                  cube_coordinates_current,
+                                  ACCELERATION_MIPMAP_LEVELS,
+                                  cubemaps[i].position,
+                                  position1,
+                                  position2,
+                                  min_max,
+                                  next_prev_t,
+                                  next_prev_dist
+                                  );
                               
-                              float distance2 = abs(distance - next_prev_dist.x);
-                              t = next_prev_t.x > t ? next_prev_t.x + 0.0001 : t + INTERPOLATION_STEP;
+                                float distance2 = abs(distance - next_prev_dist.x);
+                                t = next_prev_t.x > t ? next_prev_t.x + 0.0001 : t + INTERPOLATION_STEP;
                               
-                              if (t > 1.0)  // tmp fix, prevents a mysterious bug that sometimes causes infinite looping
+                                if (t > 1.0)  // tmp fix, prevents a mysterious bug that sometimes causes infinite looping
+                                  {
+                                    break;
+                                  }
+                              #endif
+                      
+                              iteration_counter += 1;
+                      
+                              tested_point2 = mix(position1,position2,t);
+                              cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
+
+                              // ==== ACCELERATION CODE HERE:
+                              #ifndef DISABLE_ACCELERATION
+                              skipped = false;
+                            
+                              if (iteration_counter > ITERATION_LIMIT)      // prevent the forever loop in case of bugs
                                 {
                                   break;
                                 }
-                            #endif
-                      
-                            iteration_counter += 1;
-                      
-                            tested_point2 = mix(position1,position2,t);
-                            cube_coordinates_current = normalize(tested_point2 - cubemaps[i].position);
-
-                            // ==== ACCELERATION CODE HERE:
-                            #ifndef DISABLE_ACCELERATION
-                            skipped = false;
-                            
-                            if (iteration_counter > ITERATION_LIMIT)      // prevent the forever loop in case of bugs
-                              {
-                                break;
-                              }
                          
-                            for (j = 1; j < USE_ACCELERATION_LEVELS; j++)
-                              {
-                                if (acceleration_on < 1)
-                                  break;
+                              for (j = 1; j < USE_ACCELERATION_LEVELS; j++)
+                                {
+                                  if (acceleration_on < 1)
+                                    break;
                           
-                                if (t > next_acceleration_bounds[j])
+                                  if (t > next_acceleration_bounds[j])
+                                    {
+                                      vec2 min_max, next_prev_t, next_prev_dist;
+                                    
+                                      get_acc_cell_info(
+                                        cube_coordinates_current,
+                                        j,
+                                        cubemaps[i].position,
+                                        position1,
+                                        position2,
+                                        min_max,
+                                        next_prev_t,
+                                        next_prev_dist
+                                        );
+                                    
+                                      if
+                                        (
+                                          (min_max.y < next_prev_dist.x && min_max.y < next_prev_dist.y)  ||
+                                          (min_max.x > next_prev_dist.x && min_max.x > next_prev_dist.y)    
+                                        )
+                                        {
+                                          skip_counter += 1;
+                                          t = next_prev_t.x;  // jump to the next bound
+                                          skipped = true;
+                                          break;
+                                        }
+                                      else
+                                        next_acceleration_bounds[j] = next_prev_t.x + INTERPOLATION_STEP;
+                                    }
+                                }
+                           
+                              if (skipped)
+                                continue;
+                              #endif
+                              // ==== END OF ACCELERATION CODE
+                            
+                              // intersection decision:
+                  
+                              #ifndef ANALYTICAL_INTERSECTION
+                                distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
+               
+                                if (distance < best_candidate_distance)
                                   {
-                                    vec2 min_max, next_prev_t, next_prev_dist;
-                                    
-                                    get_acc_cell_info(
-                                      cube_coordinates_current,
-                                      j,
-                                      cubemaps[i].position,
-                                      position1,
-                                      position2,
-                                      min_max,
-                                      next_prev_t,
-                                      next_prev_dist
-                                      );
-                                    
-                                    if
-                                      (
-                                        (min_max.y < next_prev_dist.x && min_max.y < next_prev_dist.y)  ||
-                                        (min_max.x > next_prev_dist.x && min_max.x > next_prev_dist.y)    
-                                      )
+                                    best_candidate_distance = distance;
+                            
+                                    best_candidate_color = sample_color(i,cube_coordinates_current);
+                              
+                                    if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
                                       {
-                                        skip_counter += 1;
-                                        t = next_prev_t.x;  // jump to the next bound
-                                        skipped = true;
+                                        intersection_found = true;
+           
+                                        intersection_on_mirror = sample_mirror_mask(i,cube_coordinates_current);           
                                         break;
                                       }
-                                    else
-                                      next_acceleration_bounds[j] = next_prev_t.x + INTERPOLATION_STEP;
                                   }
-                              }
-                           
-                            if (skipped)
-                              continue;
-                            #endif
-                            // ==== END OF ACCELERATION CODE
-                            
-                            // intersection decision:
-                  
-                            #ifndef ANALYTICAL_INTERSECTION
-                              distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
+                              #else
+                                distance = get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2);
                
-                              if (distance < best_candidate_distance)
-                                {
-                                  best_candidate_distance = distance;
-                            
-                                  best_candidate_color = sample_color(i,cube_coordinates_current);
-                              
-                                  if (distance <= INTERSECTION_LIMIT)  // first hit -> stop
-                                    {
-                                      intersection_found = true;
-           
-                                      intersection_on_mirror = sample_mirror_mask(i,cube_coordinates_current);           
-                                      break;
-                                    }
-                                }
-                            #else
-                              distance = get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2);
-               
-                              if (first_iteration)
-                                {
-                                  first_iteration = false;
-                                }
-                              else
-                                {
-                                  if (distance_prev * distance <= 0)
-                                    {
-                                      best_candidate_distance = distance;
-                                      best_candidate_color = sample_color(i,cube_coordinates_current);
-                                      intersection_found = true;
+                                if (first_iteration)
+                                  {
+                                    first_iteration = false;
+                                  }
+                                else
+                                  {
+                                    if (distance_prev * distance <= 0)
+                                      {
+                                        best_candidate_distance = distance;
+                                        best_candidate_color = sample_color(i,cube_coordinates_current);
+                                        intersection_found = true;
                                     
-                                      intersection_on_mirror = sample_mirror_mask(i,cube_coordinates_current);
+                                        intersection_on_mirror = sample_mirror_mask(i,cube_coordinates_current);
                                       
-                                      break;
-                                    }
-                                }
+                                        break;
+                                      }
+                                  }
                           
-                              distance_prev = distance;
-                            #endif
+                                distance_prev = distance;
+                              #endif
               
-                          }
+                            }
                   
-                        #ifndef SELF_REFLECTIONS
-                        intersection_on_mirror = false;
-                        #endif
+                          #ifndef SELF_REFLECTIONS
+                          intersection_on_mirror = false;
+                          #endif
                   
-                        if (intersection_found)
-                          {
-                            break;
-                          }
-                      } // for self reflection count
+                          if (intersection_found)
+                            {
+                              break;
+                            }
+                        } // for self reflection count
                       
-                    if (!intersection_on_mirror)
-                      {
-                        break;
-                      }
-                    else
-                      {
-                        mirror_bounce_counter += 1;
-                        position1 = tested_point2;
-                        normal = sample_normal(i,cube_coordinates_current);
-                        reflection_vector = reflect(normalize(position1_to_position2),normal);
-                        position2 = position1 + reflection_vector * 1000;
-                        position1_to_position2 = position2 - position1;
-                        intersection_found = false;
-                      }
-                  } // for each cubemap
+                      if (!intersection_on_mirror)
+                        {
+                          break;
+                        }
+                      else
+                        {
+                          mirror_bounce_counter += 1;
+                          position1 = tested_point2;
+                          normal = sample_normal(i,cube_coordinates_current);
+                          reflection_vector = reflect(normalize(position1_to_position2),normal);
+                          position2 = position1 + reflection_vector * 1000;
+                          position1_to_position2 = position2 - position1;
+                          intersection_found = false;
+                        }
+                    } // for each cubemap
                 
-                #ifdef SELF_REFLECTIONS
-                if (intersection_on_mirror)
-                  fragment_color = vec4(1,0,0,1);
-                else
-                #endif
-                  fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * (0.75 - mirror_bounce_counter * 0.2) : vec4(1,0,0,1);
+                  #ifdef SELF_REFLECTIONS
+                  if (intersection_on_mirror)
+                    fragment_color = vec4(1,0,0,1);
+                  else
+                  #endif
+                    fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * (0.75 - mirror_bounce_counter * 0.2) : vec4(1,0,0,1);
 
 #ifndef NO_LOG
 if (do_log)
@@ -563,28 +567,32 @@ if (do_log)
   }
 #endif
                 
-                if (texture_to_display == 6)   // debugging code 2, displays some information computed after tracing
-                  {
-                    float iterations_float = iteration_counter / 10000.0;
-                    float skips_float = skip_counter / 4.0;
+                  if (texture_to_display == 6)   // debugging code 2, displays some information computed after tracing
+                    {
+                      float iterations_float = iteration_counter / 10000.0;
+                      float skips_float = skip_counter / 4.0;
                     
-                    // uncomennt one of the following
+                      // uncomennt one of the following
                     
-                    // --- iteartions ---
-                    fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
+                      // --- iteartions ---
+                      fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
                     
-                    // --- skips ---
-                    //fragment_color = vec4(skips_float,skips_float,skips_float,0);
+                      // --- skips ---
+                      //fragment_color = vec4(skips_float,skips_float,skips_float,0);
                     
-                    // --- skips and iterations ---
-                    //fragment_color = vec4(iterations_float,skips_float,0,0);
+                      // --- skips and iterations ---
+                      //fragment_color = vec4(iterations_float,skips_float,0,0);
                     
-                    // --- assert ---
-                    //if (assertion) fragment_color = vec4(1,0,0,0); else fragment_color = vec4(0,1,0,0);
+                      // --- assert ---
+                      //if (assertion) fragment_color = vec4(1,0,0,0); else fragment_color = vec4(0,1,0,0);
 
-                    // ---  encoded debug vector ---
-                    //fragment_color = vec4(map_minus_n_n_0_1(debug_vector,1000.0),0);
-                  }
+                      // ---  encoded debug vector ---
+                      //fragment_color = vec4(map_minus_n_n_0_1(debug_vector,1000.0),0);
+                    }
+                  
+                #else
+                  fragment_color = vec4(0,1,0,0);
+                #endif // ifndef COMPUTE_SHADER
               }
             else
               fragment_color = texture(texture_color, uv_coords);

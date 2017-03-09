@@ -1,6 +1,2 @@
-line = "-------------------------------------------------------------------------------------------"
-
-all: print
+all:
 	c++ main.cpp -std=c++11 -Wall -pedantic -g -o main -lGL -lglut -lGLU -lGLEW
-print:
-	@echo $(line)
