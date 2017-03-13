@@ -36,7 +36,24 @@ struct environment_cubemap
     samplerCube texture_normal;
     vec3 position;                    // cubemap world position
   };
-
+  
+#ifdef COMPUTE_SHADER
+  
+struct mirror_pixel
+  {
+    uint x;               
+    uint y;        
+    vec3 ray_position1;     
+    vec3 ray_position2;     
+  };
+  
+layout (std430, binding=1) buffer output_buffer_data   // for compute shaders
+  {
+    uint number_of_pixels;
+    mirror_pixel pixels[];
+  } mirror_pixel_buffer;
+#endif
+  
 uniform environment_cubemap cubemaps[NUMBER_OF_CUBEMAPS];
 
 uniform vec3 camera_position;
@@ -328,8 +345,14 @@ bool do_log =
                 position2 = position1 + reflection_vector * 1000;
                 position1_to_position2 = position2 - position1;
                 
-                #ifndef COMPUTE_SHADER
-                
+                #ifdef COMPUTE_SHADER
+                  uint pixel_number = atomicAdd(mirror_pixel_buffer.number_of_pixels,1);
+                  mirror_pixel_buffer.pixels[pixel_number].x = uint(gl_FragCoord.x);
+                  mirror_pixel_buffer.pixels[pixel_number].y = uint(gl_FragCoord.y);
+                  mirror_pixel_buffer.pixels[pixel_number].ray_position1 = position1;
+                  mirror_pixel_buffer.pixels[pixel_number].ray_position2 = position2;
+                  fragment_color = vec4(0,1,0,0);
+                #else
                   intersection_found = false;                    
                   int iteration_counter = 0;
                   int mirror_bounce_counter = 0;
@@ -589,10 +612,8 @@ if (do_log)
                       // ---  encoded debug vector ---
                       //fragment_color = vec4(map_minus_n_n_0_1(debug_vector,1000.0),0);
                     }
-                  
-                #else
-                  fragment_color = vec4(0,1,0,0);
-                #endif // ifndef COMPUTE_SHADER
+
+                #endif // COMPUTE_SHADER
               }
             else
               fragment_color = texture(texture_color, uv_coords);

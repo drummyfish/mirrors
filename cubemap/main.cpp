@@ -10,6 +10,7 @@
 //#define SHADER_LOG
 
 #define SELF_REFLECTIONS              // !!! NEEDS TO ALSO BE ENAMBLED IN shader_quad.fs !!!
+#define COMPUTE_SHADER
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
@@ -73,6 +74,29 @@ Texture2D *texture_mirror_depth;
 Profiler *profiler;
 
 int info_countdown = 0;
+
+//-------------- compute shader related definitions --------------
+
+typedef struct
+  {
+    // screen position
+    GLuint x;                    // 4 bytes
+    GLuint y;                    // 4 bytes
+    // ray parameters
+    glm::vec3 ray_position1;     // 12 bytes
+    glm::vec3 ray_position2;     // 12 bytes
+  } mirror_pixel;
+
+typedef struct
+  {
+    GLuint number_of_pixels;
+    mirror_pixel *pixels;
+  } mirror_pixels_info;
+  
+StorageBuffer* pixel_storage_buffer;    // stores pixels for compute shader
+mirror_pixels_info *mirror_pixels;      // will be integrated with pixel_storage_buffer
+
+//---------------------------------------------------------------
 
 void print_info()
   {
@@ -216,11 +240,22 @@ void render()
    
     // 2nd pass:
     shader_log->bind();
-    
+   
+    #ifdef COMPUTE_SHADER
+    pixel_storage_buffer->bind();   
+    pixel_storage_buffer->clear();
+    pixel_storage_buffer->update_gpu();
+    #endif
+
     profiler->time_measure_begin();
     set_up_pass2();
     draw_quad();
 
+    #ifdef COMPUTE_SHADER
+    pixel_storage_buffer->load_from_gpu();
+    cout << mirror_pixels->number_of_pixels << endl;
+    #endif
+    
     #ifdef SHADER_LOG    
       shader_log->load_from_gpu();
       shader_log->print();
@@ -635,8 +670,16 @@ int main(int argc, char** argv)
     
     ErrorWriter::checkGlErrors("shader log init",true);
     
+    #ifdef COMPUTE_SHADER
+    pixel_storage_buffer = new StorageBuffer(sizeof(mirror_pixel) * WINDOW_WIDTH * WINDOW_HEIGHT,1);
+    mirror_pixels = (mirror_pixels_info *) pixel_storage_buffer->get_data_pointer();
+    #endif
+    
     session->start();
     
+    #ifdef COMPUTE_SHADER
+    delete pixel_storage_buffer;
+    #endif
     delete shader_log;
     delete frame_buffer_cube;
     delete texture_camera_color;
