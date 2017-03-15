@@ -38,7 +38,6 @@ struct environment_cubemap
   };
   
 #ifdef COMPUTE_SHADER
-  
 struct mirror_pixel
   {
     uint x;               

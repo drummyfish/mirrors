@@ -47,7 +47,7 @@ UniformVariable uniform_cubemap_position("cubemap_position");
 
 Shader *shader_3d;                   // for first pass: renders a 3D scene
 Shader *shader_quad;                 // for second pass: draws textures on quad
-Shader *shader_compute;              // for computing the acceleration texture
+Shader *shader_compute;              
 
 FrameBuffer *frame_buffer_cube;      // for rendering to cubemap
 FrameBuffer *frame_buffer_camera;    // for "deferred shading" like rendering
@@ -242,9 +242,9 @@ void render()
     shader_log->bind();
    
     #ifdef COMPUTE_SHADER
-    pixel_storage_buffer->bind();   
-    pixel_storage_buffer->clear();
-    pixel_storage_buffer->update_gpu();
+      pixel_storage_buffer->bind();   
+      pixel_storage_buffer->clear();
+      pixel_storage_buffer->update_gpu();
     #endif
 
     profiler->time_measure_begin();
@@ -252,8 +252,11 @@ void render()
     draw_quad();
 
     #ifdef COMPUTE_SHADER
-    pixel_storage_buffer->load_from_gpu();
-    cout << mirror_pixels->number_of_pixels << endl;
+      shader_compute->use();
+      shader_compute->run_compute(3,1,1);
+      
+      pixel_storage_buffer->load_from_gpu();
+      cout << mirror_pixels->number_of_pixels << endl;
     #endif
     
     #ifdef SHADER_LOG    
@@ -673,12 +676,15 @@ int main(int argc, char** argv)
     #ifdef COMPUTE_SHADER
     pixel_storage_buffer = new StorageBuffer(sizeof(mirror_pixel) * WINDOW_WIDTH * WINDOW_HEIGHT,1);
     mirror_pixels = (mirror_pixels_info *) pixel_storage_buffer->get_data_pointer();
+    
+    shader_compute = new Shader("","",file_text("shader.cs"));
     #endif
     
     session->start();
     
     #ifdef COMPUTE_SHADER
     delete pixel_storage_buffer;
+    delete shader_compute;
     #endif
     delete shader_log;
     delete frame_buffer_cube;
