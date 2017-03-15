@@ -47,7 +47,12 @@ UniformVariable uniform_cubemap_position("cubemap_position");
 
 Shader *shader_3d;                   // for first pass: renders a 3D scene
 Shader *shader_quad;                 // for second pass: draws textures on quad
-Shader *shader_compute;              
+
+#ifdef COMPUTE_SHADER
+  Shader *shader_compute;              
+  Shader *shader_quad2;                // only draws a texture modified by compute shader
+  UniformVariable uniform_texture_color2("texture_color");
+#endif
 
 FrameBuffer *frame_buffer_cube;      // for rendering to cubemap
 FrameBuffer *frame_buffer_camera;    // for "deferred shading" like rendering
@@ -252,11 +257,18 @@ void render()
     draw_quad();
 
     #ifdef COMPUTE_SHADER
+      // third pass with compute shader
       shader_compute->use();
       shader_compute->run_compute(3,1,1);
       
       pixel_storage_buffer->load_from_gpu();
       cout << mirror_pixels->number_of_pixels << endl;
+      
+      texture_camera_color->bind(0);
+      uniform_texture_color2.update_int(0);
+      
+      shader_quad2->use();
+      draw_quad();
     #endif
     
     #ifdef SHADER_LOG    
@@ -674,10 +686,15 @@ int main(int argc, char** argv)
     ErrorWriter::checkGlErrors("shader log init",true);
     
     #ifdef COMPUTE_SHADER
-    pixel_storage_buffer = new StorageBuffer(sizeof(mirror_pixel) * WINDOW_WIDTH * WINDOW_HEIGHT,1);
-    mirror_pixels = (mirror_pixels_info *) pixel_storage_buffer->get_data_pointer();
+      pixel_storage_buffer = new StorageBuffer(sizeof(mirror_pixel) * WINDOW_WIDTH * WINDOW_HEIGHT,1);
+      mirror_pixels = (mirror_pixels_info *) pixel_storage_buffer->get_data_pointer();
     
-    shader_compute = new Shader("","",file_text("shader.cs"));
+      shader_compute = new Shader("","",file_text("shader.cs"));
+    
+      Shader shad3(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad2.fs",true),"");
+      shader_quad2 = &shad3;
+      uniform_texture_color2.retrieve_location(shader_quad2);
+      ErrorWriter::checkGlErrors("compute shader init",true);
     #endif
     
     session->start();
