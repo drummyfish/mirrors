@@ -170,12 +170,11 @@ void draw_scene()
       }
       
     #ifdef SELF_REFLECTIONS
-    // mirror has to be always drawn for self reflections
-    
-    uniform_model_matrix.update_mat4(transformation_mirror.get_matrix());
-    uniform_mirror.update_int(1);
-    geometry_mirror->draw_as_triangles();
-    uniform_mirror.update_int(0);
+      // mirror has to be always drawn for self reflections
+      uniform_model_matrix.update_mat4(transformation_mirror.get_matrix());
+      uniform_mirror.update_int(1);
+      geometry_mirror->draw_as_triangles();
+      uniform_mirror.update_int(0);
     #endif
   }
 
@@ -204,19 +203,16 @@ void set_up_pass1()
   
 void set_up_pass2()
   {
-    shader_quad->use(); 
-    
+    shader_quad->use();    
     cubemaps[0]->update_uniforms();
     cubemaps[1]->update_uniforms();
-    
     uniform_texture_color.update_int(0);
     uniform_texture_normal.update_int(1);
     uniform_texture_position.update_int(2);
     uniform_texture_stencil.update_int(3);
-    
     uniform_texture_to_display.update_int(texture_to_display);
     uniform_acceleration_on.update_int(acceleration_on);
-    uniform_camera_position.update_vec3(CameraHandler::camera_transformation.get_translation());
+    uniform_camera_position.update_vec3(CameraHandler::camera_transformation.get_translation());      
   }
 
 void render()
@@ -235,7 +231,7 @@ void render()
     // set up the camera:
     uniform_view_matrix.update_mat4(CameraHandler::camera_transformation.get_matrix());
     uniform_projection_matrix.update_mat4(projection_matrix);
-    
+     
     // 1st pass:
     profiler->time_measure_begin();
     frame_buffer_camera->activate();
@@ -252,25 +248,22 @@ void render()
       pixel_storage_buffer->update_gpu();
     #endif
 
-    profiler->time_measure_begin();
+    profiler->time_measure_begin(); 
     set_up_pass2();
-    draw_quad();
-
+    draw_quad();  
     #ifdef COMPUTE_SHADER
       // third pass with compute shader
       shader_compute->use();
       shader_compute->run_compute(3,1,1);
-      
+       
       pixel_storage_buffer->load_from_gpu();
-      cout << mirror_pixels->number_of_pixels << endl;
-      
+      cout << mirror_pixels->number_of_pixels << endl;  
+      shader_quad2->use();
       texture_camera_color->bind(0);
       uniform_texture_color2.update_int(0);
-      
-      shader_quad2->use();
       draw_quad();
     #endif
-    
+  
     #ifdef SHADER_LOG    
       shader_log->load_from_gpu();
       shader_log->print();

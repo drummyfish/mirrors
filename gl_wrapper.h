@@ -900,10 +900,12 @@ class UniformVariable
       bool location_retrieved;
       string name;
       
-      void pre_update_check()
+      bool pre_update_check()
         {
-          //if (!this->location_retrieved)
-          //  ErrorWriter::write_error("Updating uniform variable without its location retrieved.");
+          if (!this->location_retrieved)
+            ErrorWriter::write_error("Trying to update uniform variable '" + this->name + "' without its location retrieved.");
+        
+          return this->location_retrieved;
         }
       
     public:
@@ -939,38 +941,38 @@ class UniformVariable
         
       void update_uint(unsigned int value)
         {
-          this->pre_update_check();
-          glUniform1ui(this->location,value);
+          if (this->pre_update_check())
+            glUniform1ui(this->location,value);
         }
         
       void update_int(int value)
         {
-          this->pre_update_check();
-          glUniform1i(this->location,value);
+          if (this->pre_update_check())
+            glUniform1i(this->location,value);
         }
 
       void update_mat3(glm::mat3 value)
         {
-          this->pre_update_check();
-          glUniformMatrix3fv(this->location,1,GL_TRUE,glm::value_ptr(value));
+          if (this->pre_update_check())
+            glUniformMatrix3fv(this->location,1,GL_TRUE,glm::value_ptr(value));
         }
         
       void update_mat4(glm::mat4 value)
         {
-          this->pre_update_check();
-          glUniformMatrix4fv(this->location,1,GL_TRUE,glm::value_ptr(value));
+          if (this->pre_update_check())
+            glUniformMatrix4fv(this->location,1,GL_TRUE,glm::value_ptr(value));
         }
         
       void update_vec3(glm::vec3 value)
         {
-          this->pre_update_check();
-          glUniform3fv(this->location,1,glm::value_ptr(value));
+          if (this->pre_update_check())
+            glUniform3fv(this->location,1,glm::value_ptr(value));
         }
         
       void update_float_3(float value1, float value2, float value3)
         {
-          this->pre_update_check();
-          glUniform3f(this->location,value1,value2,value3);
+          if (this->pre_update_check())
+            glUniform3f(this->location,value1,value2,value3);
         }
   };
   
@@ -3492,16 +3494,26 @@ class StorageBuffer: public GPUObject, public Printable
           this->binding_point = binding_point;
           
           this->data = (GLuint *) malloc(size_ints * sizeof(GLuint));
-          memset(this->data,0,size_ints * sizeof(GLuint));
+          this->clear();
           
           glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
           glBufferData(GL_SHADER_STORAGE_BUFFER,size_ints * sizeof(GLuint),this->data,GL_STATIC_DRAW);
         }
 
+      void clear()
+        {
+          memset(this->data,0,this->size_ints * sizeof(GLuint));
+        }
+        
       void bind()
         {
           glBindBufferBase(GL_SHADER_STORAGE_BUFFER,this->binding_point,this->ssbo);
           glFinish();
+        }
+        
+      GLuint *get_data_pointer()
+        {
+          return this->data;
         }
         
       virtual ~StorageBuffer()
