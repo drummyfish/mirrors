@@ -1,3 +1,5 @@
+#define NO_UNIFORM_UPDATE_ERRORS
+
 #include "../gl_wrapper.h"
 
 #define CAMERA_STEP 0.1
@@ -251,8 +253,10 @@ void render()
     profiler->time_measure_begin(); 
     set_up_pass2();
     draw_quad();  
+    
     #ifdef COMPUTE_SHADER
       // third pass with compute shader
+      texture_camera_color->bind_image(0);
       shader_compute->use();
       shader_compute->run_compute(3,1,1);
        

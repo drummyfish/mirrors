@@ -11,6 +11,8 @@
  * @author Miloslav Číž
  */
 
+//#define NO_UNIFORM_UPDATE_ERRORS  // supresses the error messages caused by updating non-retrieved uniforms
+
 #define TEXEL_TYPE_COLOR 0
 #define TEXEL_TYPE_DEPTH 1
 #define TEXEL_TYPE_STENCIL 2
@@ -902,9 +904,11 @@ class UniformVariable
       
       bool pre_update_check()
         {
-          if (!this->location_retrieved)
-            ErrorWriter::write_error("Trying to update uniform variable '" + this->name + "' without its location retrieved.");
-        
+          #ifndef NO_UNIFORM_UPDATE_ERRORS
+            if (!this->location_retrieved)
+              ErrorWriter::write_error("Trying to update uniform variable '" + this->name + "' without its location retrieved.");
+          #endif
+            
           return this->location_retrieved;
         }
       
@@ -2005,6 +2009,11 @@ class Texture2D: public Texture
       Image2D *get_image_data()
         {
           return this->image_data;
+        }
+        
+      void bind_image(unsigned int binding_point)
+        {
+          glBindImageTexture(binding_point,this->to,0,GL_FALSE,0,GL_WRITE_ONLY,this->image_data->get_format());
         }
         
       float get_max_value()
