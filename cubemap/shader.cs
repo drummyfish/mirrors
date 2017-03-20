@@ -2,7 +2,7 @@
 
 layout (local_size_x = 8, local_size_y = 1) in;
 
-layout(binding = 0) uniform writeonly image2D image_color;
+layout(rgba32f, binding = 0) uniform writeonly image2D image_color;
 
 struct mirror_pixel
   {
@@ -20,5 +20,5 @@ layout (std430, binding=1) buffer output_buffer_data   // for compute shaders
   
 void main()
   {
-    imageStore(image_color,ivec2(10,10),vec4(1,0,0,0));
+    imageStore(image_color,ivec2(i,j),vec4(0,1,0,1));
   }

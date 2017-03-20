@@ -256,8 +256,11 @@ void render()
     
     #ifdef COMPUTE_SHADER
       // third pass with compute shader
-      texture_camera_color->bind_image(0);
+      
       shader_compute->use();
+      
+      texture_camera_color->bind_image(0);
+      
       shader_compute->run_compute(3,1,1);
        
       pixel_storage_buffer->load_from_gpu();

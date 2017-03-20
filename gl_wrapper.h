@@ -2013,7 +2013,12 @@ class Texture2D: public Texture
         
       void bind_image(unsigned int binding_point)
         {
-          glBindImageTexture(binding_point,this->to,0,GL_FALSE,0,GL_WRITE_ONLY,this->image_data->get_format());
+          // the line here should actually be:
+          //  glBindImageTexture(binding_point,this->to,0,GL_FALSE,0,GL_WRITE_ONLY,this->image_data->get_format());
+          // but wrong format parameter will cause the INVALID_VALUE error, even though
+          // accoording to documentation it should not, so hard code the format to:
+            
+          glBindImageTexture(binding_point,this->to,0,GL_FALSE,0,GL_WRITE_ONLY,GL_RGBA32F);
         }
         
       float get_max_value()
