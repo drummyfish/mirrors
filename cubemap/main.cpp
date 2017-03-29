@@ -54,6 +54,7 @@ Shader *shader_quad;                 // for second pass: draws textures on quad
   Shader *shader_compute;              
   Shader *shader_quad2;                // only draws a texture modified by compute shader
   UniformVariable uniform_texture_color2("texture_color");
+  ComputeShaderAccelerationCumeMap *cs_acceleration_cubemap;
 #endif
 
 FrameBuffer *frame_buffer_cube;      // for rendering to cubemap
@@ -694,6 +695,9 @@ int main(int argc, char** argv)
       Shader shad3(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad2.fs",true),"");
       shader_quad2 = &shad3;
       uniform_texture_color2.retrieve_location(shader_quad2);
+      
+      cs_acceleration_cubemap = new ComputeShaderAccelerationCumeMap(CUBEMAP_RESOLUTION,3);
+      
       ErrorWriter::checkGlErrors("compute shader init",true);
     #endif
     
@@ -702,7 +706,9 @@ int main(int argc, char** argv)
     #ifdef COMPUTE_SHADER
     delete pixel_storage_buffer;
     delete shader_compute;
+    delete cs_acceleration_cubemap;
     #endif
+    
     delete shader_log;
     delete frame_buffer_cube;
     delete texture_camera_color;

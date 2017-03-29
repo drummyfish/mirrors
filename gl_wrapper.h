@@ -11,7 +11,7 @@
  * @author Miloslav Číž
  */
 
-//#define NO_UNIFORM_UPDATE_ERRORS  // supresses the error messages caused by updating non-retrieved uniforms
+#define NO_UNIFORM_UPDATE_ERRORS  // supresses the error messages caused by updating non-retrieved uniforms
 
 #define TEXEL_TYPE_COLOR 0
 #define TEXEL_TYPE_DEPTH 1
@@ -2245,6 +2245,53 @@ class FrameBuffer
   };
 
 /**
+  * Acceleration cube map to be used with compute shader version
+  * of cubemap tracing. 
+  */
+  
+class ComputeShaderAccelerationCumeMap: public GPUObject
+  {
+    protected:
+      unsigned int base_size;
+      unsigned int levels;
+      TextureCubeMap **cubemaps;         ///< array of cubemaps, one for each level
+      
+    public:
+      ComputeShaderAccelerationCumeMap(unsigned int base_size, unsigned int levels)
+        {
+          this->base_size = base_size;
+          this->levels = levels;
+            
+          this->cubemaps = (TextureCubeMap **) malloc(this->levels * sizeof(TextureCubeMap*));
+          
+          unsigned int size = this->base_size;
+          
+          for (unsigned int i = 0; i < this->levels; i++)
+            {
+              this->cubemaps[i] = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
+              size /= 2;
+            }
+        }
+        
+      void compute(TextureCubeMap *texture_distance)
+        {
+          // TODO
+        }
+
+      virtual void update_gpu()
+        {
+        }
+        
+      virtual ~ComputeShaderAccelerationCumeMap()
+        {
+          for (unsigned int i = 0; i < this->levels; i++)
+            delete this->cubemaps[i];
+            
+          free(this->cubemaps);
+        }
+  };
+  
+/**
  * Represents a cube map that is used for capturing environment.
  */
   
@@ -2285,7 +2332,7 @@ class ReflectionTraceCubeMap: public GPUObject
        * @param texture_distance_sampler number of texture sampler to use for position texture
        */
       
-      ReflectionTraceCubeMap(int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_texture_normal_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_normal_sampler, unsigned int texture_distance_sampler)
+      ReflectionTraceCubeMap(unsigned int size, string uniform_texture_color_name, string uniform_texture_distance_name, string uniform_texture_normal_name, string uniform_position_name, unsigned int texture_color_sampler, unsigned int texture_normal_sampler, unsigned int texture_distance_sampler)
         {
           this->size = size;
           ReflectionTraceCubeMap::projection_matrix = glm::perspective((float) (M_PI / 2.0), 1.0f, 0.01f, 10000.0f);          
