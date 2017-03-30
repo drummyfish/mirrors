@@ -129,19 +129,26 @@ class ErrorWriter
           if (!ErrorWriter::enabled)
             return;
           
-          GLuint error = glGetError();
+          GLuint error;
+          bool was_error = false;
           
-          const char *helper_string = (const char *) gluErrorString(error);
-          
-          string error_string = helper_string;
-          
-          if (error != 0)
-            ErrorWriter::write_error("OpenGL error (" + label + ") " + to_string(error) + ": " + error_string);
-          else
+          do   // print all errors until now
             {
-              if (print_ok)
-                cout << "OpenGL OK (" + label + ")" << endl;
-            }
+              error = glGetError();
+              
+              const char *helper_string = (const char *) gluErrorString(error);
+          
+              string error_string = helper_string;
+          
+              if (error != 0)
+                {
+                  ErrorWriter::write_error("OpenGL error (" + label + ") " + to_string(error) + ": " + error_string);
+                  was_error = true;
+                }
+            } while (error != 0);
+          
+          if (!was_error && print_ok)
+            cout << "OpenGL OK (" + label + ")" << endl;
         }
   };
 
@@ -2242,53 +2249,6 @@ class FrameBuffer
         {
           glDeleteFramebuffers(1,&(this->fbo));
         } 
-  };
-
-/**
-  * Acceleration cube map to be used with compute shader version
-  * of cubemap tracing. 
-  */
-  
-class ComputeShaderAccelerationCumeMap: public GPUObject
-  {
-    protected:
-      unsigned int base_size;
-      unsigned int levels;
-      TextureCubeMap **cubemaps;         ///< array of cubemaps, one for each level
-      
-    public:
-      ComputeShaderAccelerationCumeMap(unsigned int base_size, unsigned int levels)
-        {
-          this->base_size = base_size;
-          this->levels = levels;
-            
-          this->cubemaps = (TextureCubeMap **) malloc(this->levels * sizeof(TextureCubeMap*));
-          
-          unsigned int size = this->base_size;
-          
-          for (unsigned int i = 0; i < this->levels; i++)
-            {
-              this->cubemaps[i] = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
-              size /= 2;
-            }
-        }
-        
-      void compute(TextureCubeMap *texture_distance)
-        {
-          // TODO
-        }
-
-      virtual void update_gpu()
-        {
-        }
-        
-      virtual ~ComputeShaderAccelerationCumeMap()
-        {
-          for (unsigned int i = 0; i < this->levels; i++)
-            delete this->cubemaps[i];
-            
-          free(this->cubemaps);
-        }
   };
   
 /**

@@ -20,5 +20,5 @@ layout (std430, binding=1) buffer output_buffer_data   // for compute shaders
   
 void main()
   {
-    imageStore(image_color,ivec2(i,j),vec4(0,1,0,1));
+    imageStore(image_color,ivec2(0,0),vec4(1,0,0,1));
   }
