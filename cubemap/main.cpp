@@ -464,10 +464,15 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_INSERT:
           recompute_cubemap();
           
-          cubemaps[0]->compute_acceleration_texture();
-          cubemaps[1]->compute_acceleration_texture();
-   //        cubemaps[0]->compute_acceleration_texture_sw();
-   //       cubemaps[1]->compute_acceleration_texture_sw();
+          #ifdef COMPUTE_SHADER
+            cubemaps[0]->compute_cs_acceleration_texture();
+            cubemaps[1]->compute_cs_acceleration_texture();
+          #else
+            cubemaps[0]->compute_acceleration_texture();
+            cubemaps[1]->compute_acceleration_texture();
+            // cubemaps[0]->compute_acceleration_texture_sw();
+            // cubemaps[1]->compute_acceleration_texture_sw();
+          #endif
           
           save_images();
           break;

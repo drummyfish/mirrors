@@ -2412,11 +2412,20 @@ class ReflectionTraceCubeMap: public GPUObject
         }
 
       /**
+       Same as compute_acceleration_texture() but the computed acceleration
+       texture is intended for compute shader use, i.e. the subdivisions of
+       the levels are different.
+       */
+        
+      void compute_cs_acceleration_texture()
+        {
+          // TODO
+        }
+        
+      /**
        Computes the acceleration texture on GPU and stores it in MIPmap
        levels of the distance texture. This will also cause distance texture
        update on GPU.
-       
-       NOT WORKING YET
        */
         
       void compute_acceleration_texture()
