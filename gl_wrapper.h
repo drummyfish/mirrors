@@ -2021,7 +2021,7 @@ class Texture2D: public Texture
       void bind_image(unsigned int binding_point)
         {
           // the line here should actually be:
-          //  glBindImageTexture(binding_point,this->to,0,GL_FALSE,0,GL_WRITE_ONLY,this->image_data->get_format());
+          // glBindImageTexture(binding_point,this->to,0,GL_FALSE,0,GL_WRITE_ONLY,this->image_data->get_format());
           // but wrong format parameter will cause the INVALID_VALUE error, even though
           // accoording to documentation it should not, so hard code the format to:
             
@@ -2419,7 +2419,21 @@ class ReflectionTraceCubeMap: public GPUObject
         
       void compute_cs_acceleration_texture()
         {
-          // TODO
+          string helper_shader_cs_text =
+            "#version 430\n"
+            "layout (local_size_x = 8, local_size_y = 1) in;\n"
+            "layout(rgba32f, binding = 0) uniform writeonly image2D image_color;\n"
+            
+            "void main() {\n"
+            "    imageStore(image_color,ivec2(0,0),vec4(1,0,0,1));\n"
+            "  }\n";
+            
+    //      UniformVariable uniform_image("image_color");
+          
+    //      Shader helper_shader("","",helper_shader_cs_text);
+          
+    //      uniform_image.retrieve_location(&helper_shader);
+    
         }
         
       /**
@@ -2447,8 +2461,9 @@ class ReflectionTraceCubeMap: public GPUObject
             "  vec4 texel2 = textureLod(cubemap,normalize(vec3(x,y + 0.1,z - 0.1)),sample_mip);\n"
             "  vec4 texel3 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z + 0.1)),sample_mip);\n"
             "  vec4 texel4 = textureLod(cubemap,normalize(vec3(x,y - 0.1,z - 0.1)),sample_mip);\n"
+            
             "  vec4 new_texel = vec4(min(min(texel1.x,texel2.x),min(texel3.x,texel4.x)),max(max(texel1.y,texel2.y),max(texel3.y,texel4.y)),texel1.z,0);\n"
-            "fragment_color = new_texel;\n"     
+            "  fragment_color = new_texel;\n"     
             "}\n";
     
           UniformVariable uniform_cubemap("cubemap");
