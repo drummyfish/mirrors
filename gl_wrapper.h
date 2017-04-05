@@ -894,6 +894,9 @@ class Shader
       
       void run_compute(unsigned int groups_x, unsigned int groups_y, unsigned int groups_z)
         {
+          if (groups_x * groups_y * groups_z == 0)
+            ErrorWriter::write_error("Running compute dispatch with zero groups - nothing will happen (all x,y,z have to be non-zero).");
+            
           glDispatchCompute(groups_x,groups_y,groups_z);
         }
   };
@@ -1789,6 +1792,11 @@ class TextureCubeMap: public Texture
           this->image_bottom->set_size(mipmap_size,mipmap_size);
         }
  
+      void bind_image(unsigned int unit, unsigned int mip_level)
+        {
+          glBindImageTexture(unit, this->to, mip_level, GL_FALSE, 0 /*TODO*/, GL_WRITE_ONLY, GL_RGBA32F);
+        }
+ 
       /**
        Raises all pixels to given power (good for viewing depth maps). Good
        value is 256.
@@ -2276,6 +2284,9 @@ class ReflectionTraceCubeMap: public GPUObject
       unsigned int texture_distance_sampler;
       unsigned int texture_normal_sampler;
       
+      GLint distance_mag_filter;
+      GLint distance_min_filter;
+      
     public:    
       TransformationTRSModel transformation;    // contains the cubemap transformation, to be able to place it in the world, only translation is considered 
       
@@ -2302,8 +2313,11 @@ class ReflectionTraceCubeMap: public GPUObject
           this->texture_depth = new TextureCubeMap(size,TEXEL_TYPE_DEPTH);
           this->texture_normal = new TextureCubeMap(size,TEXEL_TYPE_COLOR);
         
-          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,GL_NEAREST_MIPMAP_NEAREST); 
+          this->distance_mag_filter = GL_NEAREST;
+          this->distance_min_filter = GL_NEAREST_MIPMAP_NEAREST;
+          
+          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MAG_FILTER,this->distance_mag_filter);
+          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,this->distance_min_filter);
           
           this->uniform_texture_color = new UniformVariable(uniform_texture_color_name);
           this->uniform_texture_distance = new UniformVariable(uniform_texture_distance_name);
@@ -2421,19 +2435,37 @@ class ReflectionTraceCubeMap: public GPUObject
         {
           string helper_shader_cs_text =
             "#version 430\n"
-            "layout (local_size_x = 8, local_size_y = 1) in;\n"
-            "layout(rgba32f, binding = 0) uniform writeonly image2D image_color;\n"
+            "layout (local_size_x = 1, local_size_y = 1) in;\n"
+            "layout(rgba32f, binding = 0) uniform writeonly imageCube image_color;\n"
             
             "void main() {\n"
-            "    imageStore(image_color,ivec2(0,0),vec4(1,0,0,1));\n"
-            "  }\n";
-            
-    //      UniformVariable uniform_image("image_color");
+        
+            "for (int i = 0; i < 100; i++)\n"
+            "  imageStore(image_color,ivec3(i,10,0),vec4(100000,1000000,1000000,1));\n"
+            "}\n";
+                   
+          Shader helper_shader("","",helper_shader_cs_text);
           
-    //      Shader helper_shader("","",helper_shader_cs_text);
+          helper_shader.use();
           
-    //      uniform_image.retrieve_location(&helper_shader);
-    
+     //     this->texture_color->bind_image(0,GL_TEXTURE_CUBE_MAP_POSITIVE_X,0);
+    //      helper_shader.run_compute(1,1,1);
+    //      this->texture_color->load_from_gpu();
+    //      this->texture_color->save_ppms("cubemap_images/acc/compute");
+
+          // for some reason we have to set the filter to linear, otherwise imagestore doesn't work - why?
+          // doesn't work with MIPMAPS other than level 0 - TODO :(
+     //     glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+
+          this->texture_distance->bind_image(0,0);
+          helper_shader.run_compute(1,1,1);
+          this->texture_distance->load_from_gpu();
+          this->texture_distance->multiply(0.01);
+          this->texture_distance->save_ppms("cubemap_images/acc/compute");
+          
+          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,this->distance_min_filter);
+
+ErrorWriter::checkGlErrors("aaaa",true);
         }
         
       /**

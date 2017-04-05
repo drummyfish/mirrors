@@ -433,6 +433,8 @@ void special_callback(int key, int x, int y)
             // cubemaps[0]->compute_acceleration_texture_sw();
             // cubemaps[1]->compute_acceleration_texture_sw();
           #endif
+            
+          ErrorWriter::checkGlErrors("acceleration structure recompute",true);
           
           save_images();
           break;
@@ -663,7 +665,7 @@ int main(int argc, char** argv)
       ErrorWriter::checkGlErrors("compute shader init",true);
     #endif
     
-    session->start();
+//    session->start();
     
     #ifdef COMPUTE_SHADER
     delete pixel_storage_buffer;
