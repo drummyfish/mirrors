@@ -2441,31 +2441,21 @@ class ReflectionTraceCubeMap: public GPUObject
             "void main() {\n"
         
             "for (int i = 0; i < 100; i++)\n"
-            "  imageStore(image_color,ivec3(i,10,0),vec4(100000,1000000,1000000,1));\n"
+            "  imageStore(image_color,ivec3(i,10,0),vec4(0,0,1000000,1));\n"
             "}\n";
                    
           Shader helper_shader("","",helper_shader_cs_text);
           
           helper_shader.use();
           
-     //     this->texture_color->bind_image(0,GL_TEXTURE_CUBE_MAP_POSITIVE_X,0);
-    //      helper_shader.run_compute(1,1,1);
-    //      this->texture_color->load_from_gpu();
-    //      this->texture_color->save_ppms("cubemap_images/acc/compute");
-
-          // for some reason we have to set the filter to linear, otherwise imagestore doesn't work - why?
-          // doesn't work with MIPMAPS other than level 0 - TODO :(
-     //     glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-
-          this->texture_distance->bind_image(0,0);
+          glGenerateTextureMipmap(this->texture_distance->get_texture_object());
+          
+          this->texture_distance->bind_image(0,1);
           helper_shader.run_compute(1,1,1);
           this->texture_distance->load_from_gpu();
           this->texture_distance->multiply(0.01);
-          this->texture_distance->save_ppms("cubemap_images/acc/compute");
-          
+       
           glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,this->distance_min_filter);
-
-ErrorWriter::checkGlErrors("aaaa",true);
         }
         
       /**
