@@ -1792,9 +1792,9 @@ class TextureCubeMap: public Texture
           this->image_bottom->set_size(mipmap_size,mipmap_size);
         }
  
-      void bind_image(unsigned int unit, unsigned int mip_level)
+      void bind_image(unsigned int unit, unsigned int mip_level, GLuint mode = GL_READ_WRITE)
         {
-          glBindImageTexture(unit, this->to, mip_level, GL_FALSE, 0 /*TODO*/, GL_WRITE_ONLY, GL_RGBA32F);
+          glBindImageTexture(unit, this->to, mip_level, GL_FALSE, 0, mode, GL_RGBA32F);
         }
  
       /**
@@ -2428,34 +2428,43 @@ class ReflectionTraceCubeMap: public GPUObject
       /**
        Same as compute_acceleration_texture() but the computed acceleration
        texture is intended for compute shader use, i.e. the subdivisions of
-       the levels are different.
+       the levels are different. This should only be called if texture size is
+       1024 - TODO: generalize for other sizes.
        */
         
       void compute_cs_acceleration_texture()
         {
+          if (this->size != 1024)
+            ErrorWriter::write_error("calling compute_cs_acceleration_texture with wrong texture size");
+            
           string helper_shader_cs_text =
             "#version 430\n"
-            "layout (local_size_x = 1, local_size_y = 1) in;\n"
-            "layout(rgba32f, binding = 0) uniform writeonly imageCube image_color;\n"
+            "layout (local_size_x = 4, local_size_y = 8) in;\n"
+            "layout(rgba32f, binding = 0) uniform readonly imageCube image_src;\n"
+            "layout(rgba32f, binding = 1) uniform writeonly imageCube image_dst;\n"
             
             "void main() {\n"
         
-            "for (int i = 0; i < 100; i++)\n"
-            "  imageStore(image_color,ivec3(i,10,0),vec4(0,0,1000000,1));\n"
+            "  vec4 pixel_sample = imageLoad(image_src,ivec3(gl_WorkGroupID[0],gl_WorkGroupID[1],0));\n"
+            "  imageStore(image_dst,ivec3(gl_WorkGroupID[0],gl_WorkGroupID[1],0),pixel_sample);\n"
+            
+            
+            //"for (int i = 0; i < 100; i++)\n"
+            //"  imageStore(image_color,ivec3(i,10,0),vec4(0,0,1000000,1));\n"
             "}\n";
                    
           Shader helper_shader("","",helper_shader_cs_text);
           
           helper_shader.use();
           
-          glGenerateTextureMipmap(this->texture_distance->get_texture_object());
+          glGenerateTextureMipmap(this->texture_distance->get_texture_object());   // enable mipmaps
           
-          this->texture_distance->bind_image(0,1);
-          helper_shader.run_compute(1,1,1);
-          this->texture_distance->load_from_gpu();
-          this->texture_distance->multiply(0.01);
-       
-          glTextureParameteri(this->texture_distance->get_texture_object(),GL_TEXTURE_MIN_FILTER,this->distance_min_filter);
+          for (int mipmap_level = 2; mipmap_level < 3; mipmap_level++)
+            {
+              this->texture_distance->bind_image(0,0,GL_READ_ONLY);
+              this->texture_distance->bind_image(1,mipmap_level,GL_WRITE_ONLY);
+              helper_shader.run_compute(256,128,1);
+            }
         }
         
       /**
