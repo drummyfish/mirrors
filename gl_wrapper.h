@@ -2437,17 +2437,40 @@ class ReflectionTraceCubeMap: public GPUObject
           if (this->size != 1024)
             ErrorWriter::write_error("calling compute_cs_acceleration_texture with wrong texture size");
             
-          string helper_shader_cs_text =
+          string helper_shader_cs_text =     
+            // atmoicMin/atomicMax can sadly only be used with integer types so we can't easily use reduction,
+            // NV_shader_atomic_float only supports add and exchange
             "#version 430\n"
-            "layout (local_size_x = 4, local_size_y = 8) in;\n"
+            "layout (local_size_x = 1, local_size_y = 1) in;\n"
             "layout(rgba32f, binding = 0) uniform readonly imageCube image_src;\n"
             "layout(rgba32f, binding = 1) uniform writeonly imageCube image_dst;\n"
             
             "void main() {\n"
-        
-            "  vec4 pixel_sample = imageLoad(image_src,ivec3(gl_WorkGroupID[0],gl_WorkGroupID[1],0));\n"
-            "  imageStore(image_dst,ivec3(gl_WorkGroupID[0],gl_WorkGroupID[1],0),pixel_sample);\n"
+            "  float minimum_value =  9999999;\n"
+            "  float maximum_value = -9999999;\n"
             
+            "  int tile_width = gl_NumWorkGroups[0] > gl_NumWorkGroups[1] ? 4 : 8;\n"
+            "  int tile_height = gl_NumWorkGroups[0] > gl_NumWorkGroups[1] ? 8 : 4;\n"
+            
+            "  bool horizontal = tile_width > tile_height;\n"
+            
+            "  for (int side = 0; side < 6; side++) {\n"
+        
+            "    for (int j = 0; j < 4; j++) for (int i = 0; i < 8; i++) {\n"
+            "      vec4 pixel_sample = imageLoad(image_src,ivec3(gl_WorkGroupID[0] * tile_width + i,gl_WorkGroupID[1] * tile_height + j,side));\n"
+            "      minimum_value = pixel_sample.x < minimum_value ? pixel_sample.x : minimum_value;\n"
+            "      maximum_value = pixel_sample.y > maximum_value ? pixel_sample.y : maximum_value;\n"
+            "      }\n"
+            
+            
+                           // side doesnt work?!!??!?!
+            
+            "    ivec3 coords1 = horizontal ? ivec3(2 * gl_WorkGroupID[0],     gl_WorkGroupID[1],side) : ivec3(gl_WorkGroupID[0],2 * gl_WorkGroupID[1],side);\n"
+            "    ivec3 coords2 = horizontal ? ivec3(2 * gl_WorkGroupID[0] + 1, gl_WorkGroupID[1],side) : ivec3(gl_WorkGroupID[0],2 * gl_WorkGroupID[1] + 1,side);\n"
+            
+            "    imageStore(image_dst,coords1,vec4(minimum_value,maximum_value,0,0));\n"
+            "    imageStore(image_dst,coords2,vec4(minimum_value,maximum_value,0,0));\n"
+            "  }\n"
             
             //"for (int i = 0; i < 100; i++)\n"
             //"  imageStore(image_color,ivec3(i,10,0),vec4(0,0,1000000,1));\n"
