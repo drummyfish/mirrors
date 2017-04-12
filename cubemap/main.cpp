@@ -337,7 +337,7 @@ void save_images()
   int cube_index = 0;
   cubemaps[cube_index]->get_texture_normal()->save_ppms("cubemap_images/cubemap_normal");
 
-  for (int mip_level = 0; mip_level < 8; mip_level++)
+  for (unsigned int mip_level = 0; mip_level < cubemaps[cube_index]->get_texture_distance()->get_number_of_mipmap_levels(); mip_level++)
     {
       cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(mip_level);
       cubemaps[cube_index]->get_texture_distance()->load_from_gpu();

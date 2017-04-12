@@ -1686,6 +1686,12 @@ class Texture: public Printable, public GPUObject
           return glm::max((unsigned int) 1,base_size / int(pow(2,this->mipmap_level)));
         }
       
+      unsigned int compute_mipmap_levels(unsigned int width, unsigned int height)
+        {
+          unsigned int maximum = width > height ? width : height;
+          return floor(log2(maximum));
+        }
+      
     public:
       virtual void bind(unsigned int unit) = 0;  
 
@@ -1697,6 +1703,8 @@ class Texture: public Printable, public GPUObject
        */
         
       virtual void set_mipmap_level(unsigned int level) = 0;
+      
+      virtual unsigned int get_number_of_mipmap_levels() = 0;
       
       GLuint get_texture_object()
         {
@@ -1778,6 +1786,11 @@ class TextureCubeMap: public Texture
               case GL_TEXTURE_CUBE_MAP_POSITIVE_Y: return this->images[5];
               default: return NULL; break;
             }
+        }
+ 
+      virtual unsigned int get_number_of_mipmap_levels()
+        {
+          return this->compute_mipmap_levels(this->size,this->size);
         }
  
       virtual void set_mipmap_level(unsigned int level)
@@ -2009,7 +2022,12 @@ class Texture2D: public Texture
           this->base_width = width;
           this->base_height = height;
         }
-      
+
+      virtual unsigned int get_number_of_mipmap_levels()
+        {
+          return this->compute_mipmap_levels(this->base_width,this->base_height);
+        }
+        
       virtual void set_mipmap_level(unsigned int level)
         {
           this->mipmap_level = level;
@@ -2462,18 +2480,10 @@ class ReflectionTraceCubeMap: public GPUObject
             "      maximum_value = pixel_sample.y > maximum_value ? pixel_sample.y : maximum_value;\n"
             "      }\n"
             
-            
-                           // side doesnt work?!!??!?!
-            
-            "    ivec3 coords1 = horizontal ? ivec3(2 * gl_WorkGroupID[0],     gl_WorkGroupID[1],side) : ivec3(gl_WorkGroupID[0],2 * gl_WorkGroupID[1],side);\n"
-            "    ivec3 coords2 = horizontal ? ivec3(2 * gl_WorkGroupID[0] + 1, gl_WorkGroupID[1],side) : ivec3(gl_WorkGroupID[0],2 * gl_WorkGroupID[1] + 1,side);\n"
-            
-            "    imageStore(image_dst,coords1,vec4(minimum_value,maximum_value,0,0));\n"
-            "    imageStore(image_dst,coords2,vec4(minimum_value,maximum_value,0,0));\n"
+            // side doesnt work?!!??!?! :(
+  
+            "    imageStore(image_dst,ivec3(gl_WorkGroupID[0],gl_WorkGroupID[1],0),vec4(minimum_value,maximum_value,1000,0));\n"
             "  }\n"
-            
-            //"for (int i = 0; i < 100; i++)\n"
-            //"  imageStore(image_color,ivec3(i,10,0),vec4(0,0,1000000,1));\n"
             "}\n";
                    
           Shader helper_shader("","",helper_shader_cs_text);
@@ -2481,13 +2491,17 @@ class ReflectionTraceCubeMap: public GPUObject
           helper_shader.use();
           
           glGenerateTextureMipmap(this->texture_distance->get_texture_object());   // enable mipmaps
+
+          int mip_levels[] = {0,2,5,7,10};
+          int widths[] = {256,32,8,1};
+          int heights[] = {128,32,4,1};       
           
-          for (int mipmap_level = 2; mipmap_level < 3; mipmap_level++)
+          for (int i = 0; i < 4; i++)
             {
-              this->texture_distance->bind_image(0,0,GL_READ_ONLY);
-              this->texture_distance->bind_image(1,mipmap_level,GL_WRITE_ONLY);
-              helper_shader.run_compute(256,128,1);
-            }
+              this->texture_distance->bind_image(0,mip_levels[i],GL_READ_ONLY);
+              this->texture_distance->bind_image(1,mip_levels[i + 1],GL_WRITE_ONLY);
+              helper_shader.run_compute(widths[i],heights[i],1);
+            }          
         }
         
       /**
