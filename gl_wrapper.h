@@ -1807,7 +1807,7 @@ class TextureCubeMap: public Texture
  
       void bind_image(unsigned int unit, unsigned int mip_level, GLuint mode = GL_READ_WRITE)
         {
-          glBindImageTexture(unit, this->to, mip_level, GL_FALSE, 0, mode, GL_RGBA32F);
+          glBindImageTexture(unit, this->to, mip_level, GL_TRUE, 0, mode, GL_RGBA32F);
         }
  
       /**
@@ -2464,25 +2464,22 @@ class ReflectionTraceCubeMap: public GPUObject
             "layout(rgba32f, binding = 1) uniform writeonly imageCube image_dst;\n"
             
             "void main() {\n"
-            "  float minimum_value =  9999999;\n"
-            "  float maximum_value = -9999999;\n"
-            
             "  int tile_width = gl_NumWorkGroups[0] > gl_NumWorkGroups[1] ? 4 : 8;\n"
             "  int tile_height = gl_NumWorkGroups[0] > gl_NumWorkGroups[1] ? 8 : 4;\n"
             
             "  bool horizontal = tile_width > tile_height;\n"
             
             "  for (int side = 0; side < 6; side++) {\n"
-        
-            "    for (int j = 0; j < 4; j++) for (int i = 0; i < 8; i++) {\n"
+            "  float minimum_value =  9999999;\n"
+            "  float maximum_value = -9999999;\n"
+            
+            "    for (int j = 0; j < tile_height; j++) for (int i = 0; i < tile_width; i++) {\n"
             "      vec4 pixel_sample = imageLoad(image_src,ivec3(gl_WorkGroupID[0] * tile_width + i,gl_WorkGroupID[1] * tile_height + j,side));\n"
             "      minimum_value = pixel_sample.x < minimum_value ? pixel_sample.x : minimum_value;\n"
             "      maximum_value = pixel_sample.y > maximum_value ? pixel_sample.y : maximum_value;\n"
             "      }\n"
             
-            // side doesnt work?!!??!?! :(
-  
-            "    imageStore(image_dst,ivec3(gl_WorkGroupID[0],gl_WorkGroupID[1],0),vec4(minimum_value,maximum_value,1000,0));\n"
+            "    imageStore(image_dst,ivec3(gl_WorkGroupID[0],gl_WorkGroupID[1],side),vec4(minimum_value,maximum_value,0,0));\n"
             "  }\n"
             "}\n";
                    
