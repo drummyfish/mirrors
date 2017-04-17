@@ -258,19 +258,20 @@ void render()
 
     profiler->time_measure_begin(); 
     set_up_pass2();
-    draw_quad();  
+    draw_quad();
     
     #ifdef COMPUTE_SHADER
       // third pass with compute shader
       
+      pixel_storage_buffer->load_from_gpu();
+      cout << mirror_pixels->number_of_pixels << endl; 
+    
       shader_compute->use();
       
       texture_camera_color->bind_image(0);
       
-      shader_compute->run_compute(3,1,1);
-       
-      pixel_storage_buffer->load_from_gpu();
-      cout << mirror_pixels->number_of_pixels << endl;  
+      shader_compute->run_compute(100,1,1);
+        
       shader_quad2->use();
       texture_camera_color->bind(0);
       uniform_texture_color2.update_int(0);
@@ -509,11 +510,9 @@ int main(int argc, char** argv)
     profiler->new_value("pass 2");
     profiler->new_value("mirror fragments");
     
-    CameraHandler::camera_transformation.set_translation(glm::vec3(13.9726,39.3919,-48.0639));
-    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.1825,-10.04,0));
+    CameraHandler::camera_transformation.set_translation(glm::vec3(18.9431,37.1927,-43.4242));
+    CameraHandler::camera_transformation.set_rotation(glm::vec3(0.0275,-10.28,0));
     
-    //CameraHandler::camera_transformation.set_translation(glm::vec3(-78.2378,90.4943,-118.219));
-    //CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.37875,-8.60999,0));
     CameraHandler::translation_step = 2.0;
     
     frame_buffer_cube = new FrameBuffer();
@@ -665,7 +664,7 @@ int main(int argc, char** argv)
       ErrorWriter::checkGlErrors("compute shader init",true);
     #endif
     
-//    session->start();
+    session->start();
     
     #ifdef COMPUTE_SHADER
     delete pixel_storage_buffer;

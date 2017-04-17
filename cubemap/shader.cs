@@ -1,6 +1,6 @@
 #version 430
 
-layout (local_size_x = 8, local_size_y = 1) in;
+layout (local_size_x = 8, local_size_y = 4) in;
 
 layout(rgba32f, binding = 0) uniform writeonly image2D image_color;
 
@@ -12,7 +12,7 @@ struct mirror_pixel
     vec3 ray_position2;     
   };
   
-layout (std430, binding=1) buffer output_buffer_data   // for compute shaders
+layout (std430, binding=1) buffer input_buffer_data   // for compute shaders
   {
     uint number_of_pixels;
     mirror_pixel pixels[];
@@ -20,5 +20,6 @@ layout (std430, binding=1) buffer output_buffer_data   // for compute shaders
   
 void main()
   {
-    imageStore(image_color,ivec2(0,0),vec4(1,0,0,1));
+    mirror_pixel my_pixel = mirror_pixel_buffer.pixels[gl_WorkGroupID[0]];
+    imageStore(image_color,ivec2(my_pixel.x,my_pixel.y),vec4(1,0,0,1));
   }
