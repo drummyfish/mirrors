@@ -9,7 +9,7 @@
 
 #define NEAR 0.01f
 #define FAR 1000.0f
-//#define SHADER_LOG
+#define SHADER_LOG
 
 //#define SELF_REFLECTIONS              // !!! NEEDS TO ALSO BE ENAMBLED IN shader_quad.fs !!!
 #define COMPUTE_SHADER
@@ -270,7 +270,7 @@ void render()
       
       texture_camera_color->bind_image(0);
       
-      shader_compute->run_compute(100,1,1);
+      shader_compute->run_compute(1/* pix / 8*/,1,1);
         
       shader_quad2->use();
       texture_camera_color->bind(0);
@@ -655,7 +655,7 @@ int main(int argc, char** argv)
       pixel_storage_buffer = new StorageBuffer(sizeof(mirror_pixel) * WINDOW_WIDTH * WINDOW_HEIGHT,1);
       mirror_pixels = (mirror_pixels_info *) pixel_storage_buffer->get_data_pointer();
     
-      shader_compute = new Shader("","",file_text("shader.cs"));
+      shader_compute = new Shader("","",file_text("shader.cs",true));
     
       Shader shad3(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad2.fs",true),"");
       shader_quad2 = &shad3;
