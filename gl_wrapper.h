@@ -56,7 +56,7 @@ using namespace std;
 // necessary forward declarations:
   
 void draw_fullscreen_quad(int,int);
-static string file_text(string, bool);
+static string file_text(string, bool, string);
 
 // -------------------------------
 
@@ -215,7 +215,7 @@ static string preprocess_text(string text)
         position3 = position + include_string.length();
         position2 = text.find("\n",position3);
         filename2 = text.substr(position3,position2 - position3);
-        text = text.replace(position,position2 - position,file_text(filename2,false));
+        text = text.replace(position,position2 - position,file_text(filename2,false,""));
         include_limit--;
       }
           
@@ -226,13 +226,14 @@ static string preprocess_text(string text)
   }
   
 /**
-  * Gets a text of given file.
+  * Gets a text of given shader file.
   * 
   * @param preprocess if true, directives such as #include will be
   *   preprocessed, otherwise not
+  * @param defines define strings that will be put after the first line
   */
       
-static string file_text(string filename, bool preprocess=false)
+static string file_text(string filename, bool preprocess, string defines)
   {
     std::ifstream stream(filename);
     
@@ -243,6 +244,8 @@ static string file_text(string filename, bool preprocess=false)
     
     std::string result((std::istreambuf_iterator<char>(stream)),std::istreambuf_iterator<char>());
        
+    result.insert(result.find("\n") + 1,defines);
+    
     if (preprocess)
       result = preprocess_text(result);
           

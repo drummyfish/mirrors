@@ -11,14 +11,13 @@
 #define FAR 1000.0f
 #define SHADER_LOG
 
-//#define SELF_REFLECTIONS              // !!! NEEDS TO ALSO BE ENAMBLED IN shader_quad.fs !!!
-#define COMPUTE_SHADER
+// program flags:
 
-#ifndef COMPUTE_SHADER
-  #define CUBEMAP_RESOLUTION 256
-#else
-  #define CUBEMAP_RESOLUTION 1024       // resolution when compute shaders are used, for better subdivision of scceleration texture
-#endif
+bool use_compute_shaders;
+bool self_reflections;
+bool save_debug_images;
+
+unsigned int cubemap_resolution;
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
@@ -56,11 +55,9 @@ UniformVariable uniform_cubemap_position("cubemap_position");
 Shader *shader_3d;                   // for first pass: renders a 3D scene
 Shader *shader_quad;                 // for second pass: draws textures on quad
 
-#ifdef COMPUTE_SHADER
-  Shader *shader_compute;              
-  Shader *shader_quad2;                // only draws a texture modified by compute shader
-  UniformVariable uniform_texture_color2("texture_color");
-#endif
+Shader *shader_compute;              
+Shader *shader_quad2;                // only draws a texture modified by compute shader
+UniformVariable uniform_texture_color2("texture_color");
 
 FrameBuffer *frame_buffer_cube;      // for rendering to cubemap
 FrameBuffer *frame_buffer_camera;    // for "deferred shading" like rendering
@@ -177,13 +174,14 @@ void draw_scene()
         uniform_mirror.update_int(0);
       }
       
-    #ifdef SELF_REFLECTIONS
-      // mirror has to be always drawn for self reflections
-      uniform_model_matrix.update_mat4(transformation_mirror.get_matrix());
-      uniform_mirror.update_int(1);
-      geometry_mirror->draw_as_triangles();
-      uniform_mirror.update_int(0);
-    #endif
+    if (self_reflections)
+      {
+        // mirror has to be always drawn for self reflections
+        uniform_model_matrix.update_mat4(transformation_mirror.get_matrix());
+        uniform_mirror.update_int(1);
+        geometry_mirror->draw_as_triangles();
+        uniform_mirror.update_int(0);
+      }
   }
 
 void draw_quad()  // for the second pass
@@ -250,36 +248,42 @@ void render()
     // 2nd pass:
     shader_log->bind();
    
-    #ifdef COMPUTE_SHADER
-      pixel_storage_buffer->bind();   
-      pixel_storage_buffer->clear();
-      pixel_storage_buffer->update_gpu();
-    #endif
+    if (use_compute_shaders)
+      {
+        pixel_storage_buffer->bind();   
+        pixel_storage_buffer->clear();
+        pixel_storage_buffer->update_gpu();
+      }
 
     profiler->time_measure_begin(); 
     set_up_pass2();
     draw_quad();
     
-    #ifdef COMPUTE_SHADER
-      // third pass with compute shader
+    if (use_compute_shaders)
+      {
+        // third pass with compute shader
       
-      pixel_storage_buffer->load_from_gpu();
-      cout << mirror_pixels->number_of_pixels << endl; 
+        pixel_storage_buffer->load_from_gpu();
+        cout << mirror_pixels->number_of_pixels << endl; 
     
-      shader_compute->use();
+        shader_compute->use();
       
-      texture_camera_color->bind_image(0);
+        texture_camera_color->bind_image(0);
       
-      cubemaps[0]->get_texture_color()->bind_image(1,0,GL_READ_ONLY);
-      cubemaps[1]->get_texture_color()->bind_image(2,0,GL_READ_ONLY);
+        cubemaps[0]->get_texture_color()->bind_image(1,0,GL_READ_ONLY);
       
-      shader_compute->run_compute(100/* pix / 8*/,1,1);
+        cubemaps[0]->get_texture_color()->bind_image(2,0,GL_READ_ONLY);
+        cubemaps[0]->get_texture_color()->bind_image(3,1,GL_READ_ONLY);
+        cubemaps[0]->get_texture_color()->bind_image(4,2,GL_READ_ONLY);
+        cubemaps[0]->get_texture_color()->bind_image(5,3,GL_READ_ONLY);
+      
+        shader_compute->run_compute(100/* pix / 8*/,1,1);
         
-      shader_quad2->use();
-      texture_camera_color->bind(0);
-      uniform_texture_color2.update_int(0);
-      draw_quad();
-    #endif
+        shader_quad2->use();
+        texture_camera_color->bind(0);
+        uniform_texture_color2.update_int(0);
+        draw_quad();
+      }
    
     #ifdef SHADER_LOG    
       shader_log->load_from_gpu();
@@ -321,33 +325,23 @@ void recompute_cubemap_side(ReflectionTraceCubeMap *cube_map, GLuint side)
   
 void save_images()
   {
+    if (!save_debug_images)
+      return;
+        
     cout << "saving images" << endl;
-    
-/*    texture_camera_color->load_from_gpu();
-    texture_camera_color->get_image_data()->save_ppm("camera/color.ppm",false);
-    texture_camera_depth->load_from_gpu();
-    texture_camera_depth->get_image_data()->raise_to_power(256); 
-    texture_camera_depth->get_image_data()->save_ppm("camera/depth.ppm",false); 
-    texture_camera_position->load_from_gpu();
-    texture_camera_position->get_image_data()->save_ppm("camera/position.ppm",false);
-    texture_camera_normal->load_from_gpu();
-    texture_camera_normal->get_image_data()->save_ppm("camera/normal.ppm",false);
-    texture_camera_stencil->load_from_gpu();
-    texture_camera_stencil->get_image_data()->save_ppm("camera/stencil.ppm",false);
-*/  
 
-  double coeff = 0.01;
+    double coeff = 0.01;
 
-  int cube_index = 0;
-  cubemaps[cube_index]->get_texture_normal()->save_ppms("cubemap_images/cubemap_normal");
+    int cube_index = 0;
+    cubemaps[cube_index]->get_texture_normal()->save_ppms("cubemap_images/cubemap_normal");
 
-  for (unsigned int mip_level = 0; mip_level < cubemaps[cube_index]->get_texture_distance()->get_number_of_mipmap_levels(); mip_level++)
-    {
-      cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(mip_level);
-      cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
-      cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
-      cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip" + std::to_string(mip_level));
-    }
+    for (unsigned int mip_level = 0; mip_level < cubemaps[cube_index]->get_texture_distance()->get_number_of_mipmap_levels(); mip_level++)
+      {
+        cubemaps[cube_index]->get_texture_distance()->set_mipmap_level(mip_level);
+        cubemaps[cube_index]->get_texture_distance()->load_from_gpu();
+        cubemaps[cube_index]->get_texture_distance()->multiply(coeff);
+        cubemaps[cube_index]->get_texture_distance()->save_ppms("cubemap_images/acc/cubemap_distance_mip" + std::to_string(mip_level));
+      }
   }
   
 void recompute_cubemap()
@@ -497,6 +491,64 @@ void special_callback(int key, int x, int y)
   
 int main(int argc, char** argv)
   { 
+    // parse command line arguments:
+    
+    string shader_defines = "";
+    
+    use_compute_shaders = false;
+    self_reflections = false;
+    save_debug_images = false;
+    cubemap_resolution = 256;
+    
+    for (int i = 1; i < argc; i++)
+      {
+        if (strcmp(argv[i],"-h") == 0)
+          {
+            cout << "nonplanar mirror reflections" << endl;
+            cout << "Miloslav Číž, 2017" << endl << endl;
+            cout << "This program experiments with a new algorithm for rendering" << endl;
+            cout << "nonplanar mirrors. Use mouse + WSAD to move, arrow keys move" << endl;
+            cout << "the mirror, PgUp/PgDn/Home/End rotate the mirror. Available" << endl;
+            cout << "arguments are:" << endl; 
+            cout << "-f        fill unresolved intersections with env. mapping" << endl;
+            cout << "-e        efficient sampling" << endl;
+            cout << "-a        analytical intersections" << endl;
+            cout << "-c        compute shaders" << endl;
+            cout << "-s        self reflections" << endl;
+            cout << "-i        save debug images" << endl;
+            
+            
+            return 0;
+          }
+        if (strcmp(argv[i],"-f") == 0)
+          {
+            shader_defines += "#define FILL_UNRESOLVED\n";
+          }
+        else if (strcmp(argv[i],"-e") == 0)
+          {
+            shader_defines += "#define EFFICIENT_SAMPLING\n";
+          }
+        else if (strcmp(argv[i],"-a") == 0)
+          {
+            shader_defines += "#define ANALYTICAL_INTERSECTION\n";
+          }
+        else if (strcmp(argv[i],"-c") == 0)
+          {
+            shader_defines += "#define COMPUTE_SHADER\n";
+            use_compute_shaders = true;
+            cubemap_resolution = 1024;
+          }
+        else if (strcmp(argv[i],"-s") == 0)
+          {
+            shader_defines += "#define SELF_REFLECTIONS\n";
+            self_reflections = true;
+          }
+        else if (strcmp(argv[i],"-i") == 0)
+          {
+            save_debug_images = true;
+          }
+      }
+      
     GLSession *session;
     session = GLSession::get_instance();
     session->keyboard_callback = CameraHandler::key_callback;
@@ -571,10 +623,10 @@ int main(int argc, char** argv)
     texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
     texture_camera_stencil->update_gpu();
     
-    cubemaps[0] = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].texture_normal","cubemaps[0].position",4,5,6);
+    cubemaps[0] = new ReflectionTraceCubeMap(cubemap_resolution,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].texture_normal","cubemaps[0].position",4,5,6);
     cubemaps[0]->update_gpu();
     
-    cubemaps[1] = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemaps[1].texture_color","cubemaps[1].texture_distance","cubemaps[1].texture_normal","cubemaps[1].position",7,8,9);
+    cubemaps[1] = new ReflectionTraceCubeMap(cubemap_resolution,"cubemaps[1].texture_color","cubemaps[1].texture_distance","cubemaps[1].texture_normal","cubemaps[1].position",7,8,9);
     cubemaps[1]->update_gpu();
     
     ErrorWriter::checkGlErrors("cube map init",true);
@@ -601,8 +653,8 @@ int main(int argc, char** argv)
     texture_mirror_depth->set_parameter_int(GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     texture_mirror_depth->update_gpu();
     
-    Shader shad1(file_text("shader_3d.vs",true),file_text("shader_3d.fs",true),"");
-    Shader shad2(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad.fs",true),"");
+    Shader shad1(file_text("shader_3d.vs",true,""),file_text("shader_3d.fs",true,""),"");
+    Shader shad2(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad.fs",true,shader_defines),"");
     
     shader_3d = &shad1;
     shader_quad = &shad2;
@@ -654,25 +706,27 @@ int main(int argc, char** argv)
     
     ErrorWriter::checkGlErrors("shader log init",true);
     
-    #ifdef COMPUTE_SHADER
-      pixel_storage_buffer = new StorageBuffer(sizeof(mirror_pixel) * WINDOW_WIDTH * WINDOW_HEIGHT,1);
-      mirror_pixels = (mirror_pixels_info *) pixel_storage_buffer->get_data_pointer();
+    if (use_compute_shaders)
+      {
+        pixel_storage_buffer = new StorageBuffer(sizeof(mirror_pixel) * WINDOW_WIDTH * WINDOW_HEIGHT,1);
+        mirror_pixels = (mirror_pixels_info *) pixel_storage_buffer->get_data_pointer();
     
-      shader_compute = new Shader("","",file_text("shader.cs",true));
+        shader_compute = new Shader("","",file_text("shader.cs",true,""));
     
-      Shader shad3(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad2.fs",true),"");
-      shader_quad2 = &shad3;
-      uniform_texture_color2.retrieve_location(shader_quad2);
+        Shader shad3(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad2.fs",true,""),"");
+        shader_quad2 = &shad3;
+        uniform_texture_color2.retrieve_location(shader_quad2);
 
-      ErrorWriter::checkGlErrors("compute shader init",true);
-    #endif
+        ErrorWriter::checkGlErrors("compute shader init",true);
+      }
     
     session->start();
     
-    #ifdef COMPUTE_SHADER
-    delete pixel_storage_buffer;
-    delete shader_compute;
-    #endif
+    if (use_compute_shaders)
+      {
+        delete pixel_storage_buffer;
+        delete shader_compute;
+      }
     
     delete shader_log;
     delete frame_buffer_cube;

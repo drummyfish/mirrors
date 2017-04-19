@@ -7,23 +7,21 @@
 #define USE_ACCELERATION_LEVELS 3      // how many levels in acceleration texture to use
 #define INFINITY_T 999999              // infinite value for t (line parameter) 
 
-#define COMPUTE_SHADER                 // if defined, the fragment shader will only pass the ray parameters to the buffer and leave the color computation for compute shaders
+//#define FILL_UNRESOLVED              // if defined, unresolved intersections are filled with environment mapping
+//#define EFFICIENT_SAMPLING           // sample each pixel at most once, not implemented yet
+//#define DISABLE_ACCELERATION
+//#define ANALYTICAL_INTERSECTION      // this switches between analytical and more precise sampling intersection decision
+//#define SELF_REFLECTIONS
+//#define NO_LOG
+//#define COMPUTE_SHADER               // if defined, the fragment shader will only pass the ray parameters to the buffer and leave the color computation for compute shaders
 
 #define INTERPOLATION_STEP 0.0005
 
-#define ITERATION_LIMIT 1000000      // to avoid infinite loops etc.
+#define ITERATION_LIMIT 1000000        // to avoid infinite loops etc.
 
-//#define EFFECTIVE_SAMPLING           // sample each pixel at most once, not implemented yet
-
-#define DISABLE_ACCELERATION
-//#define ANALYTICAL_INTERSECTION      // this switches between analytical and more precise sampling intersection decision
-
-#define SELF_REFLECTIONS               // !!! NEEDS TO ALSO BE ENAMBLED IN main.cpp !!!
 #define SELF_REFLECTIONS_LIMIT 3
 #define SELF_REFLECTIONS_BIAS  0.001   // these are unfortunately dependent on cubemap positions very much
 #define SELF_REFLECTIONS_BIAS2 0.002
-
-//#define NO_LOG
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
@@ -424,7 +422,7 @@ bool do_log =
                             {
                               // decide the interpolation step:
                             
-                              #ifndef EFFECTIVE_SAMPLING
+                              #ifndef EFFICIENT_SAMPLING
                                 t += INTERPOLATION_STEP;
                               #else
                                 vec2 min_max, next_prev_t, next_prev_dist;
@@ -580,8 +578,22 @@ bool do_log =
                     fragment_color = vec4(1,0,0,1);
                   else
                   #endif
-                    fragment_color = best_candidate_distance <= INTERSECTION_LIMIT ? best_candidate_color * (0.75 - mirror_bounce_counter * 0.2) : vec4(1,0,0,1);
-
+                    if (best_candidate_distance <= INTERSECTION_LIMIT)
+                      fragment_color = best_candidate_color * (0.75 - mirror_bounce_counter * 0.2);
+                    else
+                      {  
+                        #ifdef FILL_UNRESOLVED
+                          vec4 fill_color = sample_color(0,-1 * position1_to_cube_center);
+                        #else
+                          vec4 fill_color = vec4(1,0,0,1); 
+                        #endif
+                    
+                        fragment_color = fill_color;
+                      }
+                    
+                    
+                    
+                    
 #ifndef NO_LOG
 if (do_log)
   {

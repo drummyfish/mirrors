@@ -7,9 +7,14 @@ layout (local_size_x = 1, local_size_y = 32) in;
 
 layout(rgba32f, binding = 0) uniform writeonly image2D image_color;
 
-// TODO: generalize for arbitrary number of cubemaps
+// TODO: generalize for arbitrary number of cubemaps and make nicer
+// cant use both cubemaps, 8 units is maximum :( - try only one
 layout(rgba32f, binding = 1) uniform readonly imageCube cube_color1;
-layout(rgba32f, binding = 2) uniform readonly imageCube cube_color2;
+
+layout(rgba32f, binding = 2) uniform readonly imageCube acc1_0;
+layout(rgba32f, binding = 3) uniform readonly imageCube acc1_1;
+layout(rgba32f, binding = 4) uniform readonly imageCube acc1_2;
+layout(rgba32f, binding = 5) uniform readonly imageCube acc1_3;
 
 struct mirror_pixel
   {
