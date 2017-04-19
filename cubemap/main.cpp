@@ -270,7 +270,10 @@ void render()
       
       texture_camera_color->bind_image(0);
       
-      shader_compute->run_compute(1/* pix / 8*/,1,1);
+      cubemaps[0]->get_texture_color()->bind_image(1,0,GL_READ_ONLY);
+      cubemaps[1]->get_texture_color()->bind_image(2,0,GL_READ_ONLY);
+      
+      shader_compute->run_compute(100/* pix / 8*/,1,1);
         
       shader_quad2->use();
       texture_camera_color->bind(0);
