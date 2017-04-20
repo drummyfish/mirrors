@@ -1,3 +1,10 @@
+/*
+ * A simple header-only library for OpenGL rendering, made as
+ * a part of master's thesis at FIT BUT, 2017.
+ * 
+ * author: Miloslav Číž
+ */
+
 #ifndef GL_WRAPPER_H
 #define GL_WRAPPER_H
 

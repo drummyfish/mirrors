@@ -1,3 +1,11 @@
+/*
+ * OpenGL implementation of cubemap tracing algorithm for rendering
+ * nonplanar mirrors. This has been done as a part of master's thesis
+ * at FIT BUT, 2017.
+ * 
+ * author: Miloslav Číž
+ */
+
 #define NO_UNIFORM_UPDATE_ERRORS
 
 #include "../gl_wrapper.h"
@@ -7,7 +15,7 @@
 
 #define NEAR 0.01f
 #define FAR 1000.0f
-#define SHADER_LOG
+//#define SHADER_LOG
 
 // global flags and parameters, set these with command line parameters:
 
@@ -15,6 +23,8 @@ bool use_compute_shaders = false;
 bool self_reflections = false;
 bool save_debug_images = false;
 bool help = false;
+bool profiling = false;
+bool software = false;
 
 string shader_defines = "";              // defines inserted into shaders
 
@@ -24,6 +34,9 @@ unsigned int window_width = 640;
 unsigned int window_height = 480;
 
 // ---------------------------
+
+unsigned int cubemap_rendering_time;
+unsigned int acc_recompute_time;
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
@@ -116,9 +129,15 @@ mirror_pixels_info *mirror_pixels;      // will be integrated with pixel_storage
 
 void print_info()
   {
+    if (!profiling)
+      return;
+        
     profiler->print();
     cout << "approximate time/mirror pixel (us): " <<  (1000.0 * profiler->get_average_value(1) / profiler->get_average_value(2)) << endl;
     profiler->reset();
+    
+    cout << "last (all) cubemap rendering (ms): " << cubemap_rendering_time << endl;
+    cout << "last (all) acc. struct. recompute (ms): " << acc_recompute_time << endl;
     
     cout << "-----" << endl;
     
@@ -390,9 +409,17 @@ void recompute_cubemap()
   }  
 
 void recompute_all()
-  {
-    recompute_cubemap();
+  {      
+    cout << "rendering cubemaps..." << endl;
     
+    profiler->time_measure_begin();
+    recompute_cubemap();
+    cubemap_rendering_time = profiler->time_measure_end();
+    
+    cout << "recomputing acceleration structures..." << endl;
+    
+    profiler->time_measure_begin();
+
     if (use_compute_shaders)
       {
         cubemaps[0]->compute_cs_acceleration_texture();
@@ -400,12 +427,20 @@ void recompute_all()
       }
     else
       {
-        cubemaps[0]->compute_acceleration_texture();
-        cubemaps[1]->compute_acceleration_texture();
-            // cubemaps[0]->compute_acceleration_texture_sw();
-            // cubemaps[1]->compute_acceleration_texture_sw();
+        if (software)
+          {
+            cubemaps[0]->compute_acceleration_texture_sw();
+            cubemaps[1]->compute_acceleration_texture_sw();
+          }
+        else
+          {
+            cubemaps[0]->compute_acceleration_texture();
+            cubemaps[1]->compute_acceleration_texture();
+          }
       }
-            
+      
+    acc_recompute_time = profiler->time_measure_end();
+    
     ErrorWriter::checkGlErrors("acceleration structure recompute",true);
           
     save_images();    
@@ -535,6 +570,8 @@ void handle_args(int argc, char **argv)
             cout << "-c        compute shaders" << endl;
             cout << "-s        self reflections" << endl;
             cout << "-i        save debug images" << endl;
+            cout << "-p        profiling and other info" << endl;
+            cout << "-s        use SW for acc computation" << endl;
             cout << "-WN       set different window resolutions, N = 0 ... 3" << endl;
             cout << "-CN       set cubemap resolution (non-cs only), N = 0 .. 3 " << endl;
             
@@ -563,9 +600,17 @@ void handle_args(int argc, char **argv)
             shader_defines += "#define SELF_REFLECTIONS\n";
             self_reflections = true;
           }
+        else if (strcmp(argv[i],"-s") == 0)
+          {
+            software = true;
+          }
         else if (strcmp(argv[i],"-i") == 0)
           {
             save_debug_images = true;
+          }
+        else if (strcmp(argv[i],"-p") == 0)
+          {
+            profiling = true;
           }
         else if (strcmp(argv[i],"-W0") == 0)
           {
