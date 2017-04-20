@@ -1,5 +1,4 @@
 #version 430
-#include ../shader_log_include.txt
 #define INTERSECTION_LIMIT 1.5         // what distance means intersection, aplies only if ANALYTICAL_INTERSECTION is not defined
 #define NUMBER_OF_CUBEMAPS 2
 #define ACCELERATION_LEVELS 9
@@ -17,7 +16,7 @@
 
 #define INTERPOLATION_STEP 0.0005
 
-#define ITERATION_LIMIT 1000000        // to avoid infinite loops etc.
+#define ITERATION_LIMIT 1000000        // to avoid infinite loops due to bugs etc.
 
 #define SELF_REFLECTIONS_LIMIT 3
 #define SELF_REFLECTIONS_BIAS  0.001   // these are unfortunately dependent on cubemap positions very much
@@ -301,16 +300,6 @@ void get_acc_cell_info(vec3 current_cube_coords, int acc_level, vec3 cubemap_pos
   
 void main()
   {
-
-#ifndef NO_LOG
-ivec2 log_coord = ivec2(160,105);
-bool do_log =
-  gl_FragCoord.x < (log_coord.x + 1) &&
-  gl_FragCoord.x > log_coord.x &&
-  gl_FragCoord.y > log_coord.y &&
-  gl_FragCoord.y < (log_coord.y + 1);
-#endif
-  
     switch (texture_to_display)
         {
           case 2:
@@ -356,44 +345,6 @@ bool do_log =
                   int skip_counter = 0;
                   bool assertion = true;
                   vec3 debug_vector = vec3(0,0,0);
-
-                  if (texture_to_display == 5)   // debugging code, displays some information in the mirror pixel
-                    {
-                      vec3 helper_coords = cubemap_coordinates_to_2D_coordinates(position1 - cubemaps[0].position);
-                      vec2 helper_min_max = get_acceleration_pixel(0,position1 - cubemaps[0].position,4) / 1000.0;
-                      float helper_distance = get_distance_to_center(0,position1 - cubemaps[0].position) / 1000.0;
-                      bool helper_mask = sample_mirror_mask(0,position1 - vec3(0,30,-30));
-                      vec4 helper_color = sample_color(0,position1 - vec3(0,30,-30));
-                      vec3 helper_normal = sample_normal(0,position1 - vec3(0,30,-30));
-                   
-                      // uncomment one of following
-                    
-                      // --- color ---
-                      //fragment_color = helper_color;
-                    
-                      // -- normal ----
-                      //fragment_color = vec4(helper_normal,0);
-                    
-                      // --- acceleration texture max ---
-                      //fragment_color = vec4(helper_min_max.y,helper_min_max.y,helper_min_max.y,0);
-                    
-                      // --- acceleration texture max - min ---
-                      //fragment_color = vec4(helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,helper_min_max.y - helper_min_max.x,0);
-                   
-                      // --- acceleration on ---
-                      //fragment_color = vec4(float(acceleration_on),float(acceleration_on),float(acceleration_on),0);
-                    
-                      // --- cubemap coordinates ---
-                      //fragment_color = vec4(helper_coords.x,helper_coords.y,helper_coords.z,0);    
-                    
-                      // --- distance to center ---
-                      //fragment_color = vec4(helper_distance,helper_distance,helper_distance,0);
-                    
-                      // --- mirror mask ---
-                      //fragment_color = vec4(helper_mask ? 1 : 0,helper_mask ? 1 : 0,helper_mask ? 1 : 0,0);
-                    
-                      break;
-                    }
               
                   for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
                     {
@@ -590,38 +541,11 @@ bool do_log =
                     
                         fragment_color = fill_color;
                       }
-                    
-                    
-                    
-                    
-#ifndef NO_LOG
-if (do_log)
-  {
-    fragment_color = vec4(0,0,0,0);
-  }
-#endif
-                
+
                   if (texture_to_display == 6)   // debugging code 2, displays some information computed after tracing
                     {
                       float iterations_float = iteration_counter / 10000.0;
-                      float skips_float = skip_counter / 4.0;
-                    
-                      // uncomennt one of the following
-                    
-                      // --- iteartions ---
                       fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
-                    
-                      // --- skips ---
-                      //fragment_color = vec4(skips_float,skips_float,skips_float,0);
-                    
-                      // --- skips and iterations ---
-                      //fragment_color = vec4(iterations_float,skips_float,0,0);
-                    
-                      // --- assert ---
-                      //if (assertion) fragment_color = vec4(1,0,0,0); else fragment_color = vec4(0,1,0,0);
-
-                      // ---  encoded debug vector ---
-                      //fragment_color = vec4(map_minus_n_n_0_1(debug_vector,1000.0),0);
                     }
 
                 #endif // COMPUTE_SHADER

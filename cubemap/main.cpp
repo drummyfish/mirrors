@@ -4,20 +4,26 @@
 
 #define CAMERA_STEP 0.1
 #define ROTATION_STEP 0.1
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 480
 
 #define NEAR 0.01f
 #define FAR 1000.0f
 #define SHADER_LOG
 
-// program flags:
+// global flags and parameters, set these with command line parameters:
 
-bool use_compute_shaders;
-bool self_reflections;
-bool save_debug_images;
+bool use_compute_shaders = false;
+bool self_reflections = false;
+bool save_debug_images = false;
+bool help = false;
 
-unsigned int cubemap_resolution;
+string shader_defines = "";              // defines inserted into shaders
+
+unsigned int cubemap_resolution = 256;
+
+unsigned int window_width = 640;
+unsigned int window_height = 480;
+
+// ---------------------------
 
 TransformationTRSModel transformation_scene;
 TransformationTRSModel transformation_mirror;
@@ -383,6 +389,28 @@ void recompute_cubemap()
     cubemaps[1]->get_texture_normal()->load_from_gpu();   
   }  
 
+void recompute_all()
+  {
+    recompute_cubemap();
+    
+    if (use_compute_shaders)
+      {
+        cubemaps[0]->compute_cs_acceleration_texture();
+        cubemaps[1]->compute_cs_acceleration_texture();
+      }
+    else
+      {
+        cubemaps[0]->compute_acceleration_texture();
+        cubemaps[1]->compute_acceleration_texture();
+            // cubemaps[0]->compute_acceleration_texture_sw();
+            // cubemaps[1]->compute_acceleration_texture_sw();
+      }
+            
+    ErrorWriter::checkGlErrors("acceleration structure recompute",true);
+          
+    save_images();    
+  }
+  
 void special_callback(int key, int x, int y)
   {
     switch(key)
@@ -420,21 +448,7 @@ void special_callback(int key, int x, int y)
           break;
         
         case GLUT_KEY_INSERT:
-          recompute_cubemap();
-          
-          #ifdef COMPUTE_SHADER
-            cubemaps[0]->compute_cs_acceleration_texture();
-            cubemaps[1]->compute_cs_acceleration_texture();
-          #else
-            cubemaps[0]->compute_acceleration_texture();
-            cubemaps[1]->compute_acceleration_texture();
-            // cubemaps[0]->compute_acceleration_texture_sw();
-            // cubemaps[1]->compute_acceleration_texture_sw();
-          #endif
-            
-          ErrorWriter::checkGlErrors("acceleration structure recompute",true);
-          
-          save_images();
+          recompute_all();
           break;
           
         case GLUT_KEY_F1:
@@ -477,11 +491,13 @@ void special_callback(int key, int x, int y)
         case GLUT_KEY_F11:
           cubemaps[0]->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
           cubemaps[0]->transformation.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
+          recompute_all();
           break;
           
         case GLUT_KEY_F12:
           cubemaps[1]->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
           cubemaps[1]->transformation.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
+          recompute_all();
           break;
           
         default:
@@ -489,38 +505,42 @@ void special_callback(int key, int x, int y)
       }
   }
   
-int main(int argc, char** argv)
-  { 
-    // parse command line arguments:
-    
-    string shader_defines = "";
-    
-    use_compute_shaders = false;
-    self_reflections = false;
-    save_debug_images = false;
-    cubemap_resolution = 256;
-    
+void handle_args(int argc, char **argv)
+  {
     for (int i = 1; i < argc; i++)
       {
         if (strcmp(argv[i],"-h") == 0)
           {
             cout << "nonplanar mirror reflections" << endl;
             cout << "Miloslav Číž, 2017" << endl << endl;
-            cout << "This program experiments with a new algorithm for rendering" << endl;
-            cout << "nonplanar mirrors. Use mouse + WSAD to move, arrow keys move" << endl;
-            cout << "the mirror, PgUp/PgDn/Home/End rotate the mirror. Available" << endl;
-            cout << "arguments are:" << endl; 
+            cout << "This program experiments with a new algorithm for rendering mirrors." << endl << endl;
+            cout << "controls:" << endl;
+            
+            cout << "WSAD                  move" << endl;
+            cout << "PgUp/PgDn/Home/End    rotate mirror" << endl;
+            cout << "arrow keys            moeve mirror" << endl;
+            cout << "insert                recompute cubemaps" << endl;
+            cout << "F11, F12              move 1st/2nd cubemap" << endl << endl;
+            cout << "F8                    turn acceleration off/on" << endl;
+            cout << "F1                    render reflections" << endl;
+            cout << "F2                    render normals" << endl;
+            cout << "F3                    render position" << endl;
+            cout << "F4                    render stencil" << endl;
+            cout << "F5                    render iterations" << endl;
+            
+            cout << "command line arguments:" << endl; 
             cout << "-f        fill unresolved intersections with env. mapping" << endl;
             cout << "-e        efficient sampling" << endl;
             cout << "-a        analytical intersections" << endl;
             cout << "-c        compute shaders" << endl;
             cout << "-s        self reflections" << endl;
             cout << "-i        save debug images" << endl;
+            cout << "-WN       set different window resolutions, N = 0 ... 3" << endl;
+            cout << "-CN       set cubemap resolution (non-cs only), N = 0 .. 3 " << endl;
             
-            
-            return 0;
+            help = true;
           }
-        if (strcmp(argv[i],"-f") == 0)
+        else if (strcmp(argv[i],"-f") == 0)
           {
             shader_defines += "#define FILL_UNRESOLVED\n";
           }
@@ -547,8 +567,54 @@ int main(int argc, char** argv)
           {
             save_debug_images = true;
           }
+        else if (strcmp(argv[i],"-W0") == 0)
+          {
+            window_width = 320; window_height = 240;
+          }
+        else if (strcmp(argv[i],"-W1") == 0)
+          {
+            // leave default
+          }
+        else if (strcmp(argv[i],"-W2") == 0)
+          {
+            window_width = 800; window_height = 600;
+          }
+        else if (strcmp(argv[i],"-W3") == 0)
+          {
+            window_width = 1024; window_height = 768;
+          }
+        else if (strcmp(argv[i],"-C0") == 0)
+          {
+            cubemap_resolution = 128;
+          }
+        else if (strcmp(argv[i],"-C1") == 0)
+          {
+            // leave default
+          }
+        else if (strcmp(argv[i],"-C3") == 0)
+          {
+            cubemap_resolution = 512;
+          }
+        else if (strcmp(argv[i],"-C4") == 0)
+          {
+            cubemap_resolution = 1024;
+          }
+        else
+          {
+            cout << "unrecognized option: " << argv[i] << ", ignoring" << endl;
+          }
       }
-      
+  }
+  
+int main(int argc, char** argv)
+  { 
+    // parse command line arguments:
+    
+    handle_args(argc,argv);
+    
+    if (help)
+      return 0;
+    
     GLSession *session;
     session = GLSession::get_instance();
     session->keyboard_callback = CameraHandler::key_callback;
@@ -556,8 +622,8 @@ int main(int argc, char** argv)
     session->mouse_pressed_motion_callback = CameraHandler::mouse_move_callback;
     session->mouse_not_pressed_motion_callback = CameraHandler::mouse_move_callback;
     session->special_callback = special_callback;
-    session->window_size[0] = WINDOW_WIDTH;
-    session->window_size[1] = WINDOW_HEIGHT;
+    session->window_size[0] = window_width;
+    session->window_size[1] = window_height;
     session->init(render);
     
     profiler = new Profiler();
@@ -608,19 +674,19 @@ int main(int argc, char** argv)
     texture_scene->load_ppm("../resources/scene.ppm");
     texture_scene->update_gpu();
 
-    texture_camera_color = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);
+    texture_camera_color = new Texture2D(window_width,window_height,TEXEL_TYPE_COLOR);
     texture_camera_color->update_gpu();
     
-    texture_camera_depth = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_DEPTH);
+    texture_camera_depth = new Texture2D(window_width,window_height,TEXEL_TYPE_DEPTH);
     texture_camera_depth->update_gpu();
     
-    texture_camera_position = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);
+    texture_camera_position = new Texture2D(window_width,window_height,TEXEL_TYPE_COLOR);
     texture_camera_position->update_gpu();
     
-    texture_camera_normal = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);
+    texture_camera_normal = new Texture2D(window_width,window_height,TEXEL_TYPE_COLOR);
     texture_camera_normal->update_gpu();
     
-    texture_camera_stencil = new Texture2D(WINDOW_WIDTH,WINDOW_HEIGHT,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
+    texture_camera_stencil = new Texture2D(window_width,window_height,TEXEL_TYPE_COLOR);  // couldn't get stencil texture to work => using color instead
     texture_camera_stencil->update_gpu();
     
     cubemaps[0] = new ReflectionTraceCubeMap(cubemap_resolution,"cubemaps[0].texture_color","cubemaps[0].texture_distance","cubemaps[0].texture_normal","cubemaps[0].position",4,5,6);
@@ -702,13 +768,13 @@ int main(int argc, char** argv)
     shader_log->set_print_limit(20);
     shader_log->update_gpu();
     
-    special_callback(GLUT_KEY_INSERT,0,0);   // compute the cubemaps
+    recompute_all();   // compute the cubemaps
     
     ErrorWriter::checkGlErrors("shader log init",true);
     
     if (use_compute_shaders)
       {
-        pixel_storage_buffer = new StorageBuffer(sizeof(mirror_pixel) * WINDOW_WIDTH * WINDOW_HEIGHT,1);
+        pixel_storage_buffer = new StorageBuffer(sizeof(mirror_pixel) * window_width * window_height,1);
         mirror_pixels = (mirror_pixels_info *) pixel_storage_buffer->get_data_pointer();
     
         shader_compute = new Shader("","",file_text("shader.cs",true,""));
