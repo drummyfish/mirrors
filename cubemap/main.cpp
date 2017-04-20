@@ -30,6 +30,9 @@ string shader_defines = "";              // defines inserted into shaders
 
 unsigned int cubemap_resolution = 256;
 
+unsigned int reflector = 0;
+unsigned int scene = 0;
+
 unsigned int window_width = 640;
 unsigned int window_height = 480;
 
@@ -574,6 +577,8 @@ void handle_args(int argc, char **argv)
             cout << "-s        use SW for acc computation" << endl;
             cout << "-WN       set different window resolutions, N = 0 ... 3" << endl;
             cout << "-CN       set cubemap resolution (non-cs only), N = 0 .. 3 " << endl;
+            cout << "-GN       mirror geometry model, N = 0 .. 2 " << endl;
+            cout << "-SN       scene model, N = 0 .. 1" << endl;
             
             help = true;
           }
@@ -644,6 +649,14 @@ void handle_args(int argc, char **argv)
           {
             cubemap_resolution = 1024;
           }
+        else if (strcmp(argv[i],"-G0") * strcmp(argv[i],"-G1") * strcmp(argv[i],"-G2") == 0)
+          {
+            reflector = glm::min(2,glm::max(0,argv[i][2] - '0'));
+          }
+        else if (strcmp(argv[i],"-S0") * strcmp(argv[i],"-S1") == 0)
+          {
+            scene = glm::min(2,glm::max(0,argv[i][2] - '0'));
+          }
         else
           {
             cout << "unrecognized option: " << argv[i] << ", ignoring" << endl;
@@ -695,18 +708,21 @@ int main(int argc, char** argv)
     geometry_box = &g2;
     geometry_box->update_gpu();
     
-    Geometry3D g3 = load_obj("../resources/scene.obj");
-    geometry_scene = &g3;
-    geometry_scene->update_gpu();
-    
     Geometry3D g4 = make_box_sharp(6,6,6);
     g4.flip_triangles();
     geometry_sky = &g4;
     geometry_sky->update_gpu();
     
-    Geometry3D g5 = load_obj("../resources/teapot.obj");//make_box_sharp(3,3,3);
-    //Geometry3D g5 = load_obj("../resources/self_reflection_test.obj"); 
+    Geometry3D g5;
     
+    switch (reflector)
+      {
+        case 0: g5 = load_obj("../resources/teapot.obj"); break;
+        case 1: g5 = make_box_sharp(1,1,1); break;
+        case 2: g5 = load_obj("../resources/self_reflection_test.obj"); break;
+        default: break;
+      }
+      
     geometry_mirror = &g5;
     geometry_mirror->update_gpu();
     
@@ -716,7 +732,26 @@ int main(int argc, char** argv)
     
     texture_scene = new Texture2D(16,16,TEXEL_TYPE_COLOR);
     
-    texture_scene->load_ppm("../resources/scene.ppm");
+    Geometry3D g3;
+    
+    if (scene == 0)
+      {
+        g3 = load_obj("../resources/scene.obj");
+        texture_scene->load_ppm("../resources/scene.ppm");
+        transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
+        transformation_scene.set_scale(glm::vec3(6,6,6));
+      }
+    else
+      {
+        g3 = load_obj("../resources/sponza simple.obj");
+        texture_scene->load_ppm("../resources/sponza simple.ppm");
+        transformation_scene.set_translation(glm::vec3(60.0,2.0,-30.0));
+        transformation_scene.set_scale(glm::vec3(60,60,60));
+      }
+    
+    geometry_scene = &g3;
+    geometry_scene->update_gpu();
+    
     texture_scene->update_gpu();
 
     texture_camera_color = new Texture2D(window_width,window_height,TEXEL_TYPE_COLOR);
@@ -746,8 +781,6 @@ int main(int argc, char** argv)
     cubemaps[1]->transformation.set_translation(glm::vec3(-18,35,-22));
     
     transformation_sky.set_scale(glm::vec3(100.0,100.0,100.0));
-    transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
-    transformation_scene.set_scale(glm::vec3(6,6,6));   
     
     //transformation_mirror.set_translation(glm::vec3(0,0,0)); // TEMP
     transformation_mirror.set_translation(glm::vec3(0.0,30.0,-30.0));
