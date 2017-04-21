@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     session = GLSession::get_instance();
     session->init(render);
     
-    compute_shader = new Shader("","",file_text("shader.cs",true));
+    compute_shader = new Shader("","",file_text("shader.cs",true,""));
     buffer = new StorageBuffer(24,1);      // 3 * 8 workgroups
     compute_shader->use();
     compute_shader->run_compute(3,1,1);    // launch 3 workgroups

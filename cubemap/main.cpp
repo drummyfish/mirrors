@@ -13,6 +13,9 @@
 #define CAMERA_STEP 0.1
 #define ROTATION_STEP 0.1
 
+#define CAMERA_POSITION 14.8467, 49.5787, -46.4311
+#define CAMERA_ROTATION -0.547712, -3.70633, 0
+
 #define NEAR 0.01f
 #define FAR 1000.0f
 //#define SHADER_LOG
@@ -577,7 +580,7 @@ void handle_args(int argc, char **argv)
             cout << "-s        use SW for acc computation" << endl;
             cout << "-WN       set different window resolutions, N = 0 ... 3" << endl;
             cout << "-CN       set cubemap resolution (non-cs only), N = 0 .. 3 " << endl;
-            cout << "-GN       mirror geometry model, N = 0 .. 2 " << endl;
+            cout << "-MN       mirror geometry model, N = 0 .. 2 " << endl;
             cout << "-SN       scene model, N = 0 .. 1" << endl;
             
             help = true;
@@ -649,7 +652,7 @@ void handle_args(int argc, char **argv)
           {
             cubemap_resolution = 1024;
           }
-        else if (strcmp(argv[i],"-G0") * strcmp(argv[i],"-G1") * strcmp(argv[i],"-G2") == 0)
+        else if (strcmp(argv[i],"-M0") * strcmp(argv[i],"-M1") * strcmp(argv[i],"-M2") == 0)
           {
             reflector = glm::min(2,glm::max(0,argv[i][2] - '0'));
           }
@@ -689,8 +692,8 @@ int main(int argc, char** argv)
     profiler->new_value("pass 2");
     profiler->new_value("mirror fragments");
     
-    CameraHandler::camera_transformation.set_translation(glm::vec3(18.9431,37.1927,-43.4242));
-    CameraHandler::camera_transformation.set_rotation(glm::vec3(0.0275,-10.28,0));
+    CameraHandler::camera_transformation.set_translation(glm::vec3(CAMERA_POSITION));
+    CameraHandler::camera_transformation.set_rotation(glm::vec3(CAMERA_ROTATION));
     
     CameraHandler::translation_step = 2.0;
     

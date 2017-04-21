@@ -68,7 +68,7 @@ int main(int argc, char** argv)
  
     cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;
   
-    Shader shader(file_text("shader.vs"),file_text("shader.fs"),"");
+    Shader shader(file_text("shader.vs",false,""),file_text("shader.fs",false,""),"");
 
     // create the uniform variables:
     uniform_light_direction = new UniformVariable("light_direction");

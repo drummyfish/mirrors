@@ -176,8 +176,8 @@ int main(int argc, char** argv)
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
     
-    CameraHandler::camera_transformation.set_translation(glm::vec3(15.696,46.504,-47.3324));
-    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.37625,2.60668,0));
+    CameraHandler::camera_transformation.set_translation(glm::vec3(14.8467, 49.5787, -46.4311));
+    CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.547712, -3.70633, 0));
     
     Geometry3D g = load_obj("../resources/teapot.obj");
     geometry_teapot = &g;
@@ -209,7 +209,7 @@ int main(int argc, char** argv)
     
     cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;
     
-    Shader shader(file_text("shader.vs"),file_text("shader.fs"),"");
+    Shader shader(file_text("shader.vs",false,""),file_text("shader.fs",false,""),"");
     
     uniform_camera_position = new UniformVariable("camera_position");
     uniform_sampler = new UniformVariable("tex");
