@@ -3407,8 +3407,6 @@ class CameraHandler
  * average values can be retrieved or printed. This class also provides
  * methods for measuring metrics such as time or rasterised fragments
  * (using OpenGL queries).
- * 
- * TODO: fps mesurement is inaccurate, only whole seconds are measured => fix this
  */
   
 class Profiler: public Printable
@@ -3436,6 +3434,7 @@ class Profiler: public Printable
             ErrorWriter::write_error("Initialising profiler object before GLSession was initialised.");
             
           glGenQueries(1,&this->time_query_id);
+          
           glGenQueries(1,&this->fragment_count_query_id);
           this->skip_frames = 32;
           this->frames_to_be_skipped = 0;
@@ -3478,7 +3477,7 @@ class Profiler: public Printable
        * Stops measuring time and returns the time measured from
        * time_measure_start(...) call.
        * 
-       * @return number of miliseconds
+       * @return number of milliseconds
        */
         
       double time_measure_end()
@@ -3529,20 +3528,23 @@ class Profiler: public Printable
               if (this->time_start < 0)
                 this->time_start = time_sec;
             }
-              
+
           this->frame_count++;
 
+          double elapsed_time = clock() - this->time_start;
+          elapsed_time = time_sec - this->time_start;
+              
+          if (elapsed_time >= 5)  // recompute fps after each 5 seconds
+            {
+              this->fps = this->frame_count / (double) elapsed_time;
+              this->frame_count = 0;
+              this->time_start = -1.0;
+            }
+     
           if (this->frames_to_be_skipped <= 0)
             {
               this->frames_recorded_total++;
               this->frames_to_be_skipped = this->skip_frames;
-
-              double elapsed_time = clock() - this->time_start;
-              elapsed_time = time_sec - this->time_start;
-              
-              this->fps = this->frame_count / elapsed_time; 
-              this->frame_count = 0;
-              this->time_start = -1.0;
             }
           else
             {
@@ -3585,7 +3587,7 @@ class Profiler: public Printable
           
           cout << "profiling info:" << endl;
           cout << "  fps: " << this->fps << endl;
-          cout << "  total frames recorded (" << this->skip_frames << " frame skip): " << this->frames_recorded_total << endl;
+          //cout << "  total frames recorded (" << this->skip_frames << " frame skip): " << this->frames_recorded_total << endl;
           cout << "  average values recorded:" << endl;
           
           for (i = 0; i < this->cumulative_values.size(); i++)
