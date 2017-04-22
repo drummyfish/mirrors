@@ -30,6 +30,9 @@ bool help = false;
 bool profiling = false;
 bool software = false;
 bool measure = false;
+bool fill_unresolved = false;
+bool efficient = false;
+bool analytical = false;
 
 string shader_defines = "";              // defines inserted into shaders
 
@@ -591,6 +594,7 @@ void handle_args(int argc, char **argv)
             cout << "-i        save debug images" << endl;
             cout << "-p        profiling and other info" << endl;
             cout << "-s        use SW for acc computation" << endl;
+            cout << "-n        no acceleration" << endl;
             cout << "-m        measure performance" << endl;
             cout << "-WN       set different window resolutions, N = 0 ... 3" << endl;
             cout << "-CN       set cubemap resolution (non-cs only), N = 0 .. 3 " << endl;
@@ -601,26 +605,29 @@ void handle_args(int argc, char **argv)
           }
         else if (strcmp(argv[i],"-f") == 0)
           {
+            fill_unresolved = true;
             shader_defines += "#define FILL_UNRESOLVED\n";
           }
         else if (strcmp(argv[i],"-e") == 0)
           {
+            efficient = true;
             shader_defines += "#define EFFICIENT_SAMPLING\n";
           }
         else if (strcmp(argv[i],"-a") == 0)
           {
+            analytical = true;
             shader_defines += "#define ANALYTICAL_INTERSECTION\n";
           }
         else if (strcmp(argv[i],"-c") == 0)
           {
-            shader_defines += "#define COMPUTE_SHADER\n";
             use_compute_shaders = true;
+            shader_defines += "#define COMPUTE_SHADER\n";
             cubemap_resolution = 1024;
           }
         else if (strcmp(argv[i],"-s") == 0)
           {
-            shader_defines += "#define SELF_REFLECTIONS\n";
             self_reflections = true;
+            shader_defines += "#define SELF_REFLECTIONS\n";
           }
         else if (strcmp(argv[i],"-s") == 0)
           {
@@ -662,6 +669,10 @@ void handle_args(int argc, char **argv)
           {
             cubemap_resolution = 512;
           }
+        else if (strcmp(argv[i],"-n") == 0)
+          {
+            acceleration_on = 0;
+          }
         else if (strcmp(argv[i],"-C4") == 0)
           {
             cubemap_resolution = 1024;
@@ -696,6 +707,12 @@ int main(int argc, char** argv)
     
     cout << "window resolution: " << window_width << " x " << window_height << endl;
     cout << "cubemap resolution: " << cubemap_resolution << endl;
+    cout << "use compute shaders: " << use_compute_shaders << endl;
+    cout << "self reflections: " << self_reflections << endl;
+    cout << "efficient sampling: " << efficient << endl;
+    cout << "software: " << software << endl;
+    cout << "acceleration: " << acceleration_on << endl;
+    cout << "--------" << endl;
           
     GLSession *session;
     session = GLSession::get_instance();
