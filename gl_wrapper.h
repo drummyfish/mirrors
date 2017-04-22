@@ -3513,6 +3513,13 @@ class Profiler: public Printable
             this->cumulative_values[index] += value;
         }
         
+      unsigned int get_cpu_seconds()
+        {
+          time_t time_sec;
+          time(&time_sec);
+          return time_sec;
+        }
+        
       /**
        * This must be called at the end of each rendering frame (for frame skipping
        * call set_fram_skip(...) method).
@@ -3520,19 +3527,15 @@ class Profiler: public Printable
        
       void next_frame()
         {
-          time_t time_sec;
-          time(&time_sec);
-            
           if (this->frame_count >= 0 )
             {
               if (this->time_start < 0)
-                this->time_start = time_sec;
+                this->time_start = this->get_cpu_seconds();
             }
 
           this->frame_count++;
 
-          double elapsed_time = clock() - this->time_start;
-          elapsed_time = time_sec - this->time_start;
+          double elapsed_time = this->get_cpu_seconds() - this->time_start;
               
           if (elapsed_time >= 5)  // recompute fps after each 5 seconds
             {

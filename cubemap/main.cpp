@@ -19,6 +19,7 @@
 #define NEAR 0.01f
 #define FAR 1000.0f
 //#define SHADER_LOG
+#define MEASURE_TIME_S 6
 
 // global flags and parameters, set these with command line parameters:
 
@@ -28,6 +29,7 @@ bool save_debug_images = false;
 bool help = false;
 bool profiling = false;
 bool software = false;
+bool measure = false;
 
 string shader_defines = "";              // defines inserted into shaders
 
@@ -41,6 +43,7 @@ unsigned int window_height = 480;
 
 // ---------------------------
 
+unsigned int measure_start_time_s;
 unsigned int cubemap_rendering_time;
 unsigned int acc_recompute_time;
 
@@ -135,7 +138,7 @@ mirror_pixels_info *mirror_pixels;      // will be integrated with pixel_storage
 
 void print_info()
   {
-    if (!profiling)
+    if (!profiling && !measure)
       return;
         
     profiler->print();
@@ -257,9 +260,9 @@ void render()
     info_countdown--;
     wait_for_key_release = false;
     
-    if (info_countdown < 0)
+    if (! measure && info_countdown < 0)
       {
-        info_countdown = 64;
+        info_countdown = 32;
         print_info();
       }
     
@@ -329,12 +332,16 @@ void render()
     glutSwapBuffers();
 
     profiler->next_frame();
+    
+    if (measure && profiler->get_cpu_seconds() - measure_start_time_s >= MEASURE_TIME_S)
+      {
+        print_info();
+        glutLeaveMainLoop();
+      }
   }
   
 void recompute_cubemap_side(ReflectionTraceCubeMap *cube_map, GLuint side) 
   {
-    cout << "rendering side" << endl;
-    
     frame_buffer_cube->set_textures
       (
         cube_map->get_texture_depth(),side,
@@ -529,6 +536,11 @@ void special_callback(int key, int x, int y)
             }
           break;
           
+        case GLUT_KEY_F9:
+          CameraHandler::camera_transformation.set_translation(glm::vec3(CAMERA_POSITION));
+          CameraHandler::camera_transformation.set_rotation(glm::vec3(CAMERA_ROTATION));
+          break;
+          
         case GLUT_KEY_F11:
           cubemaps[0]->transformation.set_translation(CameraHandler::camera_transformation.get_translation());
           cubemaps[0]->transformation.add_translation(CameraHandler::camera_transformation.get_direction_forward() * 5.0f);
@@ -568,6 +580,7 @@ void handle_args(int argc, char **argv)
             cout << "F3                    render position" << endl;
             cout << "F4                    render stencil" << endl;
             cout << "F5                    render iterations" << endl;
+            cout << "F9                    reset camera" << endl;
             
             cout << "command line arguments:" << endl; 
             cout << "-f        fill unresolved intersections with env. mapping" << endl;
@@ -578,6 +591,7 @@ void handle_args(int argc, char **argv)
             cout << "-i        save debug images" << endl;
             cout << "-p        profiling and other info" << endl;
             cout << "-s        use SW for acc computation" << endl;
+            cout << "-m        measure performance" << endl;
             cout << "-WN       set different window resolutions, N = 0 ... 3" << endl;
             cout << "-CN       set cubemap resolution (non-cs only), N = 0 .. 3 " << endl;
             cout << "-MN       mirror geometry model, N = 0 .. 2 " << endl;
@@ -660,6 +674,10 @@ void handle_args(int argc, char **argv)
           {
             scene = glm::min(2,glm::max(0,argv[i][2] - '0'));
           }
+        else if (strcmp(argv[i],"-m") == 0)
+          {
+            measure = true;
+          }
         else
           {
             cout << "unrecognized option: " << argv[i] << ", ignoring" << endl;
@@ -676,6 +694,9 @@ int main(int argc, char** argv)
     if (help)
       return 0;
     
+    cout << "window resolution: " << window_width << " x " << window_height << endl;
+    cout << "cubemap resolution: " << cubemap_resolution << endl;
+          
     GLSession *session;
     session = GLSession::get_instance();
     session->keyboard_callback = CameraHandler::key_callback;
@@ -866,7 +887,9 @@ int main(int argc, char** argv)
 
         ErrorWriter::checkGlErrors("compute shader init",true);
       }
-    
+
+    measure_start_time_s = profiler->get_cpu_seconds();
+      
     session->start();
     
     if (use_compute_shaders)
