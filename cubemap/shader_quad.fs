@@ -21,8 +21,8 @@
 #define ITERATION_LIMIT 1000000        // to avoid infinite loops due to bugs etc.
 
 #define SELF_REFLECTIONS_LIMIT 3
-#define SELF_REFLECTIONS_BIAS  0.002   // these are unfortunately dependent on cubemap positions very much
-#define SELF_REFLECTIONS_BIAS2 0.004
+#define SELF_REFLECTIONS_BIAS  0.0005   // these are unfortunately dependent on cubemap positions very much
+#define SELF_REFLECTIONS_BIAS2 0.003
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
@@ -389,12 +389,7 @@ void main()
                                   );
                               
                                 float distance2 = abs(distance - next_prev_dist.x);
-                                t = next_prev_t.x > t ? next_prev_t.x + 0.0001 : t + INTERPOLATION_STEP;
-                              
-                                if (t > 1.0)  // tmp fix, prevents a mysterious bug that sometimes causes infinite looping
-                                  {
-                                    break;
-                                  }
+                                t = next_prev_t.x > t ? next_prev_t.x + 0.000001 : t + INTERPOLATION_STEP;
                               #endif
                       
                               iteration_counter += 1;

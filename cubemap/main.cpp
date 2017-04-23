@@ -151,20 +151,23 @@ void print_info()
     cout << "last (all) cubemap rendering (ms): " << cubemap_rendering_time << endl;
     cout << "last (all) acc. struct. recompute (ms): " << acc_recompute_time << endl;
     
-    cout << "-----" << endl;
+    if (!measure)
+      {
+        cout << "-----" << endl;
     
-    cout << "camera position: ";
-    print_vec3(CameraHandler::camera_transformation.get_translation());
+        cout << "camera position: ";
+        print_vec3(CameraHandler::camera_transformation.get_translation());
    
-    cout << "camera rotation: ";
-    print_vec3(CameraHandler::camera_transformation.get_rotation()); 
+        cout << "camera rotation: ";
+        print_vec3(CameraHandler::camera_transformation.get_rotation()); 
   
-    cout << "cube1 position: ";
-    print_vec3(cubemaps[0]->transformation.get_translation());
+        cout << "cube1 position: ";
+        print_vec3(cubemaps[0]->transformation.get_translation());
     
-    cout << "camera to cube1: ";
-    print_vec3(glm::normalize(cubemaps[0]->transformation.get_translation() - CameraHandler::camera_transformation.get_translation()));
-    
+        cout << "camera to cube1: ";
+        print_vec3(glm::normalize(cubemaps[0]->transformation.get_translation() - CameraHandler::camera_transformation.get_translation()));
+      }    
+
     cout << "-------" << endl;
   }
 
@@ -574,7 +577,7 @@ void handle_args(int argc, char **argv)
             
             cout << "WSAD                  move" << endl;
             cout << "PgUp/PgDn/Home/End    rotate mirror" << endl;
-            cout << "arrow keys            moeve mirror" << endl;
+            cout << "arrow keys            move mirror" << endl;
             cout << "insert                recompute cubemaps" << endl;
             cout << "F11, F12              move 1st/2nd cubemap" << endl << endl;
             cout << "F8                    turn acceleration off/on" << endl;
@@ -704,6 +707,9 @@ int main(int argc, char** argv)
     
     if (help)
       return 0;
+
+    if (measure)
+      ErrorWriter::enabled = false;
     
     cout << "window resolution: " << window_width << " x " << window_height << endl;
     cout << "cubemap resolution: " << cubemap_resolution << endl;

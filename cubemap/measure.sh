@@ -11,6 +11,11 @@
 ./main -m -W0 -e -n        >> measure_log.txt
 ./main -m -W1 -e -n        >> measure_log.txt
 
+./main -m -C0              >> measure_log.txt
+./main -m -C3              >> measure_log.txt
+./main -m -a -e -C0        >> measure_log.txt
+./main -m -a -C3           >> measure_log.txt
+
 ./main -m -W0 -a           >> measure_log.txt
 ./main -m -W1 -a -e        >> measure_log.txt
 ./main -m -W1 -a -n        >> measure_log.txt
