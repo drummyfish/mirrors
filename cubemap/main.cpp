@@ -600,7 +600,7 @@ void handle_args(int argc, char **argv)
             cout << "-WN       set different window resolutions, N = 0 ... 3" << endl;
             cout << "-CN       set cubemap resolution (non-cs only), N = 0 .. 3 " << endl;
             cout << "-MN       mirror geometry model, N = 0 .. 2 " << endl;
-            cout << "-SN       scene model, N = 0 .. 1" << endl;
+            cout << "-SN       scene model, N = 0 .. 2" << endl;
             
             help = true;
           }
@@ -682,7 +682,7 @@ void handle_args(int argc, char **argv)
           {
             reflector = glm::min(2,glm::max(0,argv[i][2] - '0'));
           }
-        else if (strcmp(argv[i],"-S0") * strcmp(argv[i],"-S1") == 0)
+        else if (strcmp(argv[i],"-S0") * strcmp(argv[i],"-S1") * strcmp(argv[i],"-S2") == 0)
           {
             scene = glm::min(2,glm::max(0,argv[i][2] - '0'));
           }
@@ -781,21 +781,32 @@ int main(int argc, char** argv)
     
     Geometry3D g3;
     
-    if (scene == 0)
+    switch (scene)
       {
-        g3 = load_obj("../resources/scene.obj");
-        texture_scene->load_ppm("../resources/scene.ppm");
-        transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
-        transformation_scene.set_scale(glm::vec3(6,6,6));
+        case 0:
+          g3 = load_obj("../resources/scene.obj");
+          texture_scene->load_ppm("../resources/scene.ppm");
+          transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
+          transformation_scene.set_scale(glm::vec3(6,6,6));
+          break;
+
+        case 1:
+          g3 = load_obj("../resources/sponza simple.obj");
+          texture_scene->load_ppm("../resources/sponza simple.ppm");
+          transformation_scene.set_translation(glm::vec3(60.0,2.0,-30.0));
+          transformation_scene.set_scale(glm::vec3(60,60,60));
+          break;
+
+        case 2:
+        default:
+          g3 = load_obj("../resources/library.obj");
+          texture_scene->load_ppm("../resources/library.ppm");
+          transformation_scene.set_translation(glm::vec3(0.0,2.0,-30.0));
+          transformation_scene.set_rotation(glm::vec3(0,3.14,0));
+          transformation_scene.set_scale(glm::vec3(40,40,40));
+          break;
       }
-    else
-      {
-        g3 = load_obj("../resources/sponza simple.obj");
-        texture_scene->load_ppm("../resources/sponza simple.ppm");
-        transformation_scene.set_translation(glm::vec3(60.0,2.0,-30.0));
-        transformation_scene.set_scale(glm::vec3(60,60,60));
-      }
-    
+ 
     geometry_scene = &g3;
     geometry_scene->update_gpu();
     
