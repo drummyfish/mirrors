@@ -37,10 +37,8 @@ bool analytical = false;
 string shader_defines = "";              // defines inserted into shaders
 
 unsigned int cubemap_resolution = 256;
-
 unsigned int reflector = 0;
 unsigned int scene = 0;
-
 unsigned int window_width = 640;
 unsigned int window_height = 480;
 
@@ -718,6 +716,8 @@ int main(int argc, char** argv)
     cout << "efficient sampling: " << efficient << endl;
     cout << "software: " << software << endl;
     cout << "acceleration: " << acceleration_on << endl;
+    cout << "analytical intersection: " << analytical << endl;
+    cout << "scene:" << scene << endl; 
     cout << "--------" << endl;
           
     GLSession *session;

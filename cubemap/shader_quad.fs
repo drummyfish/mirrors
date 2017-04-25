@@ -22,7 +22,7 @@
 
 #define SELF_REFLECTIONS_LIMIT 3
 #define SELF_REFLECTIONS_BIAS  0.0005   // these are unfortunately dependent on cubemap positions very much
-#define SELF_REFLECTIONS_BIAS2 0.003
+//#define SELF_REFLECTIONS_BIAS2 0.003
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
@@ -315,12 +315,13 @@ void main()
             break;
         
           default:
-            if (texture(texture_stencil, uv_coords) == vec4(1,1,1,0))
+            if (texture(texture_stencil, uv_coords) == vec4(1,1,1,0))  // mirror fragment?
               { 
                 // drawing mirror here              
                 
                 final_intersection_distance = 99999999999.0;
                 final_intersection_color = vec4(0.0,0.0,0.0,1.0);
+                
                 // we cannot use the texture(...) function because it requires implicit derivatives, we need to use textureLod(...)
                   
                 normal = textureLod(texture_normal,uv_coords,0).xyz;
@@ -349,7 +350,7 @@ void main()
                   for (int self_reflection_count = 0; self_reflection_count < SELF_REFLECTIONS_LIMIT; self_reflection_count++)
                     {
                       for (i = 0; i < NUMBER_OF_CUBEMAPS; i++)  // iterate the cubemaps
-                        {   
+                        {
                           position1_to_position2 = position2 - position1;
                           position1_to_cube_center = cubemaps[i].position - position1;
                           cube_coordinates1 = normalize(position1 - cubemaps[i].position);
@@ -361,7 +362,8 @@ void main()
                             next_acceleration_bounds[j] = -1;
    
                           #ifdef SELF_REFLECTIONS
-                            t = mix(SELF_REFLECTIONS_BIAS2,SELF_REFLECTIONS_BIAS,dot(normalize(position1_to_position2),normalize(camera_to_position1))  )    ;
+                            t = SELF_REFLECTIONS_BIAS;
+                            //t = mix(SELF_REFLECTIONS_BIAS2,SELF_REFLECTIONS_BIAS,dot(normalize(position1_to_position2),normalize(camera_to_position1)));
                           #else
                             t = 0;
                           #endif
@@ -540,7 +542,6 @@ void main()
                       float iterations_float = iteration_counter / 10000.0;
                       fragment_color = vec4(iterations_float,iterations_float,iterations_float,0);
                     }
-
                 #endif // COMPUTE_SHADER
               }
             else
