@@ -376,6 +376,7 @@ void save_images()
 
     int cube_index = 0;
     cubemaps[cube_index]->get_texture_normal()->save_ppms("cubemap_images/cubemap_normal");
+    cubemaps[cube_index]->get_texture_color()->save_ppms("cubemap_images/cubemap_color");
 
     for (unsigned int mip_level = 0; mip_level < cubemaps[cube_index]->get_texture_distance()->get_number_of_mipmap_levels(); mip_level++)
       {
@@ -618,6 +619,7 @@ void handle_args(int argc, char **argv)
           {
             analytical = true;
             shader_defines += "#define ANALYTICAL_INTERSECTION\n";
+            shader_defines += "#define USE_ACCELERATION_LEVELS 6\n";
           }
         else if (strcmp(argv[i],"-c") == 0)
           {
@@ -719,7 +721,7 @@ int main(int argc, char** argv)
     cout << "analytical intersection: " << analytical << endl;
     cout << "scene:" << scene << endl; 
     cout << "--------" << endl;
-          
+
     GLSession *session;
     session = GLSession::get_instance();
     session->keyboard_callback = CameraHandler::key_callback;

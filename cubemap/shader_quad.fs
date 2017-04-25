@@ -3,10 +3,13 @@
 #define NUMBER_OF_CUBEMAPS 2
 #define ACCELERATION_LEVELS 9
 #define ACCELERATION_MIPMAP_LEVELS 9
-#define USE_ACCELERATION_LEVELS 3      // how many levels in acceleration texture to use
 #define INFINITY_T 999999              // infinite value for t (line parameter) 
 
 // these defines will be set from main.cpp, they're here just for reference:
+
+#ifndef USE_ACCELERATION_LEVELS
+  #define USE_ACCELERATION_LEVELS 9      // how many levels in acceleration texture to use
+#endif
 
 //#define FILL_UNRESOLVED              // if defined, unresolved intersections are filled with environment mapping
 //#define EFFICIENT_SAMPLING           // sample each pixel at most once, not implemented yet
