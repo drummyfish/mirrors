@@ -132,28 +132,27 @@ float get_distance_to_center(int cubemap_index, vec3 cubemap_coordinates)
     return distance_to_center; 
   }
   
+#define sample_helper(i,t,c) if (i == 0) value = textureLod(cubemaps[0].t,c,0); else value = textureLod(cubemaps[0].t,c,0)
+  
 vec4 sample_color(int cubemap_index, vec3 cubemap_coordinates)
   {
-    if (cubemap_index == 0)  // for some reason we can only index with constants
-      return textureLod(cubemaps[0].texture_color,cubemap_coordinates,0);
-    else
-      return textureLod(cubemaps[1].texture_color,cubemap_coordinates,0);
+    vec4 value;
+    sample_helper(i,texture_color,cubemap_coordinates);
+    return value;
   }
  
 vec3 sample_normal(int cubemap_index, vec3 cubemap_coordinates)
   {
-    if (cubemap_index == 0)  // for some reason we can only index with constants
-      return textureLod(cubemaps[0].texture_normal,cubemap_coordinates,0).xyz;
-    else
-      return textureLod(cubemaps[1].texture_normal,cubemap_coordinates,0).xyz;
+    vec4 value;
+    sample_helper(i,texture_normal,cubemap_coordinates);
+    return value.xyz;
   }
- 
+
 bool sample_mirror_mask(int cubemap_index, vec3 cubemap_coordinates)
   {
-    if (cubemap_index == 0)  // for some reason we can only index with constants
-      return textureLod(cubemaps[0].texture_distance,cubemap_coordinates,0).z > 50;
-    else
-      return textureLod(cubemaps[1].texture_distance,cubemap_coordinates,0).z > 50;
+    vec4 value;
+    sample_helper(i,texture_normal,cubemap_coordinates);
+    return value.z > 50;
   }
   
 vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec3 line_point2, int current_side, int current_x, int current_y, int level)
@@ -335,6 +334,10 @@ void main()
                 
                 position2 = position1 + reflection_vector * 1000;
                 position1_to_position2 = position2 - position1;
+                
+                cube_coordinates_current = vec3(0,0,0);
+                tested_point2 = vec3(0,0,0);
+                intersection_on_mirror = false;
                 
                 #ifdef COMPUTE_SHADER
                   uint pixel_number = atomicAdd(mirror_pixel_buffer.number_of_pixels,1);
