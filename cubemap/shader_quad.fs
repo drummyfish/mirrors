@@ -8,7 +8,7 @@
 // these defines will be set from main.cpp, they're here just for reference:
 
 #ifndef USE_ACCELERATION_LEVELS
-  #define USE_ACCELERATION_LEVELS 9      // how many levels in acceleration texture to use
+  #define USE_ACCELERATION_LEVELS 8      // how many levels in acceleration texture to use
 #endif
 
 //#define FILL_UNRESOLVED              // if defined, unresolved intersections are filled with environment mapping
@@ -21,11 +21,11 @@
 
 #define INTERPOLATION_STEP 0.0005
 
-#define ITERATION_LIMIT 1000000        // to avoid infinite loops due to bugs etc.
+#define ITERATION_LIMIT 100000        // to avoid infinite loops due to bugs etc.
 
 #define SELF_REFLECTIONS_LIMIT 3
-#define SELF_REFLECTIONS_BIAS  0.0005   // these are unfortunately dependent on cubemap positions very much
-//#define SELF_REFLECTIONS_BIAS2 0.003
+#define SELF_REFLECTIONS_BIAS  0.0001   // these are unfortunately dependent on cubemap positions very much
+#define SELF_REFLECTIONS_BIAS2 0.0005
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
@@ -123,6 +123,7 @@ float get_distance_to_center(int cubemap_index, vec3 cubemap_coordinates)
     float distance_to_center;
   
     // note: the reason is explained here - https://www.opengl.org/discussion_boards/showthread.php/171328-Issues-with-sampler-arrays-and-unrolling
+
     if (i == 0)   // for some reason cubemaps[i] causes and error - resolve this later
       distance_to_center = textureLod(cubemaps[0].texture_distance,cubemap_coordinates,0).x;
     else
@@ -365,8 +366,7 @@ void main()
                             next_acceleration_bounds[j] = -1;
    
                           #ifdef SELF_REFLECTIONS
-                            t = SELF_REFLECTIONS_BIAS;
-                            //t = mix(SELF_REFLECTIONS_BIAS2,SELF_REFLECTIONS_BIAS,dot(normalize(position1_to_position2),normalize(camera_to_position1)));
+                            t = mix(SELF_REFLECTIONS_BIAS,SELF_REFLECTIONS_BIAS2,abs(dot(cube_coordinates1,cube_coordinates2)));
                           #else
                             t = 0;
                           #endif
