@@ -151,7 +151,7 @@ vec3 sample_normal(int cubemap_index, vec3 cubemap_coordinates)
 bool sample_mirror_mask(int cubemap_index, vec3 cubemap_coordinates)
   {
     vec4 value;
-    sample_helper(i,texture_normal,cubemap_coordinates);
+    sample_helper(i,texture_distance,cubemap_coordinates);
     return value.z > 50;
   }
   
