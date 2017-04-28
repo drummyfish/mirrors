@@ -14,4 +14,4 @@ the project structure:
   mapping with gl_wrapper.
 - compute shader: Example code for work with compute shaders.
 - cubemap: Implementation of the new non-planar mirror rendering
-  algorithm.
+  algorithm. Run ./main -h for more info.

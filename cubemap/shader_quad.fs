@@ -19,7 +19,9 @@
 //#define NO_LOG
 //#define COMPUTE_SHADER               // if defined, the fragment shader will only pass the ray parameters to the buffer and leave the color computation for compute shaders
 
-#define INTERPOLATION_STEP 0.0005
+#define INTERPOLATION_STEP 0.001
+
+//#define INTERPOLATION_STEP 0.0005
 
 #define ITERATION_LIMIT 100000        // to avoid infinite loops due to bugs etc.
 
