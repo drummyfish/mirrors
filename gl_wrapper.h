@@ -1356,7 +1356,7 @@ class Image2D: public Printable
                 i += 3;
               }
               
-          delete data_buffer;
+          free(data_buffer);
             
           fclose(file_handle);
 
