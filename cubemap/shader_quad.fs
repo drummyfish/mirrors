@@ -1,5 +1,5 @@
 #version 430
-#define INTERSECTION_LIMIT 1.5         // what distance means intersection, aplies only if ANALYTICAL_INTERSECTION is not defined
+#define INTERSECTION_LIMIT 1.5         // what distance means intersection, applies only if ANALYTICAL_INTERSECTION is not defined
 #define NUMBER_OF_CUBEMAPS 2
 #define ACCELERATION_LEVELS 9
 #define ACCELERATION_MIPMAP_LEVELS 9
@@ -10,6 +10,8 @@
 #ifndef USE_ACCELERATION_LEVELS
   #define USE_ACCELERATION_LEVELS 8      // how many levels in acceleration texture to use
 #endif
+
+#define BACKWARD
 
 //#define FILL_UNRESOLVED              // if defined, unresolved intersections are filled with environment mapping
 //#define EFFICIENT_SAMPLING           // sample each pixel at most once, not implemented yet
@@ -23,10 +25,10 @@
 
 //#define INTERPOLATION_STEP 0.0005
 
-#define ITERATION_LIMIT 100000        // to avoid infinite loops due to bugs etc.
+#define ITERATION_LIMIT 100000         // to avoid infinite loops due to bugs etc.
 
 #define SELF_REFLECTIONS_LIMIT 3
-#define SELF_REFLECTIONS_BIAS  0.0001   // these are unfortunately dependent on cubemap positions very much
+#define SELF_REFLECTIONS_BIAS  0.0001  // these are unfortunately dependent on cubemap positions very much
 #define SELF_REFLECTIONS_BIAS2 0.0005
 
 in vec3 transformed_normal;
@@ -95,7 +97,6 @@ float get_plane_line_intersection_parametric(vec3 line_point1, vec3 line_point2,
   {
     // a, b, c:
     vec3 plane_normal = normalize(cross(plane_point2 - plane_point1,plane_point3 - plane_point1));    
-    
     vec3 line_direction_vector = line_point2 - line_point1;
     // d:
     float d = plane_normal.x * plane_point1.x + plane_normal.y * plane_point1.y + plane_normal.z * plane_point1.z;
@@ -120,21 +121,16 @@ float correct_intersection(vec2 correct_values_interval, float t)
     return t;
   }
 
-float get_distance_to_center(int cubemap_index, vec3 cubemap_coordinates)
+// this macro allows to index cubemap textures with non-constant, which is somehow not possible normally
+// note: the reason is explained here - https://www.opengl.org/discussion_boards/showthread.php/171328-Issues-with-sampler-arrays-and-unrolling
+#define sample_helper(i,t,c) if (i == 0) value = textureLod(cubemaps[0].t,c,0); else value = textureLod(cubemaps[1].t,c,0)
+  
+float sample_distance(int cubemap_index, vec3 cubemap_coordinates)
   {
-    float distance_to_center;
-  
-    // note: the reason is explained here - https://www.opengl.org/discussion_boards/showthread.php/171328-Issues-with-sampler-arrays-and-unrolling
-
-    if (i == 0)   // for some reason cubemaps[i] causes and error - resolve this later
-      distance_to_center = textureLod(cubemaps[0].texture_distance,cubemap_coordinates,0).x;
-    else
-      distance_to_center = textureLod(cubemaps[1].texture_distance,cubemap_coordinates,0).x;
-
-    return distance_to_center; 
+    vec4 value;  
+    sample_helper(i,texture_distance,cubemap_coordinates);
+    return value.x; 
   }
-  
-#define sample_helper(i,t,c) if (i == 0) value = textureLod(cubemaps[0].t,c,0); else value = textureLod(cubemaps[0].t,c,0)
   
 vec4 sample_color(int cubemap_index, vec3 cubemap_coordinates)
   {
@@ -458,7 +454,7 @@ void main()
                               // intersection decision:
                   
                               #ifndef ANALYTICAL_INTERSECTION
-                                distance = abs(get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
+                                distance = abs(sample_distance(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2));
                
                                 if (distance < final_intersection_distance)
                                   {
@@ -475,7 +471,7 @@ void main()
                                       }
                                   }
                               #else
-                                distance = get_distance_to_center(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2);
+                                distance = sample_distance(i,cube_coordinates_current) - length(cubemaps[i].position - tested_point2);
                
                                 if (first_iteration)
                                   {
