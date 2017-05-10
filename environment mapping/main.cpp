@@ -66,8 +66,10 @@ void render()
     
     // draw the teapot mirror:
     uniform_mirror->update_uint(1); 
+
     cubemap->update_uniforms();
     cubemap->bind_textures();
+
     uniform_camera_position->update_vec3(CameraHandler::camera_transformation.get_translation());
     uniform_model_matrix->update_mat4(transformation_teapot.get_matrix());
     geometry_teapot->draw_as_triangles();
@@ -209,7 +211,7 @@ int main(int argc, char** argv)
     
     cout << "GL version: '" << glGetString(GL_VERSION) << "'" << endl;
     
-    Shader shader(file_text("shader.vs",false,""),file_text("shader.fs",false,""),"");
+    Shader shader(file_text("shader.vs",false,""),file_text("shader.fs",false,""),"",0,false);   // false - delay the validation, for AMD GPUs
     
     uniform_camera_position = new UniformVariable("camera_position");
     uniform_sampler = new UniformVariable("tex");
@@ -234,13 +236,15 @@ int main(int argc, char** argv)
     cubemap = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemap_texture","","","",1,2,3);
     cubemap->retrieve_uniform_locations(&shader);
     cubemap->update_gpu();
-    
+
     shader.use();
     
     uniform_projection_matrix->update_mat4(projection_matrix);
     uniform_view_matrix->update_mat4(view_matrix);
     uniform_camera_position->update_float_3(0.0,0.0,-1.0);
     uniform_mirror->update_uint(0);
+    
+    shader.validate();     // delayed validation, for AMD GPUs
     
     render_to_cubemap();
     

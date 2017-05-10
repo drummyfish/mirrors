@@ -807,6 +807,25 @@ class Shader
           
           return result;
         }
+
+      void validate()
+        {
+          GLint success = 0;
+          char log[256];
+
+          glValidateProgram(this->shader_program);
+          
+          glGetProgramiv(shader_program,GL_VALIDATE_STATUS,&success);
+          
+          if (!success)
+            {
+              glGetProgramInfoLog(this->shader_program,sizeof(log),NULL,log);
+              cerr << log << endl;
+
+              ErrorWriter::write_error("The shader program is invalid.");
+              this->is_ok = false;
+            }
+        }
       
       /**
        * Initialises a new instance.
@@ -816,10 +835,13 @@ class Shader
        * @param compute_shader_text compute shader source code
        * @param transform_feedback_variables list of output vertex shader variable names
        *   to be recorded in transform feedback, leave empty if you don't want to use
-       *   transform feedback 
+       *   transform feedback
+       * @param do_validate allows to delay the validation of the shader program, because
+       *   it may be needed (for example on AMD GPUs) to set the uniforms before validation,
+       *   the validation can be later done manually with validate() method
        */
       
-      Shader(string vertex_shader_text, string fragment_shader_text, string compute_shader_text, vector<string> *transform_feedback_variables = 0)
+      Shader(string vertex_shader_text, string fragment_shader_text, string compute_shader_text, vector<string> *transform_feedback_variables = 0, bool do_validate = true)
         {    
           char log[256];
          
@@ -881,16 +903,9 @@ class Shader
               ErrorWriter::write_error("Could not link the shader program.");
               this->is_ok = false;
             }
-            
-          glValidateProgram(this->shader_program);
-          
-          glGetProgramiv(shader_program,GL_VALIDATE_STATUS,&success);
-          
-          if (!success)
-            {
-              ErrorWriter::write_error("The shader program is invalid.");
-              this->is_ok = false;
-            }
+
+          if (do_validate)
+            this->validate();
         }
         
       bool loaded_succesfully()
@@ -2369,7 +2384,7 @@ class ReflectionTraceCubeMap: public GPUObject
           result = result && this->uniform_texture_distance->retrieve_location(shader);
           result = result && this->uniform_texture_normal->retrieve_location(shader);
           result = result && this->uniform_position->retrieve_location(shader);
-          
+         
           return result;
         }
         

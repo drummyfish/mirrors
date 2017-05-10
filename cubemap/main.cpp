@@ -858,7 +858,7 @@ int main(int argc, char** argv)
     texture_mirror_depth->update_gpu();
     
     Shader shad1(file_text("shader_3d.vs",true,""),file_text("shader_3d.fs",true,""),"");
-    Shader shad2(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad.fs",true,shader_defines),"");
+    Shader shad2(VERTEX_SHADER_QUAD_TEXT,file_text("shader_quad.fs",true,shader_defines),"",0,false);
     
     shader_3d = &shad1;
     shader_quad = &shad2;
@@ -889,6 +889,18 @@ int main(int argc, char** argv)
     uniform_texture_to_display.retrieve_location(shader_quad);
     uniform_acceleration_on.retrieve_location(shader_quad);
     uniform_camera_position.retrieve_location(shader_quad);
+    
+    
+    shader_quad->use();
+    
+    cubemaps[0]->update_uniforms();
+    cubemaps[1]->update_uniforms();
+    uniform_texture_color.update_int(0);
+    uniform_texture_normal.update_int(1);
+    uniform_texture_position.update_int(2);
+    uniform_texture_stencil.update_int(3);    
+    
+    shader_quad->validate();    // delayed validation, for AMD GPUs
     
     ErrorWriter::checkGlErrors("after init",true);
     
