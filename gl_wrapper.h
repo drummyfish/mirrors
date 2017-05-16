@@ -1,19 +1,14 @@
-/*
- * A simple header-only library for OpenGL rendering, made as
- * a part of master's thesis at FIT BUT, 2017.
- * 
- * author: Miloslav Číž
- */
-
 #ifndef GL_WRAPPER_H
 #define GL_WRAPPER_H
 
 #define GLM_FORCE_RADIANS
+#define GLM_ENABLE_EXPERIMENTAL
 
 /**
  * @file gl_wrapper_h
  * 
- * Simple OpenGL helper header-only library.
+ * Simple OpenGL helper header-only library, made as
+ * part of master's thesis at FIT BUT, 2017.
  * 
  * @author Miloslav Číž
  */
@@ -414,7 +409,6 @@ class GLSession
         {
           this->render_callback = render_callback;
           glutInit(&this->argc, this->argv);
-         
           glutInitDisplayMode(this->display_mode);
           glutInitWindowSize(this->window_size[0],this->window_size[1]);
           glutInitWindowPosition(this->window_position[0],this->window_position[1]);
@@ -424,7 +418,6 @@ class GLSession
           glutPassiveMotionFunc(this->mouse_pressed_motion_callback);
           glutMotionFunc(this->mouse_not_pressed_motion_callback);
           glutIdleFunc(this->render_callback);
-          
           glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE,this->loop_exit_behavior);
           
           if (this->keyboard_callback != 0)
@@ -2843,14 +2836,14 @@ class Geometry3D: public Printable, public GPUObject
       void draw_as_triangles()
         {     
           glBindVertexArray(this->vao);
-          glDrawElements(GL_TRIANGLES,this->triangles.size() * 3,GL_UNSIGNED_INT,0);
+          glDrawElements(GL_TRIANGLES,this->triangles.size(),GL_UNSIGNED_INT,0);
           glBindVertexArray(0);
         };
         
       void draw_as_lines()
         {
           glBindVertexArray(this->vao);
-          glDrawElements(GL_LINE_STRIP,this->triangles.size() * 3,GL_UNSIGNED_INT,0);
+          glDrawElements(GL_LINE_STRIP,this->triangles.size(),GL_UNSIGNED_INT,0);
           glBindVertexArray(0);
         };
         
@@ -3193,8 +3186,7 @@ void parse_obj_line(string line,float data[4][3])
   
 Geometry3D load_obj(string filename, bool flip=false)
   {
-    Geometry3D result;
-    
+    Geometry3D result;   
     ifstream obj_file(filename.c_str());
     string line;
     float obj_line_data[4][3];
@@ -3296,7 +3288,6 @@ Geometry3D load_obj(string filename, bool flip=false)
               break;
           }
       }
-
     obj_file.close();
     return result;
   }

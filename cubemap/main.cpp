@@ -890,7 +890,6 @@ int main(int argc, char** argv)
     uniform_acceleration_on.retrieve_location(shader_quad);
     uniform_camera_position.retrieve_location(shader_quad);
     
-    
     shader_quad->use();
     
     cubemaps[0]->update_uniforms();

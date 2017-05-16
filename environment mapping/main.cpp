@@ -177,7 +177,7 @@ int main(int argc, char** argv)
     session->window_size[0] = WINDOW_WIDTH;
     session->window_size[1] = WINDOW_HEIGHT;
     session->init(render);
-    
+
     CameraHandler::camera_transformation.set_translation(glm::vec3(14.8467, 49.5787, -46.4311));
     CameraHandler::camera_transformation.set_rotation(glm::vec3(-0.547712, -3.70633, 0));
     
@@ -186,11 +186,11 @@ int main(int argc, char** argv)
     geometry_teapot->update_gpu();
     transformation_teapot.set_translation(glm::vec3(0.0,30.0,-30.0));
     transformation_teapot.set_scale(glm::vec3(15.0,15.0,15.0));
-    
+
     Geometry3D g3 = load_obj("../resources/scene.obj");
     geometry_scene = &g3;
     geometry_scene->update_gpu();
-    
+  
     transformation_scene.set_translation(glm::vec3(0.0,0.0,-7.0));
     transformation_scene.set_scale(glm::vec3(6,6,6));
     
@@ -235,19 +235,21 @@ int main(int argc, char** argv)
     frame_buffer_cube = new FrameBuffer();
     cubemap = new ReflectionTraceCubeMap(CUBEMAP_RESOLUTION,"cubemap_texture","","","",1,2,3);
     cubemap->retrieve_uniform_locations(&shader);
-    cubemap->update_gpu();
 
     shader.use();
+
+    cubemap->update_uniforms();
+    cubemap->update_gpu();
     
     uniform_projection_matrix->update_mat4(projection_matrix);
     uniform_view_matrix->update_mat4(view_matrix);
     uniform_camera_position->update_float_3(0.0,0.0,-1.0);
     uniform_mirror->update_uint(0);
-    
+   
     shader.validate();     // delayed validation, for AMD GPUs
     
     render_to_cubemap();
-    
+   
     session->start();
 
     delete uniform_camera_position;

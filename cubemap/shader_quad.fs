@@ -64,6 +64,7 @@ uniform environment_cubemap cubemaps[NUMBER_OF_CUBEMAPS];
 uniform vec3 camera_position;
 uniform int texture_to_display;       // which texture to display (1 = color, 2 = normal etc.)
 uniform int acceleration_on;
+
 uniform sampler2D texture_color;
 uniform sampler2D texture_normal;
 uniform sampler2D texture_position;
@@ -316,10 +317,10 @@ void main()
             break;
         
           default:
-            if (texture(texture_stencil, uv_coords) == vec4(1,1,1,0))  // mirror fragment?
+            if (texture(texture_stencil, uv_coords).x > 0.5)  // mirror fragment?
               { 
                 // drawing mirror here              
-                
+     
                 final_intersection_distance = 99999999999.0;
                 final_intersection_color = vec4(0.0,0.0,0.0,1.0);
                 
@@ -550,7 +551,7 @@ void main()
               }
             else
               fragment_color = texture(texture_color, uv_coords);
-          
+   
             break;  
         }
   }
