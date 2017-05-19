@@ -16,6 +16,14 @@ layout(rgba32f, binding = 3) uniform readonly imageCube acc1_1;
 layout(rgba32f, binding = 4) uniform readonly imageCube acc1_2;
 layout(rgba32f, binding = 5) uniform readonly imageCube acc1_3;
 
+
+/*
+  TODO: sides: take 1st point, get maximum of XYZ => that's first side,
+  do the same for the 2ns (end) point, you get the final side, compute
+  the sides between them.
+ */
+
+
 struct mirror_pixel
   {
     uint x;               

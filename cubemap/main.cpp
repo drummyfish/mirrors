@@ -18,8 +18,8 @@
 
 #define NEAR 0.01f
 #define FAR 1000.0f
-//#define SHADER_LOG
 #define MEASURE_TIME_S 6
+//#define SHADER_LOG
 
 // global flags and parameters, set these with command line parameters:
 
@@ -34,7 +34,7 @@ bool fill_unresolved = false;
 bool efficient = false;
 bool analytical = false;
 
-string shader_defines = "";              // defines inserted into shaders
+string shader_defines = "";           // defines inserted into shaders
 
 unsigned int cubemap_resolution = 256;
 unsigned int reflector = 0;
@@ -56,7 +56,7 @@ Geometry3D *geometry_scene;
 Geometry3D *geometry_sky;             // skybox
 Geometry3D *geometry_line;            // helper marking line
 Geometry3D *geometry_mirror;
-Geometry3D *geometry_box;             // box marking the cube map positions
+Geometry3D *geometry_box;             // box marking the cube map position
 
 ShaderLog *shader_log;
 
@@ -81,15 +81,15 @@ UniformVariable uniform_projection_matrix("projection_matrix");
 UniformVariable uniform_camera_position("camera_position");
 UniformVariable uniform_cubemap_position("cubemap_position");
 
-Shader *shader_3d;                   // for first pass: renders a 3D scene
-Shader *shader_quad;                 // for second pass: draws textures on quad
+Shader *shader_3d;                   // for the first pass: renders a 3D scene
+Shader *shader_quad;                 // for the second pass: draws textures on a quad
 
-Shader *shader_compute;              
+Shader *shader_compute;
 Shader *shader_quad2;                // only draws a texture modified by compute shader
 UniformVariable uniform_texture_color2("texture_color");
 
 FrameBuffer *frame_buffer_cube;      // for rendering to cubemap
-FrameBuffer *frame_buffer_camera;    // for "deferred shading" like rendering
+FrameBuffer *frame_buffer_camera;    // for deferred shading rendering
 
 Texture2D *texture_sky;
 Texture2D *texture_scene;
@@ -131,7 +131,7 @@ typedef struct
     GLuint number_of_pixels;
     mirror_pixel *pixels;
   } mirror_pixels_info;
-  
+
 StorageBuffer* pixel_storage_buffer;    // stores pixels for compute shader
 mirror_pixels_info *mirror_pixels;      // will be integrated with pixel_storage_buffer
 
@@ -842,7 +842,6 @@ int main(int argc, char** argv)
     
     transformation_sky.set_scale(glm::vec3(100.0,100.0,100.0));
     
-    //transformation_mirror.set_translation(glm::vec3(0,0,0)); // TEMP
     transformation_mirror.set_translation(glm::vec3(0.0,30.0,-30.0));
     transformation_mirror.set_scale(glm::vec3(15.0,15.0,15.0));
     transformation_mirror.set_rotation(glm::vec3(0.0,0.0,0));
