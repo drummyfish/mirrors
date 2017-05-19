@@ -11,8 +11,6 @@
   #define USE_ACCELERATION_LEVELS 8      // how many levels in acceleration texture to use
 #endif
 
-#define BACKWARD
-
 //#define FILL_UNRESOLVED              // if defined, unresolved intersections are filled with environment mapping
 //#define EFFICIENT_SAMPLING           // sample each pixel at most once, not implemented yet
 //#define DISABLE_ACCELERATION
@@ -23,24 +21,22 @@
 
 #define INTERPOLATION_STEP 0.001
 
-//#define INTERPOLATION_STEP 0.0005
-
 #define ITERATION_LIMIT 100000         // to avoid infinite loops due to bugs etc.
 
 #define SELF_REFLECTIONS_LIMIT 3
-#define SELF_REFLECTIONS_BIAS  0.0001  // these are unfortunately dependent on cubemap positions very much
+#define SELF_REFLECTIONS_BIAS  0.0001  // these are unfortunately hard to set correctly
 #define SELF_REFLECTIONS_BIAS2 0.0005
 
 in vec3 transformed_normal;
 in vec4 transformed_position;
 in vec2 uv_coords;
 
-struct environment_cubemap
+struct environment_cubemap             // CMO struct
   {
-    samplerCube texture_color;        // contains color
-    samplerCube texture_distance;     // contains distance to cubemap center, this is NOT a depth texture
+    samplerCube texture_color;         // contains color
+    samplerCube texture_distance;      // contains distance to cubemap center, this is NOT a depth texture
     samplerCube texture_normal;
-    vec3 position;                    // cubemap world position
+    vec3 position;                     // cubemap world position
   };
   
 #ifdef COMPUTE_SHADER
@@ -52,7 +48,7 @@ struct mirror_pixel
     vec3 ray_position2;     
   };
   
-layout (std430, binding=1) buffer output_buffer_data   // for compute shaders
+layout (std430, binding=1) buffer output_buffer_data
   {
     uint number_of_pixels;
     mirror_pixel pixels[];
@@ -125,7 +121,7 @@ float correct_intersection(vec2 correct_values_interval, float t)
 // this macro allows to index cubemap textures with non-constant, which is somehow not possible normally
 // note: the reason is explained here - https://www.opengl.org/discussion_boards/showthread.php/171328-Issues-with-sampler-arrays-and-unrolling
 #define sample_helper(i,t,c) if (i == 0) value = textureLod(cubemaps[0].t,c,0); else value = textureLod(cubemaps[1].t,c,0)
-  
+
 float sample_distance(int cubemap_index, vec3 cubemap_coordinates)
   {
     vec4 value;  
@@ -171,7 +167,7 @@ vec2 get_next_prev_acceleration_bound(vec3 cubemap_center, vec3 line_point1, vec
         default: break;
       }
    
-    // compute interval of correct t valus:
+    // compute interval of correct t values:
    
     float helper_t = get_plane_line_intersection_parametric(line_point1,line_point2,cubemap_center,cubemap_center + vector_right,cubemap_center + vector_up);   // intersection with critical plane
 
@@ -227,10 +223,9 @@ vec3 cubemap_coordinates_to_2D_coordinates(vec3 cubemap_coordinates)
   {
     vec3 result = vec3(0,0,0);
     vec3 abs_coordinates= vec3(abs(cubemap_coordinates.x),abs(cubemap_coordinates.y),abs(cubemap_coordinates.z));
-  
-    cubemap_coordinates = normalize(cubemap_coordinates);
-  
     float maximum_axis_value = max(max(abs_coordinates.x,abs_coordinates.y),abs_coordinates.z);
+    
+    cubemap_coordinates = normalize(cubemap_coordinates);
   
     if (maximum_axis_value == abs_coordinates.x)
       {
@@ -368,6 +363,7 @@ void main()
                             next_acceleration_bounds[j] = -1;
    
                           #ifdef SELF_REFLECTIONS
+                            // this has to be figured out yet
                             t = mix(SELF_REFLECTIONS_BIAS,SELF_REFLECTIONS_BIAS2,abs(dot(cube_coordinates1,cube_coordinates2)));
                           #else
                             t = 0;

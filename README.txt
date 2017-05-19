@@ -1,5 +1,5 @@
 This repository contains experiments with new algorithms for rendering
-non-planar mirrors using OpenGL. It is a part of Master's Thesis
+non-planar mirrors using OpenGL. It is a part of master's thesis
 project at FIT BUT.
 
 The repository structure is following:
@@ -27,9 +27,10 @@ Ubuntu Linux. Dependecies of the project (gl_wrapper.h library) are:
   - glm
 
 The main part of the project is located in "cubemap" folder. To get more
-info, make the program and run "./main -h".
+info, make the program and run "./main -h". The core algorithm is
+implemented in shader_quad.fs file.
 
 The repository can be found at GitHub: https://github.com/drummyfish/mirrors.
-All code is provided under GPL license.
+All code is provided under GPL 3.0 license.
 
 Miloslav Číž, 2017
