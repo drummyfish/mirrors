@@ -34,3 +34,7 @@ The repository can be found at GitHub: https://github.com/drummyfish/mirrors.
 All code is provided under GPL 3.0 license.
 
 Miloslav Číž, 2017
+
+Note: additional credit goes to:
+- Ing. Jan Pečiva, Ph.D., the author of the original idea for the implemented algorithm
+- Ing. Tomáš Milet, the supervisor of the work
