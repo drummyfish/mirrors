@@ -1,3 +1,5 @@
+![strip](https://github.com/drummyfish/mirrors/blob/master/strip.png?raw=true)
+
 This repository contains experiments with new algorithms for rendering
 non-planar mirrors using OpenGL. It is a part of master's thesis
 project at FIT BUT.
