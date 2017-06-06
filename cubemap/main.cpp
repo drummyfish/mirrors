@@ -600,7 +600,7 @@ void handle_args(int argc, char **argv)
             cout << "-m        measure performance" << endl;
             cout << "-WN       set different window resolutions, N = 0 ... 3" << endl;
             cout << "-CN       set cubemap resolution (non-cs only), N = 0 .. 3 " << endl;
-            cout << "-MN       mirror geometry model, N = 0 .. 2 " << endl;
+            cout << "-MN       mirror geometry model, N = 0 .. 4 " << endl;
             cout << "-SN       scene model, N = 0 .. 2" << endl;
             
             help = true;
@@ -680,9 +680,9 @@ void handle_args(int argc, char **argv)
           {
             cubemap_resolution = 1024;
           }
-        else if (strcmp(argv[i],"-M0") * strcmp(argv[i],"-M1") * strcmp(argv[i],"-M2") == 0)
+        else if (strcmp(argv[i],"-M0") * strcmp(argv[i],"-M1") * strcmp(argv[i],"-M2") * strcmp(argv[i],"-M3") * strcmp(argv[i],"-M4") == 0)
           {
-            reflector = glm::min(2,glm::max(0,argv[i][2] - '0'));
+            reflector = glm::min(4,glm::max(0,argv[i][2] - '0'));
           }
         else if (strcmp(argv[i],"-S0") * strcmp(argv[i],"-S1") * strcmp(argv[i],"-S2") == 0)
           {
@@ -769,6 +769,8 @@ int main(int argc, char** argv)
         case 0: g5 = load_obj("../resources/teapot.obj"); break;
         case 1: g5 = make_box_sharp(1,1,1); break;
         case 2: g5 = load_obj("../resources/self_reflection_test.obj"); break;
+        case 3: g5 = load_obj("../resources/ball.obj"); break;
+        case 4: g5 = load_obj("../resources/monkey.obj"); break;
         default: break;
       }
       
